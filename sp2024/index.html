@@ -201,9 +201,9 @@
         <li>
             <b>Course grade:</b>
             Your grade is based on the following activities:
-            (1) weekly assignments (45%) -- done individually unless otherwise specified,
+            (1) weekly assignments (40%) -- done individually unless otherwise specified,
             (2) 3x quizzes (30%) -- done individually and in-class,
-            (3) a final project (35%) -- done in groups and same grade for all members of a team.
+            (3) a final project (30%) -- done in groups and same grade for all members of a team.
             Attendance is not mandatory (hence, 0%) but highly encouraged: participation in class is our chance to
             learn more effectively.
             Up to 3% additional credit for any actions taken to improve the course that is brought to the instructors'
@@ -232,7 +232,7 @@
         the solution.
     </p>
     <p>
-        The course has ~12 weekly assignments which will improve both your theoretical understanding
+        The course has ~6 weekly assignments which will improve both your theoretical understanding
         and your practical skills. All assignments contain both written questions and programming parts (mainly in
         Python).
         They will be released on this website, and submissions should be uploaded to Gradescope.
@@ -257,40 +257,36 @@
         <tbody>
         <tr>
             <td>#1</td>
-            <td>Algebra, calculus, probability recap, implementing Skip-Gram model,
+            <td>Algebra, calculus, probability recap,
                 classification, evaluation, comparison to basic
-                features (unigrams, bigrams) and existing word embeddings.
+                features (unigrams, bigrams) and existing word embeddings,
+                understanding softmax function,
+                classification via vector representations, playing with gradient descent.
             </td>
         </tr>
         <tr>
             <td>#2</td>
-            <td>Understanding softmax function, classification via vector representations, playing with gradient
-                descent.
+            <td>PyTorch introduction, automatic differentiation, computation graph, how to use PyTorch on GPUs, basic
+                feedforward network and
+                backpropagation
             </td>
         </tr>
         <tr>
             <td>#3</td>
-            <td>PyTorch introduction, automatic differentiation, computation graph, how to use PyTorch on GPUs, basic
-                feedforward network and
-                backpropagation, Word2vec as a feedforward net with automatic differentiation
-            </td>
-        </tr>
-        <tr>
-            <td>#4</td>
             <td>Neural language model with feedforward network, evaluating language modeling, count-based models,
                 decoding language models
             </td>
         </tr>
         <tr>
-            <td>#5</td>
+            <td>#4</td>
             <td>Recurrent neural language model and evaluation; Transformers</td>
         </tr>
         <tr>
-            <td>#6</td>
+            <td>#5</td>
             <td>Fine-tuning LMs, prompting language models, fine-tuning them, distributed tuning.</td>
         </tr>
         <tr>
-            <td>#7</td>
+            <td>#6</td>
             <td>
                 <!--                Prefix-tuning, adapting existing models; [mis]-Interpreting continuous prompts.-->
                 Prompt engineering, in-context learning; Retrieval-augmented language models
@@ -388,7 +384,7 @@
 </div>
 <hr>
 <div class="container sec">
-    <h2>Midterm exam</h2>
+    <h2>Midterm exams/quizzes</h2>
     <p>
         There will be one in-class midterm. The midterm exam will be paper-based and during the usual class time. This
         midterm exam aims to evaluate students' progress and understanding of ideas presented in the first half of the
@@ -499,9 +495,9 @@
     <table class="table">
         <colgroup>
             <col style="width:12%">
-            <col style="width:16%">
-            <col style="width:65%">
-            <col style="width:21%">
+            <col style="width:20%">
+            <col style="width:50%">
+            <col style="width:35%">
             <col style="width:10%">
         </colgroup>
         <thead>
@@ -515,171 +511,41 @@
         </thead>
         <tbody>
         <tr>
-            <td>#1 - Tue Jan 24</td>
+            <td>#1 - Tue Jan 23</td>
             <td>
                 Course overview
                 <br>
                 Plan and expectations
                 <br>
-                [slides: <a href="files/01.intro.pdf">pdf</a>, <a href="files/01.intro.pptx">pptx</a>]
-            </td>
-            <td></td>
-            <td class="sechighlight5">HW1 released!
-                [<a href="https://www.overleaf.com/read/qnhxbgqnkwcz">tex</a>]
-                [<a href="files/CS_601_471_671_spring2023_homework1.pdf">pdf</a>]
-                [<a href="https://colab.research.google.com/drive/1rl53e8Gt3PebC4lobSMpCHlRZBwK69pb?usp=sharing">colab</a>]
-            </td>
-        </tr>
-        <tr class="sechighlight">
-            <td colspan="5">
-                <b> ⬇️ -- Self-supervised Word Representations</b>
-            </td>
-        </tr>
-        <tr>
-            <td>#2 - Thu Jan 26</td>
-            <td>
-                Word meaning and representation <br>
-                [slides: <a href="files/02.word-level-representations-1.pdf">pdf</a>, <a
-                    href="files/02.word-level-representations.pptx">pptx</a>]
+<!--                [slides: <a href="files/01.intro.pdf">pdf</a>, <a href="files/01.intro.pptx">pptx</a>]-->
+                [slides: <a href="tbd">link</a>]
             </td>
             <td>
-                Suggested Reading: <a href="https://web.stanford.edu/~jurafsky/slp3/6.pdf">Jurafsky & Martin Chapter
-                6</a>
-                <br>
                 Additional Reading:
                 <ol>
                     <li><a href="https://cs231n.github.io/python-numpy-tutorial/">Python / Numpy Tutorial (with Jupyter
                         and Colab)</a></li>
-                    <li><a href="https://lilianweng.github.io/posts/2017-10-15-word-embedding/">Learning Word
-                        Embeddings</a></li>
-                    <li>
-                        <a href="http://preview.d2l.ai/d2l-en/master/chapter_natural-language-processing-pretraining/word2vec.html">Dive
-                            into Deep Learning: Word Embeddings</a></li>
-                    <li><a href="http://preview.d2l.ai/d2l-en/master/chapter_optimization/gd.html">Dive into Deep
-                        Learning: Gradient Descent</a></li>
-                    <li><a href="https://arxiv.org/abs/1301.3781">Efficient Estimation of Word Representations in Vector
-                        Space</a> (Original W2V paper)
-                    </li>
                 </ol>
             </td>
-            <td></td>
-            <td></td>
-        </tr>
-        <tr class="sechighlight2">
-            <td>Fri Jan 27</td>
-            <td>
-                TA Review Session (virtual over Zoom): Math background + Python
-                [<a href="https://jhuapl.zoomgov.com/j/1608300556?pwd=VFJEbWtCa3kzaUo1U0JpWFVQMXYwUT09">zoom link</a>] [<a
-                    href="files/nlp_ss_math_review_27_1_2023.pdf">slides</a>]
+            <td class="sechighlight5">
+                HW1 to be released!
+<!--                [<a href="https://www.overleaf.com/read/qnhxbgqnkwcz">tex</a>]-->
+<!--                [<a href="files/CS_601_471_671_spring2023_homework1.pdf">pdf</a>]-->
+<!--                [<a href="https://colab.research.google.com/drive/1rl53e8Gt3PebC4lobSMpCHlRZBwK69pb?usp=sharing">colab</a>]-->
             </td>
-            <td>Time: 9 - 9:50 AM</td>
-            <td></td>
-            <td></td>
         </tr>
+<!--        <tr class="sechighlight">-->
+<!--            <td colspan="5">-->
+<!--                <b> ⬇️ &#45;&#45; Self-supervised Word Representations</b>-->
+<!--            </td>-->
+<!--        </tr>-->
         <tr>
-            <td>#3 - Tue Jan 31</td>
+            <td>#2 - Thu Jan 25</td>
             <td>
-                Word2vec objective function (continued), inspecting and evaluating word vectors <br>
-                [slides: <a href="files/03.word-level-representations-2.pdf">pdf</a>, <a
-                    href="files/03.word-level-representations-2.pptx">pptx</a>]
-            </td>
-            <td>
-                Suggested Reading: <a href="https://web.stanford.edu/~jurafsky/slp3/6.pdf">Jurafsky & Martin Chapter
-                6</a>
-                <br>
-                Additional Reading:
-                <ol>
-                    <li><a href="https://cs231n.github.io/optimization-1/">Optimization: Stochastic Gradient
-                        Descent </a></li>
-                    <li><a href="https://arxiv.org/abs/1310.4546">Distributed Representations of Words and Phrases
-                        and their Compositionality </a> (Negative Sampling paper)
-                    </li>
-                </ol>
-            </td>
-            <td class="sechighlight5">HW2 released!
-                [<a href="https://www.overleaf.com/read/jkprcrpnnvff">tex</a>]
-                [<a href="files/CS_601_471_671_spring2023_homework2.pdf">pdf</a>]
-                [<a href="https://colab.research.google.com/drive/1nbky4adHIirKwLnmXkZD_YHUXLnWi3Tp?usp=sharing">colab</a>]
-            </td>
-            <td class="sechighlight5">HW1 due</td>
-        </tr>
-        <tr class="sechighlight">
-            <td colspan="5">
-                <b> ⬇️ -- Self-Supervised Representation of Feedforward Neural Language Models</b>
-            </td>
-        </tr>
-        <tr>
-            <td>#4 - Thu Feb 2</td>
-            <td>
-                Word2vec limitations and modeling context <br>
-                feedforward networks <br>
-                Neural nets: brief history <br>
-                Word2vec as simple feedforward net <br>
-                [slides: <a href="files/04.feedforward-nets.pdf">pdf</a>, <a
-                    href="files/04.feedforward-nets.pptx">pptx</a>]
-            </td>
-            <td>
-                Suggested Reading: <a href="https://web.stanford.edu/~jurafsky/slp3/7.pdf">Jurafsky & Martin Chapter
-                7</a>
-                <br>
-                Additional Reading:
-                <ol>
-                    <li><a href="https://cs231n.github.io/neural-networks-1/">Neural Networks: the Architecture </a>
-                    </li>
-                    <li><a href="https://cs231n.github.io/neural-networks-2/">Neural Networks: data and loss </a></li>
-                    <li><a href="http://preview.d2l.ai/d2l-en/master/chapter_multilayer-perceptrons/index.html">Dive
-                        into Deep Learning: Multilayer Perceptron </a></li>
-                    <li><a href="http://preview.d2l.ai/d2l-en/master/chapter_builders-guide/index.html">Dive into Deep
-                        Learning: Practitioners Guide to Neural Networks </a></li>
-                    <li><a href="http://preview.d2l.ai/d2l-en/master/chapter_preliminaries/linear-algebra.html">Dive
-                        into Deep Learning: Linear Algebra in PyTorch</a></li>
-                </ol>
-            </td>
-            <td>
-            </td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>#5 - Tue Feb 7</td>
-            <td>
-                Analytical backpropagation <br>
-                Automatic differentiation <br>
-                Practical tips for training neural networks <br>
-                [slides: <a href="files/05.feedforward-nets-2.pdf">pdf</a>, <a href="files/05.feedforward-nets-2.pptx">pptx</a>]
-            </td>
-            <td>
-                Suggested Reading: <a href="https://web.stanford.edu/~jurafsky/slp3/7.pdf">Jurafsky & Martin Chapter
-                7</a>
-                <br>
-                Additional Reading:
-                <ol>
-                    <li><a href="https://cs231n.github.io/optimization-2/">Neural Networks: Backpropagation</a></li>
-                    <li><a href="https://cs231n.github.io/neural-networks-3/">Neural Networks: Training and empirical
-                        tips </a></li>
-                    <li><a href="https://web.stanford.edu/class/cs224n/readings/gradient-notes.pdf">Computing Neural
-                        Network Gradients</a></li>
-                    <li><a href="http://www.iro.umontreal.ca/~vincentp/ift3395/lectures/backprop_old.pdf">Learning
-                        representations by back-propagating errors</a> (the original backpropagation paper)
-                    </li>
-                    <li><a href="https://github.com/google-research/tuning_playbook">Deep Learning Tuning Playbook</a>
-                    </li>
-                </ol>
-            </td>
-            <td class="sechighlight5">HW3 released!
-                [<a href="https://www.overleaf.com/read/kjmrxwcvvjwr">tex</a>]
-                [<a href="files/CS_601_471_671_spring2023_homework3.pdf">pdf</a>]
-                [<a href="https://colab.research.google.com/drive/1zVg7OeoFB9Vf1slI2--J6Lxp9BqXQ6bz?usp=sharing">colab</a>]
-            </td>
-            <td class="sechighlight5">HW2 due</td>
-        </tr>
-        <tr>
-            <td>#6 - Thu Feb 9</td>
-            <td>
-                Language modeling, N-gram models, evaluating LMs <br>
-                [slides: <a href="files/06.feedforward-nets-3.pdf">pdf</a>, <a href="files/06.feedforward-nets-3.pptx">pptx</a>]
-                <br>
-                [slides: <a href="files/06.neural-language-modeling.pdf">pdf</a>, <a
-                    href="files/06.neural-language-modeling.pptx">pptx</a>]
+                Language modeling, <br>
+                n-gram models, <br>
+                evaluating language models <br>
+                [slides: <a href="tbd">link</a>]
             </td>
             <td>
                 Suggested Reading: <a href="https://web.stanford.edu/~jurafsky/slp3/3.pdf">Jurafsky & Martin Chapter
@@ -687,8 +553,7 @@
                 <br>
                 Additional Reading:
                 <ol>
-                    <li><a href="https://arxiv.org/abs/2104.03474">Revisiting Simple Neural Probabilistic Language
-                        Models </a></li>
+
                     <li><a href="https://www.princeton.edu/~wbialek/rome/refs/shannon_51.pdf">Prediction and Entropy of
                         Printed English </a> (the foundational paper by Shannon on language compression and uncertainty)
                     </li>
@@ -697,58 +562,175 @@
                     </li>
                 </ol>
             </td>
-            <td>
-            </td>
-            <td></td>
-        </tr>
-        <tr class="sechighlight2">
-            <td>Fri Feb 10</td>
-            <td>TA Review Session (virtual over Zoom): Backpropagation and PyTorch</td>
-            <td>Time: 9 - 9:50 AM</td>
             <td></td>
             <td></td>
         </tr>
+<!--        <tr class="sechighlight2">-->
+<!--            <td>Fri Jan 27</td>-->
+<!--            <td>-->
+<!--                TA Review Session (virtual over Zoom): Math background + Python-->
+<!--                [<a href="https://jhuapl.zoomgov.com/j/1608300556?pwd=VFJEbWtCa3kzaUo1U0JpWFVQMXYwUT09">zoom link</a>] [<a-->
+<!--                    href="files/nlp_ss_math_review_27_1_2023.pdf">slides</a>]-->
+<!--            </td>-->
+<!--            <td>Time: 9 - 9:50 AM</td>-->
+<!--            <td></td>-->
+<!--            <td></td>-->
+<!--        </tr>-->
         <tr>
-            <td>#7 - Tue Feb 14</td>
+            <td>#3 - Tue Jan 30</td>
             <td>
-                Measuring LM quality <br>
-                Fixed-window language modeling with FFNs <br>
-                [slides: <a href="files/07.neural-language-modeling-2.pdf">pdf</a>, <a
-                    href="files/07.neural-language-modeling-2.pptx">pptx</a>]
+                feedforward networks, <br>
+                Neural nets: brief history, <br>
+                PyTorch introduction <br>
+<!--                [slides: <a href="files/04.feedforward-nets.pdf">pdf</a>, <a-->
+<!--                    href="files/04.feedforward-nets.pptx">pptx</a>]-->
+                [slides: <a href="tbd">link</a>]
             </td>
             <td>
-                Suggested Reading: <a href="https://web.stanford.edu/~jurafsky/slp3/7.pdf">Jurafsky & Martin Chapter
-                7</a>
+                Suggested Reading: <a href="https://cs231n.github.io/neural-networks-1/">Neural Networks: the Architecture </a>
                 <br>
                 Additional Reading:
                 <ol>
-                    <li><a href="https://www.princeton.edu/~wbialek/rome/refs/shannon_51.pdf">Prediction and Entropy of
-                        Printed English </a>
-                        (the foundational paper by Shannon on language compression and uncertainty)
+                    <li><a href="http://preview.d2l.ai/d2l-en/master/chapter_multilayer-perceptrons/index.html">Dive
+                        into Deep Learning: Multilayer Perceptron </a></li>
+                    <li><a href="https://pytorch.org/docs/stable/index.html">PyTorch documentation</a></li>
+                    <li><a href="https://pytorch.org/tutorials/">These tutorials</a> do a good job of introducing PyTorch.</li>
+                    <li><a href="http://preview.d2l.ai/d2l-en/master/chapter_preliminaries/linear-algebra.html">Dive
+                        into Deep Learning: Linear Algebra in PyTorch</a></li>
+
+                </ol>
+            </td>
+            <td class="sechighlight5">HW2 to be released!
+<!--                [<a href="https://www.overleaf.com/read/jkprcrpnnvff">tex</a>]-->
+<!--                [<a href="files/CS_601_471_671_spring2023_homework2.pdf">pdf</a>]-->
+<!--                [<a href="https://colab.research.google.com/drive/1nbky4adHIirKwLnmXkZD_YHUXLnWi3Tp?usp=sharing">colab</a>]-->
+            </td>
+            <td class="sechighlight5">HW1 due</td>
+        </tr>
+<!--        <tr class="sechighlight">-->
+<!--            <td colspan="5">-->
+<!--                <b> ⬇️ &#45;&#45; Self-Supervised Representation of Feedforward Neural Language Models</b>-->
+<!--            </td>-->
+<!--        </tr>-->
+        <tr>
+            <td>#4 - Thu Feb 1</td>
+            <td>
+                Optimization recap, <br>
+                Analytical backpropagation, <br>
+                [slides: <a href="tbd">link</a>]
+            </td>
+            <td>
+                Suggested Reading: <a href="https://cs231n.github.io/optimization-2/">Neural Networks: Backpropagation</a>
+                <br>
+                Additional Reading:
+                <ol>
+                    <li><a href="https://cs231n.github.io/optimization-1/">Optimization: Stochastic Gradient
+                        Descent </a></li>
+                    <li><a href="http://preview.d2l.ai/d2l-en/master/chapter_optimization/gd.html">Dive into Deep
+                        Learning: Gradient Descent</a></li>
+                    <li><a href="https://cs231n.github.io/neural-networks-2/">Neural Networks: data and loss </a></li>
+                    <li><a href="https://web.stanford.edu/class/cs224n/readings/gradient-notes.pdf">Computing Neural
+                        Network Gradients</a></li>
+                    <li><a href="http://www.iro.umontreal.ca/~vincentp/ift3395/lectures/backprop_old.pdf">Learning
+                        representations by back-propagating errors</a> (the original backpropagation paper)
                     </li>
+                </ol>
+            </td>
+            <td>
+            </td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>#5 - Tue Feb 6</td>
+            <td>
+                Backpropagation recap, <br>
+                Automatic differentiation, <br>
+                More PyTorch, <br>
+                Practical tips for training neural networks, <br>
+                [slides: <a href="tbd">link</a>]
+            </td>
+            <td>
+                Suggested Reading: <a href="https://cs231n.github.io/neural-networks-3/">Neural Networks: Training and empirical
+                        tips </a>
+                <br>
+                Additional Reading:
+                <ol>
+                    <li><a href="https://github.com/google-research/tuning_playbook">Deep Learning Tuning Playbook</a>
+                    </li>
+                    <li><a href="http://preview.d2l.ai/d2l-en/master/chapter_builders-guide/index.html">Dive into Deep
+                        Learning: Practitioners Guide to Neural Networks </a></li>
+                </ol>
+            </td>
+            <td class="sechighlight5">HW3 to be released!
+<!--                [<a href="https://www.overleaf.com/read/kjmrxwcvvjwr">tex</a>]-->
+<!--                [<a href="files/CS_601_471_671_spring2023_homework3.pdf">pdf</a>]-->
+<!--                [<a href="https://colab.research.google.com/drive/1zVg7OeoFB9Vf1slI2&#45;&#45;J6Lxp9BqXQ6bz?usp=sharing">colab</a>]-->
+            </td>
+            <td class="sechighlight5">HW2 due</td>
+        </tr>
+        <tr>
+            <td>#6 - Thu Feb 8</td>
+            <td>
+                Fixed-window language modeling with FFNs <br>
+                [slides: <a href="tbd">link</a>]
+<!--                [slides: <a href="files/07.neural-language-modeling-2.pdf">pdf</a>, <a-->
+<!--                    href="files/07.neural-language-modeling-2.pptx">pptx</a>]-->
+
+<!--                [slides: <a href="files/06.feedforward-nets-3.pdf">pdf</a>, <a href="files/06.feedforward-nets-3.pptx">pptx</a>]-->
+<!--                <br>-->
+<!--                [slides: <a href="files/06.neural-language-modeling.pdf">pdf</a>, <a-->
+<!--                    href="files/06.neural-language-modeling.pptx">pptx</a>]-->
+            </td>
+            <td>
+                Suggested Reading: <a href="https://web.stanford.edu/~jurafsky/slp3/7.pdf">Jurafsky & Martin Chapter 7</a>
+                <br>
+                Additional Reading:
+                <ol>
+<!--                    <li><a href="https://www.princeton.edu/~wbialek/rome/refs/shannon_51.pdf">Prediction and Entropy of-->
+<!--                        Printed English </a>-->
+<!--                        (the foundational paper by Shannon on language compression and uncertainty)-->
+<!--                    </li>-->
                     <li><a href="https://arxiv.org/abs/2104.03474">Revisiting Simple Neural Probabilistic Language
                         Models </a></li>
                 </ol>
             </td>
-            <td class="sechighlight5">HW4 released!
-                [<a href="https://www.overleaf.com/read/hbpgdtbndtqn">tex</a>]
-                [<a href="files/CS_601_471_671_spring2023_homework4.pdf">pdf</a>]
-                [<a href="https://colab.research.google.com/drive/1FfhYkFowZ6h_2nTmKVcwme_TWlSNrqiW?usp=sharing">colab</a>]
+            <td>
+            </td>
+            <td></td>
+        </tr>
+<!--        <tr class="sechighlight2">-->
+<!--            <td>Fri Feb 10</td>-->
+<!--            <td>TA Review Session (virtual over Zoom): Backpropagation and PyTorch</td>-->
+<!--            <td>Time: 9 - 9:50 AM</td>-->
+<!--            <td></td>-->
+<!--            <td></td>-->
+<!--        </tr>-->
+        <tr class="sechighlight5">
+            <td>#7 - Tue Feb 13</td>
+            <td>Quiz 1</td>
+            <td>
+                Topics: everything discussed in class until the beginning of class #6
+            </td>
+            <td class="sechighlight5">HW4 to be released!
+<!--                [<a href="https://www.overleaf.com/read/hbpgdtbndtqn">tex</a>]-->
+<!--                [<a href="files/CS_601_471_671_spring2023_homework4.pdf">pdf</a>]-->
+<!--                [<a href="https://colab.research.google.com/drive/1FfhYkFowZ6h_2nTmKVcwme_TWlSNrqiW?usp=sharing">colab</a>]-->
             </td>
             <td class="sechighlight5">HW3 due</td>
         </tr>
-        <tr class="sechighlight">
-            <td colspan="5">
-                <b> ⬇️ -- Self-Supervised Representation of Recurrent Neural Language Models</b>
-            </td>
-        </tr>
+<!--        <tr class="sechighlight">-->
+<!--            <td colspan="5">-->
+<!--                <b> ⬇️ &#45;&#45; Self-Supervised Representation of Recurrent Neural Language Models</b>-->
+<!--            </td>-->
+<!--        </tr>-->
         <tr>
-            <td>#8 - Thu Feb 16</td>
+            <td>#8 - Thu Feb 15</td>
             <td>
                 Text generation algorithms<br>
                 Recurrent neural networks <br>
                 Encoder-decoder models <br>
-                [slides: <a href="files/08.recurrent-nets.pdf">pdf</a>, <a href="files/08.recurrent-nets.pptx">pptx</a>]
+<!--                [slides: <a href="files/08.recurrent-nets.pdf">pdf</a>, <a href="files/08.recurrent-nets.pptx">pptx</a>]-->
+                [slides: <a href="tbd">link</a>]
             </td>
             <td>
                 Suggested Reading: <a href="https://cs231n.github.io/rnn/">CS231N course notes on RNNs</a>
@@ -778,12 +760,13 @@
             <td></td>
         </tr>
         <tr>
-            <td>#9 - Tue Feb 21</td>
+            <td>#9 - Tue Feb 20</td>
             <td>
                 RNN continued: ELMo <br>
                 Language units and subwords <br>
-                [slides: <a href="files/09.recurrent-nets-2.pdf">pdf</a>, <a
-                    href="files/09.recurrent-nets-2.pptx">pptx</a>]
+<!--                [slides: <a href="files/09.recurrent-nets-2.pdf">pdf</a>, <a-->
+<!--                    href="files/09.recurrent-nets-2.pptx">pptx</a>]-->
+                [slides: <a href="tbd">link</a>]
             </td>
             <td>
                 Suggested Reading: <a href="https://arxiv.org/abs/1802.05365">Deep contextualized word
@@ -795,24 +778,26 @@
                         Tokenization</a></li>
                 </ol>
             </td>
-            <td class="sechighlight5">HW5 released!
-                [<a href="https://www.overleaf.com/read/qctzgxhbmzvs">tex</a>]
-                [<a href="files/CS_601_471_671_spring2023_homework5.pdf">pdf</a>]
-                [<a href="https://colab.research.google.com/drive/1lWMrXbPjJccoRAUc9OzZMQxTnXcPEq7U?usp=sharing">colab</a>]
+            <td class="sechighlight5">HW5 to be released!
+<!--                [<a href="https://www.overleaf.com/read/qctzgxhbmzvs">tex</a>]-->
+<!--                [<a href="files/CS_601_471_671_spring2023_homework5.pdf">pdf</a>]-->
+<!--                [<a href="https://colab.research.google.com/drive/1lWMrXbPjJccoRAUc9OzZMQxTnXcPEq7U?usp=sharing">colab</a>]-->
             </td>
             <td class="sechighlight5">HW4 due</td>
         </tr>
-        <tr class="sechighlight">
-            <td colspan="5">
-                <b> ⬇️ -- Self-Supervised Representation of Transformer Language Models</b>
-            </td>
-        </tr>
+<!--        <tr class="sechighlight">-->
+<!--            <td colspan="5">-->
+<!--                <b> ⬇️ &#45;&#45; Self-Supervised Representation of Transformer Language Models</b>-->
+<!--            </td>-->
+<!--        </tr>-->
         <tr>
-            <td>#10 - Thu Feb 23</td>
+            <td>#10 - Thu Feb 22</td>
             <td>
-                Self-attention <br>
-                Transformer <br>
-                [slides: <a href="files/10.transformers.pdf">pdf</a>, <a href="files/10.transformers.pptx">pptx</a>]
+                Self-attention, <br>
+                Transformer, <br>
+                Encoder-decoder LMs,<br>
+<!--                [slides: <a href="files/10.transformers.pdf">pdf</a>, <a href="files/10.transformers.pptx">pptx</a>]-->
+                [slides: <a href="tbd">link</a>]
             </td>
             <td>
                 Suggested Reading: <br>
@@ -826,21 +811,28 @@
                     <li><a href="http://nlp.seas.harvard.edu/annotated-transformer/">The Annotated Transformer </a></li>
                     <li><a href="https://jalammar.github.io/illustrated-transformer/">The Illustrated Transformer</a>
                     </li>
+                    <li><a href="https://www.jmlr.org/papers/volume21/20-074/20-074.pdf">Exploring the limits
+                of transfer learning with a unified text-to-text transformer</a> (T5 paper)</li>
+                    <li><a href="https://arxiv.org/abs/1910.13461">BART: Denoising Sequence-to-Sequence
+                        Pre-training </a></li>
                 </ol>
             </td>
             <td></td>
             <td></td>
         </tr>
-        <tr class="sechighlight">
-            <td colspan="5">
-                <b> ⬇️ -- Large Language Models</b>
-            </td>
-        </tr>
+<!--        <tr class="sechighlight">-->
+<!--            <td colspan="5">-->
+<!--                <b> ⬇️ &#45;&#45; Large Language Models</b>-->
+<!--            </td>-->
+<!--        </tr>-->
         <tr>
-            <td>#11 - Tue Feb 28</td>
+            <td>#11 - Tue Feb 27</td>
             <td>
-                Encoder family (BERT, RoBERTa, ...)<br>
-                [slides: <a href="files/11.transformers-2.pdf">pdf</a>, <a href="files/11.transformers-2.pptx">pptx</a>]
+                Encoder Transformer family, <br>
+                Decoder family, <br>
+
+<!--                [slides: <a href="files/11.transformers-2.pdf">pdf</a>, <a href="files/11.transformers-2.pptx">pptx</a>]-->
+                [slides: <a href="tbd">link</a>]
             </td>
             <td>
                 Suggested Reading: <a
@@ -850,46 +842,47 @@
                 <ol>
                     <li><a href="https://jalammar.github.io/illustrated-bert/">The Illustrated BERT, ELMo, and co</a>
                     </li>
+                    <li><a href="https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf">Language
+                            Models are Unsupervised Multitask Learners</a></li>
+                    <li><a href="https://jalammar.github.io/illustrated-gpt2/">The Illustrated GPT-2</a></li>
+<!--                    <li><a href="https://arxiv.org/abs/2205.01068">OPT: Open Pre-trained Transformer Language Models</a>-->
+<!--                    </li>-->
                 </ol>
             </td>
-            <td></td>
+            <td class="sechighlight5">HW6 to be released!</td>
             <td class="sechighlight5">HW5 due</td>
         </tr>
         <tr>
-            <td>#12 - Thu Mar 2</td>
+            <td>#12 - Thu Feb 29</td>
             <td>
-                Encoder-Decoder family (T5, BART),<br>
-                Decoder family (GPTk) <br>
-                [slides: <a href="files/12.transformers-3.pdf">pdf</a>, <a href="files/12.transformers-3.pptx">pptx</a>]
+                In-context learning, <br>
+                Making sense of ICL, <br>
+<!--                [slides: <a href="files/12.transformers-3.pdf">pdf</a>, <a href="files/12.transformers-3.pptx">pptx</a>]-->
+                [slides: <a href="tbd">link</a>]
             </td>
             <td>
-                Suggested Reading: <a href="https://www.jmlr.org/papers/volume21/20-074/20-074.pdf">Exploring the limits
-                of transfer learning with a unified text-to-text transformer</a> (T5 paper) <br>
+                Suggested Reading:  <br>
                 Additional Reading:
                 <ol>
-                    <li><a href="https://arxiv.org/abs/1910.13461">BART: Denoising Sequence-to-Sequence
-                        Pre-training </a></li>
-                    <li>
-                        <a href="https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf">Language
-                            Models are Unsupervised Multitask Learners</a></li>
-                    <li><a href="https://jalammar.github.io/illustrated-gpt2/">The Illustrated GPT-2</a></li>
+                    <a href="https://arxiv.org/abs/2005.14165">Language Models are Few-Shot Learners</a>
+                (GPT3 paper)
                 </ol>
             </td>
             <td></td>
             <td></td>
         </tr>
         <tr class="sechighlight5">
-            <td>#13 - Tue Mar 7</td>
+            <td>#13 - Tue Mar 5</td>
             <td>
-                Midterm exam
+                Quiz 2
             </td>
-            <td></td>
+            <td>Topics: everything discussed in class until the beginning of class #12</td>
             <td>
-                HW6 released!
-                [<a href="https://www.overleaf.com/read/dpxxhmszytjr">tex</a>]
-                [<a href="files/CS_601_471_671_spring2023_homework6.pdf">pdf</a>]
+                HW7 to be released!
+<!--                [<a href="https://www.overleaf.com/read/dpxxhmszytjr">tex</a>]-->
+<!--                [<a href="files/CS_601_471_671_spring2023_homework6.pdf">pdf</a>]-->
             </td>
-            <td></td>
+            <td class="sechighlight5">HW6 due</td>
             <!--            <td>-->
             <!--                Hallucination issue <br>-->
             <!--                Calibrating model uncertainties <br>-->
@@ -907,46 +900,19 @@
         <!--        </tr>-->
 
         <tr>
-            <td>#14 - Thu Mar 9</td>
+            <td>#14 - Thu Mar 7</td>
             <td>
-                Final projects <br>
-                [<a href="https://livejohnshopkins-my.sharepoint.com/:p:/g/personal/dkhasha1_jh_edu/EY0Vt97_7gRImSvHcIBtGE8ByQTQS88kKqh8RMi8d1nU-A">slides</a>]
-                <br>
-                Decoder family (GPTk) <br>
-                In-context learning <br>
-                [slides: <a href="files/14.transformers-4.pdf">pdf</a>, <a href="files/14.transformers-4.pptx">pptx</a>]
-            </td>
-            <td>
-                Suggested Reading: <a href="https://arxiv.org/abs/2005.14165">Language Models are Few-Shot Learners</a>
-                (GPT3 paper) <br>
-                Additional Reading:
-                <ol>
-                    <!--                    <li><a href="https://cs231n.github.io/choose-project/">Tips on course project</a></li>-->
-                    <li><a href="https://arxiv.org/abs/2205.01068">OPT: Open Pre-trained Transformer Language Models</a>
-                    </li>
-                </ol>
-            </td>
-            <td></td>
-            <td></td>
-        </tr>
-        <tr class="sechighlight5">
-            <td> Mar 9-17</td>
-            <td colspan="2">Project teaming extravaganza ​</td>
-            <td></td>
-            <td></td>
-        </tr>
-
-        <tr>
-            <td>#15 - Tue Mar 14</td>
-            <td>
-                In-context learning <br>
+                 In-context learning <br>
                 Adapting models with prompting (prompt engineering) <br>
                 Failure modes of in-context learning <br>
-                [slides: <a href="files/15.in-context-learning.pdf">pdf</a>, <a
-                    href="files/15.in-context-learning.pptx">pptx</a>]
+<!--                [slides: <a href="files/15.in-context-learning.pdf">pdf</a>, <a-->
+<!--                    href="files/15.in-context-learning.pptx">pptx</a>]-->
+                [slides: <a href="tbd">link</a>]
+<!--                <br>-->
+<!--                [slides: <a href="files/14.transformers-4.pdf">pdf</a>, <a href="files/14.transformers-4.pptx">pptx</a>]-->
             </td>
             <td>
-                Suggested Reading: <a href="https://arxiv.org/pdf/2102.09690">Calibrate Before Use: Improving Few-Shot
+Suggested Reading: <a href="https://arxiv.org/pdf/2102.09690">Calibrate Before Use: Improving Few-Shot
                 Performance of Language Models</a> <br>
                 Additional Reading:
                 <ol>
@@ -967,12 +933,33 @@
                     <!--                        Reasoning</a></li>-->
                 </ol>
             </td>
-            <td class="sechighlight5">
-                HW7 released!
-                [<a href="https://www.overleaf.com/read/kvhtjytysvjt">tex</a>]
-                [<a href="files/CS_601_471_671_spring2023_homework7.pdf">pdf</a>]
+            <td></td>
+            <td></td>
+        </tr>
+<!--        <tr class="sechighlight5">-->
+<!--            <td> Mar 9-17</td>-->
+<!--            <td colspan="2">Project teaming extravaganza ​</td>-->
+<!--            <td></td>-->
+<!--            <td></td>-->
+<!--        </tr>-->
+
+        <tr>
+            <td>#15 - Tue Mar 12</td>
+            <td>
+                Multi-step prompting <br>
+                Adapting models with parameter change (head-tuning, prompt-tuning, adaptors) <br>
+                <!--                Multilingual properties <br>-->
+                [slides: <a href="tbd">link</a>]
             </td>
-            <td class="sechighlight5">HW6 due</td>
+            <td>
+
+            </td>
+            <td class="sechighlight5">
+                HW8 to be released!
+<!--                [<a href="https://www.overleaf.com/read/kvhtjytysvjt">tex</a>]-->
+<!--                [<a href="files/CS_601_471_671_spring2023_homework7.pdf">pdf</a>]-->
+            </td>
+            <td class="sechighlight5">HW7 due</td>
         </tr>
         <!--        <tr class="sechighlight">-->
         <!--            <td colspan="5">-->
@@ -986,13 +973,9 @@
         <!--            <td></td>-->
         <!--        </tr>-->
         <tr>
-            <td>#16 - Thu Mar 16</td>
+            <td>#16 - Thu Mar 14</td>
             <td>
-                Multi-step reasoning via prompts <br>
-                Adapting models with parameter change (head-tuning, prompt-tuning, adaptors) <br>
-                <!--                Multilingual properties <br>-->
-                [slides: <a href="files/16.in-context-learning-2.pdf">pdf</a>, <a
-                    href="files/16.in-context-learning-2.pptx">pptx</a>]
+
             </td>
             <td>
                 Suggested Reading: <a href="https://arxiv.org/abs/2104.08691">The Power of Scale for Parameter-Efficient
@@ -1010,25 +993,49 @@
 
             </td>
         </tr>
-
-        <tr class="sechighlight4 centered">
-            <td>#17 - Tue Mar 21</td>
-            <td>No Class - Spring Break</td>
-            <td></td>
-            <td></td>
-            <td></td>
-        </tr>
-        <tr class="sechighlight4 centered">
-            <td>#18 - Thu Mar 23</td>
-            <td>No Class - Spring Break</td>
-            <td></td>
-            <td></td>
-            <td></td>
-        </tr>
-
-        <tr>
-            <td>#19 - Tue Mar 28</td>
+                <tr class="sechighlight5">
+            <td>#13 - Tue Mar 5</td>
             <td>
+                Quiz 3
+            </td>
+            <td>
+                Topics: everything discussed in class until the beginning of class #15
+            </td>
+            <td>
+<!--                HW? to be released!-->
+<!--                [<a href="https://www.overleaf.com/read/dpxxhmszytjr">tex</a>]-->
+<!--                [<a href="files/CS_601_471_671_spring2023_homework6.pdf">pdf</a>]-->
+            </td>
+            <td>HW8 due</td>
+            <!--            <td>-->
+            <!--                Hallucination issue <br>-->
+            <!--                Calibrating model uncertainties <br>-->
+            <!--                - Consistency <br>-->
+            <!--                - Sensitivity <br>-->
+            <!--                - Mutual information <br>-->
+            <!--                - Flatness <br>-->
+            <!--            </td>-->
+            <!--            <td>-->
+        </tr>
+
+        <tr class="sechighlight4 centered">
+            <td>#17 - Tue Mar 19</td>
+            <td>No Class - Spring Break</td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr class="sechighlight4 centered">
+            <td>#18 - Thu Mar 21</td>
+            <td>No Class - Spring Break</td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>#19 - Tue Mar 26</td>
+            <td>
+                Final projects, <br>
                 Scaling laws <br>
                 Modifying self-attention for long context <br>
                 <!--                Sparse attention <br>-->
@@ -1065,7 +1072,7 @@
             <td></td>
         </tr>
         <tr>
-            <td>#20 - Thu Mar 30</td>
+            <td>#20 - Thu Mar 28</td>
             <td>
                 Social concerns about LMs: Bias, fairness and toxic language <br>
                 Hallucination, truthfulness, and veracity <br>
@@ -1102,7 +1109,7 @@
                 <!--                </ol>-->
             </td>
             <td class="sechighlight5">
-                HW7 due + <br>
+<!--                HW7 due + <br>-->
                 Project proposals deadline
             </td>
         </tr>
@@ -1113,7 +1120,7 @@
         <!--        </tr>-->
 
         <tr>
-            <td>#21 - Tue Apr 4</td>
+            <td>#21 - Tue Apr 2</td>
             <td>
                 Alignment via language instructions: existing solutions and challenges <br>
                 [slides: <a href="files/21.alignment.pdf">pdf</a>, <a href="files/21.alignment.pptx">pptx</a>]
@@ -1149,10 +1156,11 @@
             <td></td>
         </tr>
         <tr>
-            <td>#22 - Thu Apr 6</td>
+            <td>#22 - Thu Apr 4</td>
             <td>
                 Vision-language models <br>
-                [slides: <a href="files/22.vison-lang-models.pdf">pdf</a>, <a href="files/22.vison-lang-models.pptx">pptx</a>]
+<!--                [slides: <a href="files/22.vison-lang-models.pdf">pdf</a>, <a href="files/22.vison-lang-models.pptx">pptx</a>]-->
+                [slides: <a href="tbd">link</a>]
                 <!--                [<a href="https://livejohnshopkins-my.sharepoint.com/:p:/g/personal/dkhasha1_jh_edu/ESx3bJawFY1GpSeQXtAHEegBMRW4cjn8jZc4umwSKhPeNQ?e=mr0Wpk">slides</a>]-->
                 <!--                Reinforcement learning with human judgements (continued) <br>-->
                 <!--                Evaluating alignment <br>-->
@@ -1203,9 +1211,10 @@
         <!--            </td>-->
         <!--        </tr>-->
         <tr>
-            <td>#23 - Tue Apr 11</td>
-            <td>Guest speaker: <br><a href="https://jimfan.me/">Jim Fan</a> (NVIDIA)</td>
-            <!--            <td>Joint representation of language and programming languages</td>-->
+            <td>#23 - Tue Apr 9</td>
+            <td>
+                Guest speaker: TBD
+            </td>
             <td>
             </td>
             <td>
@@ -1213,26 +1222,17 @@
             <td></td>
         </tr>
         <tr>
-            <td>#24 - Thu Apr 13</td>
+            <td>#24 - Thu Apr 11</td>
             <td>
-                Guest speaker: <br> <a href="https://timdettmers.com/">Tim Dettmers</a> (UW) <br>
-                [<a href="files/8-bit Methods for Efficient Deep Learning (without 4-bit).pdf">slides</a>]
+                Guest speaker: TBD
+<!--                <br> <a href="https://timdettmers.com/">Tim Dettmers</a> (UW) <br>-->
+<!--                [<a href="files/8-bit Methods for Efficient Deep Learning (without 4-bit).pdf">slides</a>]-->
                 <!--                Language grounded in structured layouts (web pages, phone apps, ...)-->
                 <!--                <br>-->
                 <!--                Language and app layouts-->
             </td>
             <td>
-                <b>Title: </b>8-bit Methods for Efficient Deep Learning <br>
-                <b>Abstract: </b> Large language models are effective tools for many tasks but are difficult to train
-                and inference due to their size. Moving from 32-bit models to 16-bit models resulted in considerable
-                efficiency gains that made training and inference of large models easier. Can we train and inference in
-                8-bit to make further gains? In this talk, I will show that 8-bit inference and training can be used
-                without degrading performance while improving efficiency. To make 8-bit methods work, it is essential to
-                understand how quantization precision affects model performance and training stability as we scale the
-                model size. I will talk about how these factors change with scale and how we need to adjust 8-bit
-                methods to make them work. In particular, I will speak about 8-bit optimizers for training and Int8
-                inference for large language models with up to 175B parameters. These methods make training and
-                inference more efficient and make large models more accessible to researchers.
+
             </td>
             <td>
                 <!--                <ol>-->
@@ -1242,16 +1242,12 @@
             </td>
             <td></td>
         </tr>
-        <!--        <tr class="sechighlight5">-->
-        <!--            <td> Tue Apr 18</td>-->
-        <!--            <td colspan="2">Midway reports due</td>-->
-        <!--            <td></td>-->
-        <!--            <td></td>-->
-        <!--        </tr>-->
         <tr>
-            <td>#25 - Tue Apr 18</td>
-            <td>Guest speaker: <br> <a href="https://homes.cs.washington.edu/~yizhongw/">Yizhong Wang</a> (UW)
-                [<a href="files/Instruction tuning of LLMs - Talk@JHU.pdf">slides</a>]
+            <td>#25 - Tue Apr 16</td>
+            <td>
+                Project progress presentation
+<!--                Guest speaker: <br> <a href="https://homes.cs.washington.edu/~yizhongw/">Yizhong Wang</a> (UW)-->
+<!--                [<a href="files/Instruction tuning of LLMs - Talk@JHU.pdf">slides</a>]-->
             </td>
             <td></td>
             <td>
@@ -1264,18 +1260,20 @@
             </td>
         </tr>
         <tr>
-            <td>#26 - Thu Apr 20</td>
-            <td>Guest speaker: <br> <a href="https://ruiqi-zhong.github.io/">Ruiqi Zhong</a> (UCBerkeley)
-                [<a href="files/scalable-oversight.pdf">slides</a>]
+            <td>#26 - Thu Apr 18</td>
+            <td>
+                Project progress presentation
+<!--                Guest speaker: <br> <a href="https://ruiqi-zhong.github.io/">Ruiqi Zhong</a> (UCBerkeley)-->
+<!--                [<a href="files/scalable-oversight.pdf">slides</a>]-->
             </td>
             <td>
-                <b>Title: </b>Getting AI to Do Things I Can't: Scalable Oversight via Indirect Supervision <br>
-                <b>Abstract: </b> Can we tame powerful AI systems even when we struggle to determine the ground truth
-                ourselves? In this talk, I will cover two example NLP tasks: 1) automatically searching for patterns in
-                large text collections and explaining them to humans in natural language; 2) labeling complex SQL
-                programs using non-programmers with the aid of our AI system and achieving accuracy on par with database
-                experts. In both cases, we build tools that help humans to indirectly scrutinize the AI’s output with
-                high effectiveness but low effort, bringing new insights that human experts have not anticipated.
+<!--                <b>Title: </b>Getting AI to Do Things I Can't: Scalable Oversight via Indirect Supervision <br>-->
+<!--                <b>Abstract: </b> Can we tame powerful AI systems even when we struggle to determine the ground truth-->
+<!--                ourselves? In this talk, I will cover two example NLP tasks: 1) automatically searching for patterns in-->
+<!--                large text collections and explaining them to humans in natural language; 2) labeling complex SQL-->
+<!--                programs using non-programmers with the aid of our AI system and achieving accuracy on par with database-->
+<!--                experts. In both cases, we build tools that help humans to indirectly scrutinize the AI’s output with-->
+<!--                high effectiveness but low effort, bringing new insights that human experts have not anticipated.-->
             </td>
             <td>
                 <!--                <ol>-->
@@ -1283,15 +1281,17 @@
                 <!--                    <li><a href="">tbd</a></li>-->
                 <!--                </ol>-->
             </td>
-            <td class="sechighlight5">
-                Midway reports deadline
+            <td>
+<!--                Midway reports deadline-->
             </td>
         </tr>
         <tr>
-            <td>#27 - Tue Apr 25</td>
-            <td>Guest speaker: <br> <a href="https://mryab.github.io/">Max Ryabinin</a> (Yandex)
-                <br>
-                [<a href="files/decentralized_jhu.pdf">slides</a>]
+            <td>#27 - Tue Apr 23</td>
+            <td>
+                Project progress presentation
+<!--                Guest speaker: <br> <a href="https://mryab.github.io/">Max Ryabinin</a> (Yandex)-->
+<!--                <br>-->
+<!--                [<a href="files/decentralized_jhu.pdf">slides</a>]-->
             </td>
             <!--            <td>-->
             <!--                Grounding language in visual/physical world <br>-->
@@ -1320,9 +1320,11 @@
         <!--            </td>-->
         <!--        </tr>-->
         <tr>
-            <td>#28 - Thu Apr 27</td>
-            <td>Guest speaker: <br> <a href="http://rogeriobonatti.com/">Rogério Bonatti</a> (Microsoft) <br>
-                [<a href="files/rogerio_bonatti_jhu.pdf">slides</a>]
+            <td>#28 - Thu Apr 25</td>
+            <td>
+                Project progress presentation
+<!--                Guest speaker: <br> <a href="http://rogeriobonatti.com/">Rogério Bonatti</a> (Microsoft) <br>-->
+<!--                [<a href="files/rogerio_bonatti_jhu.pdf">slides</a>]-->
             </td>
             <td>
                 <!--                Concentration of power <br>-->
@@ -1346,48 +1348,22 @@
             <td></td>
         </tr>
         <tr class="sechighlight4 centered">
-            <td>#29 - Tue May 2</td>
+            <td>#29 - Tue April 30</td>
             <td>No Class - Reading Days</td>
             <td></td>
             <td></td>
             <td></td>
         </tr>
         <tr class="sechighlight4 centered">
-            <td>#30 - Thu May 4</td>
+            <td>#30 - Thu May 2</td>
             <td>No Class - Reading Days</td>
             <td></td>
             <td></td>
             <td></td>
         </tr>
-        <!--        <tr>-->
-        <!--            <td>#31 - Tue May 9</td>-->
-        <!--            <td>tbd</td>-->
-        <!--            <td>-->
-
-        <!--            </td>-->
-        <!--            <td>-->
-        <!--                <ol>-->
-        <!--                    <li><a href="">tbd</a></li>-->
-        <!--                    <li><a href="">tbd</a></li>-->
-        <!--                </ol>-->
-        <!--            </td>-->
-        <!--        </tr>-->
-        <!--        <tr>-->
-        <!--            <td>#32 - Thu May 11</td>-->
-        <!--            <td>tbd</td>-->
-        <!--            <td>-->
-
-        <!--            </td>-->
-        <!--            <td>-->
-        <!--                <ol>-->
-        <!--                    <li><a href="">tbd</a></li>-->
-        <!--                    <li><a href="">tbd</a></li>-->
-        <!--                </ol>-->
-        <!--            </td>-->
-        <!--        </tr>-->
 
         <tr class="sechighlight5">
-            <td> May 15 EOD
+            <td> May 15 EOD (to be confirmed)
                 <!--                <br> 9 AM - 12 PM<a href="https://studentaffairs.jhu.edu/registrar/wp-content/uploads/sites/23/2022/08/Fall-2022-Final-Exam-Schedule.pdf"> <sup><b>*</b></sup></a> -->
             </td>
             <td>Final project reports</td>
@@ -1399,8 +1375,8 @@
         </tr>
 
         <tr class="sechighlight5">
-            <td>May 15</td>
-            <td colspan="2">Final project poster session (9 am-12 pm - Hackerman hall)</td>
+            <td>May 15 (to be confirmed)</td>
+            <td colspan="2">Final project poster session (time and local are TBD)</td>
             <td></td>
             <td></td>
         </tr>
@@ -1473,8 +1449,6 @@
         </li>
         <li>Tutorials:</li>
         <ul>
-            <li><a href="https://pytorch.org/docs/stable/index.html">PyTorch documentation</a></li>
-            <li><a href="https://pytorch.org/tutorials/">These tutorials</a> do a good job of introducing PyTorch.</li>
             <li>A <a href="https://huggingface.co/course/chapter1/1">course</a> on Huggingface's Transformers library.
             </li>
             <!--            <li><a href="https://huggingface.co/blog/stable_diffusion">Tutorial on Huggingface's Diffusers library </a></li>-->
@@ -1555,7 +1529,7 @@
         Report any violations you witness to the instructor.
         You can find more information about university misconduct policies on the web for
         <a href="https://studentaffairs.jhu.edu/policies-guidelines/undergradethics/">undergraduates</a> and
-        <a href="http://e-catalog.jhu.edu/grad-students/graduate-specificpolicies/">undergraduates</a> students.
+        <a href="http://e-catalog.jhu.edu/grad-students/graduate-specificpolicies/">graduates</a> students.
     </p>
     <!--    <p>-->
     <!--        This course will have a zero-tolerance philosophy regarding <a-->
