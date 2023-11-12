@@ -497,9 +497,9 @@
     <table class="table">
         <colgroup>
             <col style="width:12%">
-            <col style="width:20%">
-            <col style="width:50%">
-            <col style="width:35%">
+            <col style="width:25%">
+            <col style="width:55%">
+            <col style="width:10%">
             <col style="width:10%">
         </colgroup>
         <thead>
@@ -796,7 +796,7 @@
             <td>#10 - Thu Feb 22</td>
             <td>
                 Self-attention, <br>
-                Transformer, <br>
+                Transformers, <br>
                 Encoder-decoder LMs,<br>
 <!--                [slides: <a href="files/10.transformers.pdf">pdf</a>, <a href="files/10.transformers.pptx">pptx</a>]-->
                 [slides: <a href="tbd">link</a>]
@@ -859,15 +859,34 @@
             <td>
                 In-context learning, <br>
                 Making sense of ICL, <br>
+                Adapting models with prompting (prompt engineering) <br>
+                Multi-step prompting <br>
+                Failures of in-context learning <br>
+
 <!--                [slides: <a href="files/12.transformers-3.pdf">pdf</a>, <a href="files/12.transformers-3.pptx">pptx</a>]-->
                 [slides: <a href="tbd">link</a>]
             </td>
             <td>
-                Suggested Reading:  <br>
+                Suggested Reading: <a href="https://arxiv.org/abs/2206.04615">Beyond the Imitation Game: Quantifying and
+                        extrapolating the capabilities of language models</a> <br>
                 Additional Reading:
                 <ol>
-                    <a href="https://arxiv.org/abs/2005.14165">Language Models are Few-Shot Learners</a>
-                (GPT3 paper)
+                    <li><a href="https://arxiv.org/pdf/2102.09690">Calibrate Before Use: Improving Few-Shot
+                Performance of Language Models</a></li>
+                    <li><a href="https://arxiv.org/abs/2005.14165">Language Models are Few-Shot Learners</a> (GPT3 paper)</li>
+                    <li><a href="https://arxiv.org/abs/2104.08786">Fantastically Ordered Prompts and Where to Find Them:
+                        Overcoming Few-Shot Prompt Order Sensitivity</a> (LMs are sensitive to ICL example orders)
+                    </li>
+                    <li><a href="https://arxiv.org/abs/2109.07830">Reframing Instructional Prompts to GPTk's
+                        Language</a> (LMs are sensitive to phrasing of prompts)
+                    </li>
+                    <!--                    <li>-->
+                    <!--                        <a href="https://transformer-circuits.pub/2022/in-context-learning-and-induction-heads/index.html">In-context-->
+                    <!--                            Learning and Induction Heads</a></li>-->
+                    <!--                    <li><a href="https://arxiv.org/abs/2205.05055">Data Distributional Properties Drive Emergent-->
+                    <!--                        In-Context Learning in Transformers</a></li>-->
+                    <!--                    <li><a href="https://arxiv.org/abs/2202.07206">Impact of Pretraining Term Frequencies on Few-Shot-->
+                    <!--                        Reasoning</a></li>-->
                 </ol>
             </td>
             <td></td>
@@ -904,9 +923,7 @@
         <tr>
             <td>#14 - Thu Mar 7</td>
             <td>
-                 In-context learning <br>
-                Adapting models with prompting (prompt engineering) <br>
-                Failure modes of in-context learning <br>
+                Adapting models with parameter change (head-tuning, prompt-tuning, adaptors) <br>
 <!--                [slides: <a href="files/15.in-context-learning.pdf">pdf</a>, <a-->
 <!--                    href="files/15.in-context-learning.pptx">pptx</a>]-->
                 [slides: <a href="tbd">link</a>]
@@ -914,25 +931,14 @@
 <!--                [slides: <a href="files/14.transformers-4.pdf">pdf</a>, <a href="files/14.transformers-4.pptx">pptx</a>]-->
             </td>
             <td>
-Suggested Reading: <a href="https://arxiv.org/pdf/2102.09690">Calibrate Before Use: Improving Few-Shot
-                Performance of Language Models</a> <br>
+                Suggested Reading: <a href="https://arxiv.org/abs/2104.08691">The Power of Scale for Parameter-Efficient
+                Prompt Tuning</a> <br>
                 Additional Reading:
                 <ol>
-                    <li><a href="https://arxiv.org/abs/2104.08786">Fantastically Ordered Prompts and Where to Find Them:
-                        Overcoming Few-Shot Prompt Order Sensitivity</a> (LMs are sensitive to ICL example orders)
-                    </li>
-                    <li><a href="https://arxiv.org/abs/2109.07830">Reframing Instructional Prompts to GPTk's
-                        Language</a> (LMs are sensitive to phrasing of prompts)
-                    </li>
-                    <!--                    <li>-->
-                    <!--                        <a href="https://transformer-circuits.pub/2022/in-context-learning-and-induction-heads/index.html">In-context-->
-                    <!--                            Learning and Induction Heads</a></li>-->
-                    <!--                    <li><a href="https://arxiv.org/abs/2205.05055">Data Distributional Properties Drive Emergent-->
-                    <!--                        In-Context Learning in Transformers</a></li>-->
-                    <li><a href="https://arxiv.org/abs/2206.04615">Beyond the Imitation Game: Quantifying and
-                        extrapolating the capabilities of language models</a></li>
-                    <!--                    <li><a href="https://arxiv.org/abs/2202.07206">Impact of Pretraining Term Frequencies on Few-Shot-->
-                    <!--                        Reasoning</a></li>-->
+                    <li><a href="https://arxiv.org/abs/2101.00190">Prefix-Tuning: Optimizing Continuous Prompts for
+                        Generation</a></li>
+                    <li><a href="https://arxiv.org/abs/2112.08348">Prompt Waywardness: The Curious Case of Discretized
+                        Interpretation of Continuous Prompts</a></li>
                 </ol>
             </td>
             <td></td>
@@ -948,13 +954,38 @@ Suggested Reading: <a href="https://arxiv.org/pdf/2102.09690">Calibrate Before U
         <tr>
             <td>#15 - Tue Mar 12</td>
             <td>
-                Multi-step prompting <br>
-                Adapting models with parameter change (head-tuning, prompt-tuning, adaptors) <br>
-                <!--                Multilingual properties <br>-->
+                Alignment to human instructions, <br>
+                Instruction-tuning<br>
+                RLHF and variants<br>
+                <!--         Multilingual properties <br>-->
                 [slides: <a href="tbd">link</a>]
             </td>
             <td>
+                                Suggested Reading: <a href="https://arxiv.org/pdf/2203.02155.pdf">Training language models to follow
+                instructions
+                with human feedback</a> (GPT3 + RLHF paper) <br>
 
+                Additional Reading:
+                <ol>
+                    <li><a href="https://huggingface.co/blog/rlhf">Illustrating Reinforcement Learning from Human
+                        Feedback </a></li>
+                    <li><a href="https://arxiv.org/abs/2009.01325">Learning to summarize from human feedback</a></li>
+                    <li><a href="https://arxiv.org/abs/1706.03741">Deep reinforcement learning from human
+                        preferences</a> (an early RLHF paper)
+                    </li>
+                    <li><a href="https://arxiv.org/pdf/2203.02155.pdf">Training language models to follow instructions
+                        with human feedback</a> (GPT3 + RLHF paper)
+                    </li>
+                    <li><a href="https://arxiv.org/abs/2210.11416">Scaling Instruction-Finetuned Language Models</a>
+                        (FLAN paper)
+                    </li>
+                    <li><a href="https://arxiv.org/abs/2204.07705">Generalization via Declarative Instructions on 1600+
+                        NLP Tasks</a> (Super-NaturalInstructions paper)
+                    </li>
+                    <li><a href="https://arxiv.org/abs/2212.10560">Self-Instruct: Aligning Language Model with Self
+                        Generated Instructions</a> (Self-Instruct paper)
+                    </li>
+                </ol>
             </td>
             <td class="sechighlight5">
                 HW8 to be released!
@@ -977,19 +1008,13 @@ Suggested Reading: <a href="https://arxiv.org/pdf/2102.09690">Calibrate Before U
         <tr>
             <td>#16 - Thu Mar 14</td>
             <td>
+                Recap, <br>
                 Defining final projects, <br>
+                Tips for successful project
 
             </td>
             <td>
-                Suggested Reading: <a href="https://arxiv.org/abs/2104.08691">The Power of Scale for Parameter-Efficient
-                Prompt Tuning</a> <br>
-                Additional Reading:
-                <ol>
-                    <li><a href="https://arxiv.org/abs/2101.00190">Prefix-Tuning: Optimizing Continuous Prompts for
-                        Generation</a></li>
-                    <li><a href="https://arxiv.org/abs/2112.08348">Prompt Waywardness: The Curious Case of Discretized
-                        Interpretation of Continuous Prompts</a></li>
-                </ol>
+
             </td>
             <td></td>
             <td>
@@ -1124,35 +1149,11 @@ Suggested Reading: <a href="https://arxiv.org/pdf/2102.09690">Calibrate Before U
         <tr>
             <td>#21 - Tue Apr 2</td>
             <td>
-                Alignment via language instructions: existing solutions and challenges <br>
+
                 [slides: <a href="files/21.alignment.pdf">pdf</a>, <a href="files/21.alignment.pptx">pptx</a>]
             </td>
             <td>
-                Suggested Reading: <a href="https://arxiv.org/pdf/2203.02155.pdf">Training language models to follow
-                instructions
-                with human feedback</a> (GPT3 + RLHF paper) <br>
 
-                Additional Reading:
-                <ol>
-                    <li><a href="https://huggingface.co/blog/rlhf">Illustrating Reinforcement Learning from Human
-                        Feedback </a></li>
-                    <li><a href="https://arxiv.org/abs/2009.01325">Learning to summarize from human feedback</a></li>
-                    <li><a href="https://arxiv.org/abs/1706.03741">Deep reinforcement learning from human
-                        preferences</a> (an early RLHF paper)
-                    </li>
-                    <li><a href="https://arxiv.org/pdf/2203.02155.pdf">Training language models to follow instructions
-                        with human feedback</a> (GPT3 + RLHF paper)
-                    </li>
-                    <li><a href="https://arxiv.org/abs/2210.11416">Scaling Instruction-Finetuned Language Models</a>
-                        (FLAN paper)
-                    </li>
-                    <li><a href="https://arxiv.org/abs/2204.07705">Generalization via Declarative Instructions on 1600+
-                        NLP Tasks</a> (Super-NaturalInstructions paper)
-                    </li>
-                    <li><a href="https://arxiv.org/abs/2212.10560">Self-Instruct: Aligning Language Model with Self
-                        Generated Instructions</a> (Self-Instruct paper)
-                    </li>
-                </ol>
             </td>
             <td></td>
             <td></td>
