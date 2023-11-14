@@ -534,11 +534,11 @@
         <tr>
             <td>#1 - Tue Jan 23</td>
             <td>
-                Course overview
-                <br>
-                Plan and expectations
-                <br>
-                <!--                [slides: <a href="files/01.intro.pdf">pdf</a>, <a href="files/01.intro.pptx">pptx</a>]-->
+                <ul>
+                    <li>Course overview</li>
+                    <li>Plan and expectations</li>
+                </ul>
+                <!--    [slides: <a href="files/01.intro.pdf">pdf</a>, <a href="files/01.intro.pptx">pptx</a>]-->
                 [slides: <a href="files/slides/01.intro.pptx">pptx</a>]
             </td>
             <td>
@@ -556,17 +556,24 @@
                 <!--                [<a href="https://colab.research.google.com/drive/1rl53e8Gt3PebC4lobSMpCHlRZBwK69pb?usp=sharing">colab</a>]-->
             </td>
         </tr>
-        <!--        <tr class="sechighlight">-->
-        <!--            <td colspan="5">-->
-        <!--                <b> ⬇️ &#45;&#45; Self-supervised Word Representations</b>-->
-        <!--            </td>-->
-        <!--        </tr>-->
         <tr>
             <td>#2 - Thu Jan 25</td>
             <td>
-                Language modeling, <br>
-                n-gram models, <br>
-                evaluating language models <br>
+                Language modeling:
+                <ul>
+                    <li>
+                        Definitions and history,
+                    </li>
+                    <li>
+                        Counting and n-grams,
+                    </li>
+                    <li>
+                        Evaluating LMs,
+                    </li>
+                    <li>
+                        Language modeling w/ neural nets
+                    </li>
+                </ul>
                 [slides: <a href="files/slides/02.neural-language-modeling.pptx">pptx</a>]
             </td>
             <td>
@@ -593,9 +600,13 @@
         <tr>
             <td>#3 - Tue Jan 30</td>
             <td>
-                Feedforward networks, <br>
-                Neural nets: brief history, <br>
-                PyTorch introduction <br>
+                Feedforward networks:
+                <ul>
+                    <li>Definitions</li>
+                    <li>Brief history</li>
+                    <li>Algebra background</li>
+                    <li>Optimization recap</li>
+                </ul>
                 <!--                [slides: <a href="files/04.feedforward-nets.pdf">pdf</a>, <a-->
                 <!--                    href="files/04.feedforward-nets.pptx">pptx</a>]-->
                 [slides: <a href="files/slides/03-4-5.feedforward-nets.pptx">pptx</a>]
@@ -614,7 +625,10 @@
                     </li>
                     <li><a href="http://preview.d2l.ai/d2l-en/master/chapter_preliminaries/linear-algebra.html">Dive
                         into Deep Learning: Linear Algebra in PyTorch</a></li>
-
+                    <li><a href="https://cs231n.github.io/optimization-1/">Optimization: Stochastic Gradient
+                        Descent </a></li>
+                    <li><a href="http://preview.d2l.ai/d2l-en/master/chapter_optimization/gd.html">Dive into Deep
+                        Learning: Gradient Descent</a></li>
                 </ol>
             </td>
             <td class="sechighlight5">HW2 to be released!
@@ -632,8 +646,15 @@
         <tr>
             <td>#4 - Thu Feb 1</td>
             <td>
-                Optimization recap, <br>
-                Analytical backpropagation, <br>
+                Feedforward networks:
+                <ul>
+                    <li>Analytical backprop</li>
+                    <li>Training neural nets</li>
+                    <li>Backprop in practice</li>
+                    <li>Practical tips</li>
+                </ul>
+<!--                Optimization recap, <br>-->
+<!--                Analytical backpropagation, <br>-->
                 [slides: <a href="files/slides/03-4-5.feedforward-nets.pptx">pptx</a>]
             </td>
             <td>
@@ -642,10 +663,6 @@
                 <br>
                 Additional Reading:
                 <ol>
-                    <li><a href="https://cs231n.github.io/optimization-1/">Optimization: Stochastic Gradient
-                        Descent </a></li>
-                    <li><a href="http://preview.d2l.ai/d2l-en/master/chapter_optimization/gd.html">Dive into Deep
-                        Learning: Gradient Descent</a></li>
                     <li><a href="https://cs231n.github.io/neural-networks-2/">Neural Networks: data and loss </a></li>
                     <li><a href="https://web.stanford.edu/class/cs224n/readings/gradient-notes.pdf">Computing Neural
                         Network Gradients</a></li>
@@ -661,10 +678,13 @@
         <tr>
             <td>#5 - Tue Feb 6</td>
             <td>
-                Backpropagation recap, <br>
-                Automatic differentiation, <br>
-                More PyTorch, <br>
-                Practical tips for training neural networks, <br>
+                Feedforward networks:
+                <ul>
+                    <li>Recap</li>
+                    <li>More PyTorch</li>
+                    <li>Fixed-window feedforward LMs</li>
+                </ul>
+
                 [slides: <a href="files/slides/03-4-5.feedforward-nets.pptx">pptx</a>]
             </td>
             <td>
@@ -690,8 +710,14 @@
         <tr>
             <td>#6 - Thu Feb 8</td>
             <td>
-                Fixed-window feedforward LMs <br>
-                [slides: <a href="files/slides/06.mlp-language-modeling.pptx">pptx</a>]
+                Recurrent Neural Nets:
+                <ul>
+                    <li>Definitions</li>
+                    <li>Training RNNs</li>
+                    <li>RNNs for natural language and language modeling</li>
+                    <li>RNNs: Pros and Cons</li>
+                </ul>
+                [slides: <a href="files/slides/08-9.recurrent-nets.pptx">pptx</a>]
                 <!--                [slides: <a href="files/07.neural-language-modeling-2.pdf">pdf</a>, <a-->
                 <!--                    href="files/07.neural-language-modeling-2.pptx">pptx</a>]-->
 
@@ -746,9 +772,10 @@
         <tr>
             <td>#8 - Thu Feb 15</td>
             <td>
-                Text generation algorithms<br>
-                Recurrent neural networks <br>
-                Encoder-decoder models <br>
+                <ul>
+                    <li>Sampling from LMs </li>
+                    <li>Pre-training RNNs</li>
+                </ul>
                 <!--                [slides: <a href="files/08.recurrent-nets.pdf">pdf</a>, <a href="files/08.recurrent-nets.pptx">pptx</a>]-->
                 [slides: <a href="files/slides/08-9.recurrent-nets.pptx">pptx</a>]
             </td>
@@ -769,6 +796,8 @@
                         papers)
                     </li>
                     <li><a href="https://arxiv.org/abs/1904.09751">The Curious Case of Neural Text Degeneration</a></li>
+                    <li><a href="https://arxiv.org/abs/1802.05365">Deep contextualized word
+                representations</a> (ELMo paper)</li>
                 </ol>
                 <!--                <ol>-->
                 <!--                    <li><a href="http://preview.d2l.ai/d2l-en/master/chapter_recurrent-neural-networks/index.html">Dive-->
@@ -782,15 +811,20 @@
         <tr>
             <td>#9 - Tue Feb 20</td>
             <td>
-                RNN continued: ELMo <br>
-                Language units and subwords <br>
+                <ul>
+                    <li>Tokenization and subwords</li>
+                    <li>Self-attention</li>
+                    <li>Transformers</li>
+                </ul>
+
                 <!--                [slides: <a href="files/09.recurrent-nets-2.pdf">pdf</a>, <a-->
                 <!--                    href="files/09.recurrent-nets-2.pptx">pptx</a>]-->
                 [slides: <a href="files/slides/08-9.recurrent-nets.pptx">pptx</a>]
+                [slides: <a href="files/slides/10.transformers.pptx">pptx</a>]
             </td>
             <td>
-                Suggested Reading: <a href="https://arxiv.org/abs/1802.05365">Deep contextualized word
-                representations</a> (ELMo paper)
+                Suggested Reading:
+
                 <br>
                 Additional Reading:
                 <ol>
@@ -813,16 +847,17 @@
         <tr>
             <td>#10 - Thu Feb 22</td>
             <td>
-                Self-attention, <br>
-                Transformers, <br>
-                Encoder-decoder family,<br>
-                Encoder family, <br>
-                Decoder family, <br>
-                <!--                [slides: <a href="files/11.transformers-2.pdf">pdf</a>, <a href="files/11.transformers-2.pptx">pptx</a>]-->
-                <!--                [slides: <a href="files/10.transformers.pdf">pdf</a>, <a href="files/10.transformers.pptx">pptx</a>]-->
+                Transformers:
+                <ul>
+                    <li>Encoder-decoder family</li>
+                    <li>Encoder family</li>
+                    <li>Decoder family</li>
+                    <li>Objective functions</li>
+                    <li>Preparing pretrainng data</li>
+                    <li>Distributed training</li>
+                    <li>Training tips</li>
+                </ul>
                 [slides: <a href="files/slides/10.transformers.pptx">pptx</a>]
-                [slides: <a href="files/slides/10.transformers-2.pptx">pptx</a>]
-                [slides: <a href="files/slides/10.transformers-2.pptx">pptx</a>]
             </td>
             <td>
                 Suggested Reading: <a href="https://arxiv.org/abs/1706.03762.pdf">Attention Is All You Need</a>
@@ -860,15 +895,15 @@
         <tr>
             <td>#11 - Tue Feb 27</td>
             <td>
-                In-context learning, <br>
-                Making sense of ICL, <br>
-                Adapting models with prompting (prompt engineering) <br>
-                Multi-step prompting <br>
-                Failures of in-context learning <br>
-
-                <!--                [slides: <a href="files/12.transformers-3.pdf">pdf</a>, <a href="files/12.transformers-3.pptx">pptx</a>]-->
+                Adaptation via in-context learning:
+                <ul>
+                    <li>Definition and importance</li>
+                    <li>Making sense of it</li>
+                    <li>Adapting models (prompt engineering)</li>
+                    <li>Multi-step prompting</li>
+                    <li>Failures of ICL</li>
+                </ul>
                 [slides: <a href="files/slides/11.in-context-learning.pptx">pptx</a>]
-                [slides: <a href="files/slides/11.in-context-learning-2.pptx">pptx</a>]
             </td>
             <td>
                 Suggested Reading: <a href="https://arxiv.org/abs/2206.04615">Beyond the Imitation Game: Quantifying and
@@ -901,7 +936,7 @@
         <tr>
             <td>#12 - Thu Feb 29</td>
             <td>
-                Adapting models with parameter change (head-tuning, prompt-tuning, adaptors, LoRA) <br>
+                Adaptation via tuning: head-tuning, prompt-tuning, adaptors, LoRA. <br>
                 <!--                [slides: <a href="files/15.in-context-learning.pdf">pdf</a>, <a-->
                 <!--                    href="files/15.in-context-learning.pptx">pptx</a>]-->
                 [slides: <a href="files/slides/12.adaptation-via-tuning.pptx">pptx</a>]
@@ -922,40 +957,14 @@
             <td></td>
             <td></td>
         </tr>
-        <tr class="sechighlight5">
+        <tr>
             <td>#13 - Tue Mar 5</td>
             <td>
-                Quiz 2
-            </td>
-            <td>Topics: everything discussed in class until the beginning of class #12</td>
-            <td>
-                HW7 to be released!
-                <!--                [<a href="https://www.overleaf.com/read/dpxxhmszytjr">tex</a>]-->
-                <!--                [<a href="files/CS_601_471_671_spring2023_homework6.pdf">pdf</a>]-->
-            </td>
-            <td class="sechighlight5">HW6 due</td>
-            <!--            <td>-->
-            <!--                Hallucination issue <br>-->
-            <!--                Calibrating model uncertainties <br>-->
-            <!--                - Consistency <br>-->
-            <!--                - Sensitivity <br>-->
-            <!--                - Mutual information <br>-->
-            <!--                - Flatness <br>-->
-            <!--            </td>-->
-            <!--            <td>-->
-        </tr>
-        <!--        <tr class="sechighlight">-->
-        <!--            <td colspan="5">-->
-        <!--                <b> ⬇️ &#45;&#45; Language Models and Long Context</b>-->
-        <!--            </td>-->
-        <!--        </tr>-->
-
-        <tr>
-            <td>#14 - Thu Mar 7</td>
-            <td>
-                Alignment to human instructions, <br>
-                Instruction-tuning<br>
-                RLHF and variants<br>
+                Adaptation as alignment to human instructions: <br>
+                <ul>
+                    <li>Instruction-tuning</li>
+                    <li>RLHF and variants</li>
+                </ul>
                 <!-- Multilingual properties <br>-->
                 [slides: <a href="files/slides/14.alignment.pptx">pptx</a>]
             </td>
@@ -985,90 +994,15 @@
 <!--                    </li>-->
                 </ol>
             </td>
-            <td></td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>#15 - Tue Mar 12</td>
             <td>
-                Recap, <br>
-                Defining final projects, <br>
-                Tips for successful project, <br>
-                [slides: <a href="files/slides/15.final_project_ideas.pptx">pptx</a>]
-            </td>
-            <td>
-
-            </td>
-            <td>
-<!--                HW8 to be released!-->
-                <!--                [<a href="https://www.overleaf.com/read/kvhtjytysvjt">tex</a>]-->
-                <!--                [<a href="files/CS_601_471_671_spring2023_homework7.pdf">pdf</a>]-->
-            </td>
-            <td></td>
-        </tr>
-        <!--        <tr class="sechighlight">-->
-        <!--            <td colspan="5">-->
-        <!--                <b> ⬇️ &#45;&#45; Social Concerns and Alignment with Human Values </b>-->
-        <!--            </td>-->
-        <!--        </tr>-->
-        <!--        <tr class="sechighlight5">-->
-        <!--            <td> Thu Mar 16</td>-->
-        <!--            <td colspan="2">Project proposals due</td>-->
-        <!--            <td></td>-->
-        <!--            <td></td>-->
-        <!--        </tr>-->
-        <tr class="sechighlight5">
-            <td>#16 - Thu Mar 14</td>
-            <td>
-                Quiz 3
-            </td>
-            <td>
-                Topics: everything discussed in class until the beginning of class #15
-            </td>
-            <td></td>
-            <td>HW7 due</td>
-        </tr>
-<!--        <tr class="sechighlight5">-->
-<!--            <td>#13 - Tue Mar 5</td>-->
-<!--            <td>-->
-
-<!--            </td>-->
-<!--            <td>-->
-
-<!--            </td>-->
-<!--            <td>-->
-                <!--                HW? to be released!-->
+                HW7 to be released!
                 <!--                [<a href="https://www.overleaf.com/read/dpxxhmszytjr">tex</a>]-->
                 <!--                [<a href="files/CS_601_471_671_spring2023_homework6.pdf">pdf</a>]-->
-<!--            </td>-->
-<!--            <td>HW8 due</td>-->
-            <!--            <td>-->
-            <!--                Hallucination issue <br>-->
-            <!--                Calibrating model uncertainties <br>-->
-            <!--                - Consistency <br>-->
-            <!--                - Sensitivity <br>-->
-            <!--                - Mutual information <br>-->
-            <!--                - Flatness <br>-->
-            <!--            </td>-->
-            <!--            <td>-->
-<!--        </tr>-->
-
-        <tr class="sechighlight4 centered">
-            <td>#17 - Tue Mar 19</td>
-            <td>No Class - Spring Break</td>
-            <td></td>
-            <td></td>
-            <td></td>
-        </tr>
-        <tr class="sechighlight4 centered">
-            <td>#18 - Thu Mar 21</td>
-            <td>No Class - Spring Break</td>
-            <td></td>
-            <td></td>
-            <td></td>
+            </td>
+            <td class="sechighlight5">HW6 due</td>
         </tr>
         <tr>
-            <td>#19 - Tue Mar 26</td>
+            <td>#14 - Thu Mar 7</td>
             <td>
                 Connecting language to outside world, <br>
                 LMs for coding, <br>
@@ -1125,7 +1059,75 @@
             <td></td>
         </tr>
         <tr>
-            <td>#20 - Thu Mar 28</td>
+            <td>#15 - Tue Mar 12</td>
+            <td>
+                Recap, <br>
+                Defining final projects, <br>
+                Tips for successful project, <br>
+                [slides: <a href="files/slides/15.final_project_ideas.pptx">pptx</a>]
+            </td>
+            <td>
+
+            </td>
+            <td>
+<!--                HW8 to be released!-->
+                <!--                [<a href="https://www.overleaf.com/read/kvhtjytysvjt">tex</a>]-->
+                <!--                [<a href="files/CS_601_471_671_spring2023_homework7.pdf">pdf</a>]-->
+            </td>
+            <td></td>
+        </tr>
+        <tr class="sechighlight5">
+            <td>#16 - Thu Mar 14</td>
+            <td>
+                Quiz 2
+            </td>
+            <td>
+                Topics: everything discussed in class until the beginning of class #15
+            </td>
+            <td></td>
+            <td>HW7 due</td>
+        </tr>
+<!--        <tr class="sechighlight5">-->
+<!--            <td>#13 - Tue Mar 5</td>-->
+<!--            <td>-->
+
+<!--            </td>-->
+<!--            <td>-->
+
+<!--            </td>-->
+<!--            <td>-->
+                <!--                HW? to be released!-->
+                <!--                [<a href="https://www.overleaf.com/read/dpxxhmszytjr">tex</a>]-->
+                <!--                [<a href="files/CS_601_471_671_spring2023_homework6.pdf">pdf</a>]-->
+<!--            </td>-->
+<!--            <td>HW8 due</td>-->
+            <!--            <td>-->
+            <!--                Hallucination issue <br>-->
+            <!--                Calibrating model uncertainties <br>-->
+            <!--                - Consistency <br>-->
+            <!--                - Sensitivity <br>-->
+            <!--                - Mutual information <br>-->
+            <!--                - Flatness <br>-->
+            <!--            </td>-->
+            <!--            <td>-->
+<!--        </tr>-->
+
+        <tr class="sechighlight4 centered">
+            <td>#17 - Tue Mar 19</td>
+            <td>No Class - Spring Break</td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr class="sechighlight4 centered">
+            <td>#18 - Thu Mar 21</td>
+            <td>No Class - Spring Break</td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>#19 - Tue Mar 26</td>
             <td>
                 Dealing with limited context window, <br>
                 Retrieval-augmentation, <br>
@@ -1156,21 +1158,11 @@
                         Effectiveness and Limitations of Parametric and Non-Parametric Memories.</a></li>
                 </ol>
             </td>
-            <td>
-            </td>
-            <td class="sechighlight5">
-                <!--                HW7 due + <br>-->
-                Project proposals deadline
-            </td>
+            <td></td>
+            <td></td>
         </tr>
-        <!--        <tr class="sechighlight">-->
-        <!--            <td colspan="5">-->
-        <!--                <b> ⬇️ &#45;&#45; Memorization, Security and Privacy </b>-->
-        <!--            </td>-->
-        <!--        </tr>-->
-
         <tr>
-            <td>#21 - Tue Apr 2</td>
+            <td>#20 - Thu Mar 28</td>
             <td>
                 Scaling pre-training data, <br>
                 Considerations regarding pre-training data (deduplication, diversity), <br>
@@ -1190,11 +1182,15 @@
                         the Colossal Clean Crawled Corpus</a></li>
                 </ol>
             </td>
-            <td></td>
-            <td></td>
+            <td>
+            </td>
+            <td class="sechighlight5">
+                <!--                HW7 due + <br>-->
+                Project proposals deadline
+            </td>
         </tr>
         <tr>
-            <td>#22 - Thu Apr 4</td>
+            <td>#21 - Tue Apr 2</td>
             <td>
                 Model efficiency,<br>
                 Quantization,<br>
@@ -1202,16 +1198,6 @@
                 Efficient forms of self-attention,<br>
                 Dealing with hallucination, <br>
                 [slides: <a href="files/slides/22.model-efficiency-hallucinations.pptx">pptx</a>]
-                <!--                [<a href="https://livejohnshopkins-my.sharepoint.com/:p:/g/personal/dkhasha1_jh_edu/ESx3bJawFY1GpSeQXtAHEegBMRW4cjn8jZc4umwSKhPeNQ?e=mr0Wpk">slides</a>]-->
-                <!--                Reinforcement learning with human judgements (continued) <br>-->
-                <!--                Evaluating alignment <br>-->
-                <!--                Remaining challenges <br>-->
-                <!--                Memorization in language models <br>-->
-                <!--                Quantifying memorization <br>-->
-                <!--                Concerns for applications <br>-->
-                <!--                Mitigating memorization of private information <br>-->
-                <!--                Detecting machine-generated text <br>-->
-                <!--                Watermarking-->
             </td>
             <td>
                 Suggested Reading: TBD <br>
@@ -1224,11 +1210,17 @@
             <td></td>
             <td></td>
         </tr>
-        <!--        <tr class="sechighlight">-->
-        <!--            <td colspan="5">-->
-        <!--                <b> ⬇️ &#45;&#45; Self-Supervised Learning Text and Other Modalities</b>-->
-        <!--            </td>-->
-        <!--        </tr>-->
+        <tr>
+            <td>#22 - Thu Apr 4</td>
+            <td>
+
+            </td>
+            <td>
+
+            </td>
+            <td></td>
+            <td></td>
+        </tr>
         <tr>
             <td>#23 - Tue Apr 9</td>
             <td>
