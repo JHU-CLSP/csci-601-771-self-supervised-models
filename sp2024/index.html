@@ -107,7 +107,8 @@
     </p>
     <p>
         <strong>Relevant Courses at Hopkins</strong>:
-        This course has some overlap with "Natural Language Processing" (EN.601/665), and "Artificial Agents" (EN.601.470/670), though the courses have different focuses.
+        This course has some overlap with "Natural Language Processing" (EN.601/665), and "Artificial Agents"
+        (EN.601.470/670), though the courses have different focuses.
     </p>
 </div>
 
@@ -132,15 +133,15 @@
                 </a>
             </div>
             <div class="instructor">
-                <a target="_blank" rel="noopener noreferrer" href="?">
-                    <div class="instructorphoto"><img src="files/jimena3.png" alt="missing image"></div>
-                    <div>Jimena Guallar-Blasco<br>Course Assistant</div>
-                </a>
-            </div>
-            <div class="instructor">
                 <a target="_blank" rel="noopener noreferrer" href="https://kev-kim.com/">
                     <div class="instructorphoto"><img src="files/kevin2.png" alt="missing image"></div>
                     <div>Kevin Kim<br>Course Assistant</div>
+                </a>
+            </div>
+            <div class="instructor">
+                <a target="_blank" rel="noopener noreferrer" href="?">
+                    <div class="instructorphoto"><img src="files/sungwon.png" alt="missing image"></div>
+                    <div>Sungwon Kim<br>Course Assistant</div>
                 </a>
             </div>
             <div class="instructor">
@@ -260,17 +261,16 @@
         <tbody>
         <tr>
             <td>#1</td>
-            <td>Algebra, calculus, probability recap,
-                classification, evaluation, comparison to basic
-                features (unigrams, bigrams) and existing word embeddings,
+            <td>Algebra, calculus, probability, optimization (gradient descent) recap,
                 understanding softmax function,
-                classification via vector representations, playing with gradient descent.
+                loss functions (cross-entropy, MSE, etc.),
+                a machine learning problem (classification, evaluation),
             </td>
         </tr>
         <tr>
             <td>#2</td>
-            <td>PyTorch introduction, automatic differentiation, computation graph, how to use PyTorch on GPUs, basic
-                feedforward network and
+            <td>
+                PyTorch introduction, automatic differentiation, computation graph, basic feedforward network and
                 backpropagation
             </td>
         </tr>
@@ -390,14 +390,16 @@
     <h2>Midterm exams/quizzes</h2>
     <p>
         There will be in-class midterms. The midterm exams will be paper-based and during the usual class time. These
-        midterm exams aims to evaluate students' progress and understanding of ideas presented in the first two-third of the
-        semester, which will serve as a foundation for your project and the material covered in the final weeks of the class.
+        midterm exams aims to evaluate students' progress and understanding of ideas presented in the first two-third of
+        the
+        semester, which will serve as a foundation for your project and the material covered in the final weeks of the
+        class.
         The exams will assess students' mastery of the topics discussed in the lectures and weekly homework assignments.
         The exams will also provide feedback to both the student and the instructor, and identify areas that need
         improvement to inform further learning and teaching.
-<!--        The quizzes will cover all material until the end of "Transformer Language Models", just before "Doing Things-->
-<!--        with Language Models".-->
-<!--        The week leading to the midterm, we will not have homework assignments.-->
+        <!--        The quizzes will cover all material until the end of "Transformer Language Models", just before "Doing Things-->
+        <!--        with Language Models".-->
+        <!--        The week leading to the midterm, we will not have homework assignments.-->
     </p>
 </div>
 <hr>
@@ -435,14 +437,18 @@
             The instructor(s) will provide feedback on these ideas to help the teams with finding a
             concrete idea. Here is examples of project proposals from previous years:
             <ul>
-                <li><a href="files/proposal-2_seek-extracted_171762894.pdf">Ensemble Domain-Specific Knowledge Distillation </a></li>
+                <li><a href="files/proposal-2_seek-extracted_171762894.pdf">Ensemble Domain-Specific Knowledge
+                    Distillation </a></li>
             </ul>
         </li>
         <li><b>Midway progress reports:</b> Reports discussing the
             progress made thus far (at most 5 pages; this <a
-                    href="https://www.overleaf.com/latex/templates/neurips-2022/kxymzbjpwsqx">template</a>.) and elaborates on the remaining work.
-            Describe the progress made, experiments you have run, preliminary results you have obtained, how you plan to spend the rest of your time, etc.
-            While this is called "midway" in practice it should be considered more than halfway! By this milestone, you’re expected to have implemented some system, and to have some experimental results to show by this date.
+                    href="https://www.overleaf.com/latex/templates/neurips-2022/kxymzbjpwsqx">template</a>.) and
+            elaborates on the remaining work.
+            Describe the progress made, experiments you have run, preliminary results you have obtained, how you plan to
+            spend the rest of your time, etc.
+            While this is called "midway" in practice it should be considered more than halfway! By this milestone,
+            you’re expected to have implemented some system, and to have some experimental results to show by this date.
         </li>
         <li><b>Final poster presentations:</b>
             <!--            The final project presentation will be during the final exam period. All students-->
@@ -465,7 +471,8 @@
             Here are examples of final reports from the previous year:
             <ul>
                 <li><a href="files/final-seek.pdf">Ensemble Domain-Specific Knowledge Distillation </a></li>
-                <li><a href="files/final-efficient_distillation_671_May_14.pdf">Efficient Distillation of Transformers via Self-Teaching</a></li>
+                <li><a href="files/final-efficient_distillation_671_May_14.pdf">Efficient Distillation of Transformers
+                    via Self-Teaching</a></li>
             </ul>
         </li>
         <li><b>Project grading:</b>
@@ -533,6 +540,7 @@
         <tr>
             <td>#1 - Tue Jan 23</td>
             <td>
+                Course introduction:
                 <ul>
                     <li>Course overview</li>
                     <li>Plan and expectations</li>
@@ -546,6 +554,10 @@
                 <ol>
                     <li><a href="https://cs231n.github.io/python-numpy-tutorial/">Python / Numpy Tutorial (with Jupyter
                         and Colab)</a></li>
+                    <li><a href="http://preview.d2l.ai/d2l-en/master/chapter_preliminaries/linear-algebra.html">Dive
+                        into Deep Learning: Linear Algebra in PyTorch</a></li>
+                    <li><a href="https://cs231n.github.io/optimization-1/">Optimization: Stochastic Gradient
+                        Descent </a></li>
                 </ol>
             </td>
             <td class="sechighlight5">
@@ -567,10 +579,10 @@
                         Counting and n-grams,
                     </li>
                     <li>
-                        Evaluating LMs,
+                        Measuring LM quality,
                     </li>
                     <li>
-                        Language modeling w/ neural nets
+                        Language modeling as a learning problem
                     </li>
                 </ul>
                 [slides: <a href="files/slides/02.neural-language-modeling.pptx">pptx</a>]
@@ -603,31 +615,26 @@
                 <ul>
                     <li>Definitions</li>
                     <li>Brief history</li>
-                    <li>Algebra background</li>
-                    <li>Optimization recap</li>
+                    <li>Background (algebra + optimization)</li>
+                    <li>Analytical Backprop</li>
                 </ul>
                 <!--                [slides: <a href="files/04.feedforward-nets.pdf">pdf</a>, <a-->
                 <!--                    href="files/04.feedforward-nets.pptx">pptx</a>]-->
                 [slides: <a href="files/slides/03-4-5.feedforward-nets.pptx">pptx</a>]
             </td>
             <td>
-                Suggested Reading: <a href="https://cs231n.github.io/neural-networks-1/">Neural Networks: the
-                Architecture </a>
+                Suggested Reading: <a href="https://web.stanford.edu/~jurafsky/slp3/7.pdf">Jurafsky & Martin Chapter
+                7</a>
                 <br>
                 Additional Reading:
                 <ol>
+                    <li><a href="https://cs231n.github.io/neural-networks-1/">Neural Networks: the Architecture </a></li>
                     <li><a href="http://preview.d2l.ai/d2l-en/master/chapter_multilayer-perceptrons/index.html">Dive
                         into Deep Learning: Multilayer Perceptron </a></li>
                     <li><a href="https://pytorch.org/docs/stable/index.html">PyTorch documentation</a></li>
                     <li><a href="https://pytorch.org/tutorials/">These tutorials</a> do a good job of introducing
                         PyTorch.
                     </li>
-                    <li><a href="http://preview.d2l.ai/d2l-en/master/chapter_preliminaries/linear-algebra.html">Dive
-                        into Deep Learning: Linear Algebra in PyTorch</a></li>
-                    <li><a href="https://cs231n.github.io/optimization-1/">Optimization: Stochastic Gradient
-                        Descent </a></li>
-                    <li><a href="http://preview.d2l.ai/d2l-en/master/chapter_optimization/gd.html">Dive into Deep
-                        Learning: Gradient Descent</a></li>
                 </ol>
             </td>
             <td class="sechighlight5">HW2 to be released!
@@ -648,20 +655,25 @@
                 Feedforward networks:
                 <ul>
                     <li>Analytical backprop</li>
-                    <li>Training neural nets</li>
                     <li>Backprop in practice</li>
                     <li>Practical tips</li>
+                    <li>Intro to PyTorch</li>
                 </ul>
-<!--                Optimization recap, <br>-->
-<!--                Analytical backpropagation, <br>-->
+                <!--                Optimization recap, <br>-->
+                <!--                Analytical backpropagation, <br>-->
                 [slides: <a href="files/slides/03-4-5.feedforward-nets.pptx">pptx</a>]
             </td>
             <td>
-                Suggested Reading: <a href="https://cs231n.github.io/optimization-2/">Neural Networks:
-                Backpropagation</a>
+                Suggested Reading: <a href="https://web.stanford.edu/~jurafsky/slp3/7.pdf">Jurafsky & Martin Chapter
+                7</a>
                 <br>
                 Additional Reading:
                 <ol>
+                    <li><a href="https://cs231n.github.io/optimization-2/">Neural Networks:
+                Backpropagation</a></li>
+                    <li><a href="https://cs231n.github.io/neural-networks-3/">Neural Networks: Training and
+                empirical
+                tips </a></li>
                     <li><a href="https://cs231n.github.io/neural-networks-2/">Neural Networks: data and loss </a></li>
                     <li><a href="https://web.stanford.edu/class/cs224n/readings/gradient-notes.pdf">Computing Neural
                         Network Gradients</a></li>
@@ -677,22 +689,22 @@
         <tr>
             <td>#5 - Tue Feb 6</td>
             <td>
-                Feedforward networks:
+                Feeding text to neural networks:
                 <ul>
-                    <li>Recap</li>
-                    <li>More PyTorch</li>
-                    <li>Fixed-window feedforward LMs</li>
+                    <li>Tokenization and subwords</li>
+                    <li>Fixed-window MLP LMs</li>
                 </ul>
 
                 [slides: <a href="files/slides/03-4-5.feedforward-nets.pptx">pptx</a>]
             </td>
             <td>
-                Suggested Reading: <a href="https://cs231n.github.io/neural-networks-3/">Neural Networks: Training and
-                empirical
-                tips </a>
+                Suggested Reading: <a href="https://arxiv.org/abs/2104.03474">Revisiting Simple Neural Probabilistic Language
+                        Models </a>
                 <br>
                 Additional Reading:
                 <ol>
+                    <li><a href="https://huggingface.co/course/chapter2/4?fw=pt">Huggingface tutorials on
+                        Tokenization</a></li>
                     <li><a href="https://github.com/google-research/tuning_playbook">Deep Learning Tuning Playbook</a>
                     </li>
                     <li><a href="http://preview.d2l.ai/d2l-en/master/chapter_builders-guide/index.html">Dive into Deep
@@ -709,9 +721,9 @@
         <tr>
             <td>#6 - Thu Feb 8</td>
             <td>
-                Recurrent Neural Nets:
+                Recurrent Neural LMs:
                 <ul>
-                    <li>Definitions</li>
+                    <li>Introducing RNNs</li>
                     <li>Training RNNs</li>
                     <li>RNNs for natural language and language modeling</li>
                     <li>RNNs: Pros and Cons</li>
@@ -724,59 +736,6 @@
                 <!--                <br>-->
                 <!--                [slides: <a href="files/06.neural-language-modeling.pdf">pdf</a>, <a-->
                 <!--                    href="files/06.neural-language-modeling.pptx">pptx</a>]-->
-            </td>
-            <td>
-                Suggested Reading: <a href="https://web.stanford.edu/~jurafsky/slp3/7.pdf">Jurafsky & Martin Chapter
-                7</a>
-                <br>
-                Additional Reading:
-                <ol>
-                    <!--                    <li><a href="https://www.princeton.edu/~wbialek/rome/refs/shannon_51.pdf">Prediction and Entropy of-->
-                    <!--                        Printed English </a>-->
-                    <!--                        (the foundational paper by Shannon on language compression and uncertainty)-->
-                    <!--                    </li>-->
-                    <li><a href="https://arxiv.org/abs/2104.03474">Revisiting Simple Neural Probabilistic Language
-                        Models </a></li>
-                </ol>
-            </td>
-            <td>
-            </td>
-            <td></td>
-        </tr>
-        <!--        <tr class="sechighlight2">-->
-        <!--            <td>Fri Feb 10</td>-->
-        <!--            <td>TA Review Session (virtual over Zoom): Backpropagation and PyTorch</td>-->
-        <!--            <td>Time: 9 - 9:50 AM</td>-->
-        <!--            <td></td>-->
-        <!--            <td></td>-->
-        <!--        </tr>-->
-        <tr class="sechighlight5">
-            <td>#7 - Tue Feb 13</td>
-            <td>Quiz 1</td>
-            <td>
-                Topics: everything discussed in class until the beginning of class #6
-            </td>
-            <td class="sechighlight5">HW4 to be released!
-                <!--                [<a href="https://www.overleaf.com/read/hbpgdtbndtqn">tex</a>]-->
-                <!--                [<a href="files/CS_601_471_671_spring2023_homework4.pdf">pdf</a>]-->
-                <!--                [<a href="https://colab.research.google.com/drive/1FfhYkFowZ6h_2nTmKVcwme_TWlSNrqiW?usp=sharing">colab</a>]-->
-            </td>
-            <td class="sechighlight5">HW3 due</td>
-        </tr>
-        <!--        <tr class="sechighlight">-->
-        <!--            <td colspan="5">-->
-        <!--                <b> ⬇️ &#45;&#45; Self-Supervised Representation of Recurrent Neural Language Models</b>-->
-        <!--            </td>-->
-        <!--        </tr>-->
-        <tr>
-            <td>#8 - Thu Feb 15</td>
-            <td>
-                <ul>
-                    <li>Sampling from LMs </li>
-                    <li>Pre-training RNNs</li>
-                </ul>
-                <!--                [slides: <a href="files/08.recurrent-nets.pdf">pdf</a>, <a href="files/08.recurrent-nets.pptx">pptx</a>]-->
-                [slides: <a href="files/slides/08-9.recurrent-nets.pptx">pptx</a>]
             </td>
             <td>
                 Suggested Reading: <a href="https://cs231n.github.io/rnn/">CS231N course notes on RNNs</a>
@@ -794,9 +753,44 @@
                         dependencies with gradient descent is difficult</a> (one of the original vanishing gradient
                         papers)
                     </li>
-                    <li><a href="https://arxiv.org/abs/1904.09751">The Curious Case of Neural Text Degeneration</a></li>
-                    <li><a href="https://arxiv.org/abs/1802.05365">Deep contextualized word
-                representations</a> (ELMo paper)</li>
+                    </li>
+                </ol>
+            </td>
+            <td>
+            </td>
+            <td></td>
+        </tr>
+        <tr class="sechighlight5">
+            <td>#7 - Tue Feb 13</td>
+            <td>Quiz 1</td>
+            <td>
+                Topics: everything discussed in class until the beginning of class #6
+            </td>
+            <td class="sechighlight5">HW4 to be released!
+                <!--                [<a href="https://www.overleaf.com/read/hbpgdtbndtqn">tex</a>]-->
+                <!--                [<a href="files/CS_601_471_671_spring2023_homework4.pdf">pdf</a>]-->
+                <!--                [<a href="https://colab.research.google.com/drive/1FfhYkFowZ6h_2nTmKVcwme_TWlSNrqiW?usp=sharing">colab</a>]-->
+            </td>
+            <td class="sechighlight5">HW3 due</td>
+        </tr>
+        <tr>
+            <td>#8 - Thu Feb 15</td>
+            <td>
+                Recurrent Neural LMs:
+                <ul>
+                    <li>Sampling from LMs</li>
+                    <li>Pre-training RNNs</li>
+                    <li>Starting Transformers</li>
+                </ul>
+                <!--                [slides: <a href="files/08.recurrent-nets.pdf">pdf</a>, <a href="files/08.recurrent-nets.pptx">pptx</a>]-->
+                [slides: <a href="files/slides/08-9.recurrent-nets.pptx">pptx</a>]
+            </td>
+            <td>
+                Suggested Reading: <a href="https://arxiv.org/abs/1904.09751">The Curious Case of Neural Text Degeneration</a>
+                <br>
+                Additional Reading:
+                <ol>
+                    <li><a href="https://arxiv.org/abs/1802.05365">Deep contextualized word representations</a> (ELMo paper)</li>
                 </ol>
                 <!--                <ol>-->
                 <!--                    <li><a href="http://preview.d2l.ai/d2l-en/master/chapter_recurrent-neural-networks/index.html">Dive-->
@@ -810,52 +804,13 @@
         <tr>
             <td>#9 - Tue Feb 20</td>
             <td>
+                Transformer LMs:
                 <ul>
-                    <li>Tokenization and subwords</li>
                     <li>Self-attention</li>
-                    <li>Transformers</li>
+                    <li>Transformer LMs</li>
+                    <li>Positional embeddings</li>
                 </ul>
 
-                <!--                [slides: <a href="files/09.recurrent-nets-2.pdf">pdf</a>, <a-->
-                <!--                    href="files/09.recurrent-nets-2.pptx">pptx</a>]-->
-                [slides: <a href="files/slides/08-9.recurrent-nets.pptx">pptx</a>]
-                [slides: <a href="files/slides/10.transformers.pptx">pptx</a>]
-            </td>
-            <td>
-                Suggested Reading:
-
-                <br>
-                Additional Reading:
-                <ol>
-                    <li><a href="https://huggingface.co/course/chapter2/4?fw=pt">Huggingface tutorials on
-                        Tokenization</a></li>
-                </ol>
-            </td>
-            <td class="sechighlight5">HW5 to be released!
-                <!--                [<a href="https://www.overleaf.com/read/qctzgxhbmzvs">tex</a>]-->
-                <!--                [<a href="files/CS_601_471_671_spring2023_homework5.pdf">pdf</a>]-->
-                <!--                [<a href="https://colab.research.google.com/drive/1lWMrXbPjJccoRAUc9OzZMQxTnXcPEq7U?usp=sharing">colab</a>]-->
-            </td>
-            <td class="sechighlight5">HW4 due</td>
-        </tr>
-        <!--        <tr class="sechighlight">-->
-        <!--            <td colspan="5">-->
-        <!--                <b> ⬇️ &#45;&#45; Self-Supervised Representation of Transformer Language Models</b>-->
-        <!--            </td>-->
-        <!--        </tr>-->
-        <tr>
-            <td>#10 - Thu Feb 22</td>
-            <td>
-                Transformers:
-                <ul>
-                    <li>Encoder-decoder family</li>
-                    <li>Encoder family</li>
-                    <li>Decoder family</li>
-                    <li>Objective functions</li>
-                    <li>Preparing pretrainng data</li>
-                    <li>Distributed training</li>
-                    <li>Training tips</li>
-                </ul>
                 [slides: <a href="files/slides/10.transformers.pptx">pptx</a>]
             </td>
             <td>
@@ -866,21 +821,45 @@
                     <li>
                         <a href="http://preview.d2l.ai/d2l-en/master/chapter_attention-mechanisms-and-transformers/index.html">Dive
                             into Deep Learning: Attention Mechanism</a></li>
-<!--                    <li><a href="http://nlp.seas.harvard.edu/annotated-transformer/">The Annotated Transformer </a></li>-->
-                    <li><a href="https://jalammar.github.io/illustrated-transformer/">The Illustrated Transformer</a>
-                    </li>
-<!--                    <li><a href="https://www.jmlr.org/papers/volume21/20-074/20-074.pdf">Exploring the limits-->
-<!--                        of transfer learning with a unified text-to-text transformer</a> (T5 paper)-->
-                    </li>
-<!--                    <li><a href="https://arxiv.org/abs/1910.13461">BART: Denoising Sequence-to-Sequence-->
-<!--                        Pre-training </a></li>-->
-                     <li><a href="https://jalammar.github.io/illustrated-bert/">The Illustrated BERT, ELMo, and co</a>
+                    <li><a href="https://jalammar.github.io/illustrated-transformer/">The Illustrated Transformer</a></li>
+                    <li><a href="http://nlp.seas.harvard.edu/annotated-transformer/">The Annotated Transformer </a></li>
+                </ol>
+            </td>
+            <td class="sechighlight5">HW5 to be released!
+                <!--                [<a href="https://www.overleaf.com/read/qctzgxhbmzvs">tex</a>]-->
+                <!--                [<a href="files/CS_601_471_671_spring2023_homework5.pdf">pdf</a>]-->
+                <!--                [<a href="https://colab.research.google.com/drive/1lWMrXbPjJccoRAUc9OzZMQxTnXcPEq7U?usp=sharing">colab</a>]-->
+            </td>
+            <td class="sechighlight5">HW4 due</td>
+        </tr>
+        <tr>
+            <td>#10 - Thu Feb 22</td>
+            <td>
+                Transformer LMs:
+                <ul>
+                    <li>Efficiency considerations</li>
+                    <li>Architectural variants</li>
+                    <li>Pretrainng data</li>
+                    <li>Training tips</li>
+                </ul>
+                [slides: <a href="files/slides/10.transformers.pptx">pptx</a>]
+            </td>
+            <td>
+                Suggested Reading: TBD
+                <br>
+                Additional Reading:
+                <ol>
+                    <!--                    <li><a href="https://www.jmlr.org/papers/volume21/20-074/20-074.pdf">Exploring the limits-->
+                    <!--                        of transfer learning with a unified text-to-text transformer</a> (T5 paper)-->
+                    <!--                    <li><a href="https://arxiv.org/abs/1910.13461">BART: Denoising Sequence-to-Sequence-->
+                    <!--                        Pre-training </a></li>-->
+                    <li><a href="https://jalammar.github.io/illustrated-bert/">The Illustrated BERT, ELMo, and co</a>
                     </li>
                     <li><a href="https://jalammar.github.io/illustrated-gpt2/">The Illustrated GPT-2</a></li>
-<!--                    <li><a href="https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf">Language-->
-<!--                            Models are Unsupervised Multitask Learners</a></li>-->
-<!--                    <li><a href="https://www.semanticscholar.org/paper/BERT%3A-Pre-training-of-Deep-Bidirectional-for-Devlin-Chang/df2b0e26d0599ce3e70df8a9da02e51594e0e992">BERT:-->
-<!--                Pre-training of Deep Bidirectional Transformers for Language Understanding</a></li>-->
+                    <!--                    <li><a href="https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf">Language-->
+                    <!--                            Models are Unsupervised Multitask Learners</a></li>-->
+                    <!--                    <li><a href="https://www.semanticscholar.org/paper/BERT%3A-Pre-training-of-Deep-Bidirectional-for-Devlin-Chang/df2b0e26d0599ce3e70df8a9da02e51594e0e992">BERT:-->
+                    <!--                Pre-training of Deep Bidirectional Transformers for Language Understanding</a></li>-->
                 </ol>
             </td>
             <td></td>
@@ -894,13 +873,13 @@
         <tr>
             <td>#11 - Tue Feb 27</td>
             <td>
-                Adaptation via in-context learning:
+                Adapting LMs:
                 <ul>
-                    <li>Definition and importance</li>
-                    <li>Making sense of it</li>
-                    <li>Adapting models (prompt engineering)</li>
-                    <li>Multi-step prompting</li>
-                    <li>Failures of ICL</li>
+                    <li>Adaption as fine-tuning</li>
+                    <li>Parameter-efficient</li>
+                    <li>Adaption as in-context learning</li>
+                    <li>ICL: Definition and importance</li>
+                    <li>ICL: Making sense of it</li>
                 </ul>
                 [slides: <a href="files/slides/11.in-context-learning.pptx">pptx</a>]
             </td>
@@ -909,24 +888,24 @@
                 extrapolating the capabilities of language models</a> <br>
                 Additional Reading:
                 <ol>
-<!--                    <li><a href="https://arxiv.org/pdf/2102.09690">Calibrate Before Use: Improving Few-Shot-->
-<!--                        Performance of Language Models</a></li>-->
+                    <!--                    <li><a href="https://arxiv.org/pdf/2102.09690">Calibrate Before Use: Improving Few-Shot-->
+                    <!--                        Performance of Language Models</a></li>-->
                     <li><a href="https://arxiv.org/abs/2005.14165">Language Models are Few-Shot Learners</a> (GPT3
                         paper)
-<!--                    </li>-->
-<!--                    <li><a href="https://arxiv.org/abs/2104.08786">Fantastically Ordered Prompts and Where to Find Them:-->
-<!--                        Overcoming Few-Shot Prompt Order Sensitivity</a> (LMs are sensitive to ICL example orders)-->
-<!--                    </li>-->
-<!--                    <li><a href="https://arxiv.org/abs/2109.07830">Reframing Instructional Prompts to GPTk's-->
-<!--                        Language</a> (LMs are sensitive to phrasing of prompts)-->
-<!--                    </li>-->
-                    <!--                    <li>-->
-                    <!--                        <a href="https://transformer-circuits.pub/2022/in-context-learning-and-induction-heads/index.html">In-context-->
-                    <!--                            Learning and Induction Heads</a></li>-->
-                    <!--                    <li><a href="https://arxiv.org/abs/2205.05055">Data Distributional Properties Drive Emergent-->
-                    <!--                        In-Context Learning in Transformers</a></li>-->
-                    <!--                    <li><a href="https://arxiv.org/abs/2202.07206">Impact of Pretraining Term Frequencies on Few-Shot-->
-                    <!--                        Reasoning</a></li>-->
+                        <!--                    </li>-->
+                        <!--                    <li><a href="https://arxiv.org/abs/2104.08786">Fantastically Ordered Prompts and Where to Find Them:-->
+                        <!--                        Overcoming Few-Shot Prompt Order Sensitivity</a> (LMs are sensitive to ICL example orders)-->
+                        <!--                    </li>-->
+                        <!--                    <li><a href="https://arxiv.org/abs/2109.07830">Reframing Instructional Prompts to GPTk's-->
+                        <!--                        Language</a> (LMs are sensitive to phrasing of prompts)-->
+                        <!--                    </li>-->
+                        <!--                    <li>-->
+                        <!--                        <a href="https://transformer-circuits.pub/2022/in-context-learning-and-induction-heads/index.html">In-context-->
+                        <!--                            Learning and Induction Heads</a></li>-->
+                        <!--                    <li><a href="https://arxiv.org/abs/2205.05055">Data Distributional Properties Drive Emergent-->
+                        <!--                        In-Context Learning in Transformers</a></li>-->
+                        <!--                    <li><a href="https://arxiv.org/abs/2202.07206">Impact of Pretraining Term Frequencies on Few-Shot-->
+                        <!--                        Reasoning</a></li>-->
                 </ol>
             </td>
             <td class="sechighlight5">HW6 to be released!</td>
@@ -935,12 +914,17 @@
         <tr>
             <td>#12 - Thu Feb 29</td>
             <td>
-                Adaptation via tuning: head-tuning, prompt-tuning, adaptors, LoRA. <br>
+                Prompting LMs <br>
                 <!--                [slides: <a href="files/15.in-context-learning.pdf">pdf</a>, <a-->
                 <!--                    href="files/15.in-context-learning.pptx">pptx</a>]-->
                 [slides: <a href="files/slides/12.adaptation-via-tuning.pptx">pptx</a>]
                 <!--                <br>-->
                 <!--                [slides: <a href="files/14.transformers-4.pdf">pdf</a>, <a href="files/14.transformers-4.pptx">pptx</a>]-->
+                <ul>
+                    <li>Prompt engineering</li>
+                    <li>Multi-step prompting</li>
+                    <li>Failures of ICL</li>
+                </ul>
             </td>
             <td>
                 Suggested Reading: <a href="https://arxiv.org/abs/2104.08691">The Power of Scale for Parameter-Efficient
@@ -959,10 +943,12 @@
         <tr>
             <td>#13 - Tue Mar 5</td>
             <td>
-                Adaptation as alignment to human instructions: <br>
+                Alignment of LMs: <br>
                 <ul>
+                    <li>Alignment: definitions</li>
                     <li>Instruction-tuning</li>
                     <li>RLHF and variants</li>
+                    <li>Alignment: failures/open questions</li>
                 </ul>
                 <!-- Multilingual properties <br>-->
                 [slides: <a href="files/slides/14.alignment.pptx">pptx</a>]
@@ -979,18 +965,18 @@
                     <li><a href="https://arxiv.org/abs/1706.03741">Deep reinforcement learning from human
                         preferences</a> (an early RLHF paper)
                     </li>
-<!--                    <li><a href="https://arxiv.org/pdf/2203.02155.pdf">Training language models to follow instructions-->
-<!--                        with human feedback</a> (GPT3 + RLHF paper)-->
-<!--                    </li>-->
-<!--                    <li><a href="https://arxiv.org/abs/2210.11416">Scaling Instruction-Finetuned Language Models</a>-->
-<!--                        (FLAN paper)-->
-<!--                    </li>-->
-<!--                    <li><a href="https://arxiv.org/abs/2204.07705">Generalization via Declarative Instructions on 1600+-->
-<!--                        NLP Tasks</a> (Super-NaturalInstructions paper)-->
-<!--                    </li>-->
-<!--                    <li><a href="https://arxiv.org/abs/2212.10560">Self-Instruct: Aligning Language Model with Self-->
-<!--                        Generated Instructions</a> (Self-Instruct paper)-->
-<!--                    </li>-->
+                    <!--                    <li><a href="https://arxiv.org/pdf/2203.02155.pdf">Training language models to follow instructions-->
+                    <!--                        with human feedback</a> (GPT3 + RLHF paper)-->
+                    <!--                    </li>-->
+                    <!--                    <li><a href="https://arxiv.org/abs/2210.11416">Scaling Instruction-Finetuned Language Models</a>-->
+                    <!--                        (FLAN paper)-->
+                    <!--                    </li>-->
+                    <!--                    <li><a href="https://arxiv.org/abs/2204.07705">Generalization via Declarative Instructions on 1600+-->
+                    <!--                        NLP Tasks</a> (Super-NaturalInstructions paper)-->
+                    <!--                    </li>-->
+                    <!--                    <li><a href="https://arxiv.org/abs/2212.10560">Self-Instruct: Aligning Language Model with Self-->
+                    <!--                        Generated Instructions</a> (Self-Instruct paper)-->
+                    <!--                    </li>-->
                 </ol>
             </td>
             <td>
@@ -1003,12 +989,17 @@
         <tr>
             <td>#14 - Thu Mar 7</td>
             <td>
-                Connecting language to outside world, <br>
-                LMs for coding, <br>
-                LMs and tools, <br>
-                Language models and robots, <br>
-                Vision language models, <br>
-                Speech-text models, <br>
+                Connecting language to outside world:
+                <ul>
+                    <li>LMs for coding</li>
+                    <li>Connecting vision and language </li>
+                    <li>Generative vision-language</li>
+                    <li>LMs and other modalities</li>
+                </ul>
+
+<!--                LMs and tools <br>-->
+<!--                Language models and robots, <br>-->
+<!--                Open questions <br>-->
                 <!--                Scaling laws <br>-->
                 <!--                Modifying self-attention for long context <br>-->
                 <!--                Sparse attention <br>-->
@@ -1027,27 +1018,27 @@
                 Suggested Reading: TBD <br>
                 Additional Reading:
                 <ol>
-<!--                    <li><a href="https://arxiv.org/abs/2106.13884">Multimodal Few-Shot Learning with Frozen-->
-<!--                        Language Models</a></li>-->
-<!--                    <li><a href="https://arxiv.org/abs/2010.11929">An Image is Worth 16x16 Words: Transformers for Image-->
-<!--                        Recognition at Scale</a></li>-->
-<!--                    <li><a href="https://arxiv.org/abs/2103.00020">Learning Transferable Visual Models From Natural-->
-<!--                        Language Supervision</a></li>-->
-<!--                    <li><a href="https://arxiv.org/abs/2102.05918">Scaling Up Visual and Vision-Language Representation-->
-<!--                        Learning With Noisy Text Supervision</a></li>-->
+                    <!--                    <li><a href="https://arxiv.org/abs/2106.13884">Multimodal Few-Shot Learning with Frozen-->
+                    <!--                        Language Models</a></li>-->
+                    <!--                    <li><a href="https://arxiv.org/abs/2010.11929">An Image is Worth 16x16 Words: Transformers for Image-->
+                    <!--                        Recognition at Scale</a></li>-->
+                    <!--                    <li><a href="https://arxiv.org/abs/2103.00020">Learning Transferable Visual Models From Natural-->
+                    <!--                        Language Supervision</a></li>-->
+                    <!--                    <li><a href="https://arxiv.org/abs/2102.05918">Scaling Up Visual and Vision-Language Representation-->
+                    <!--                        Learning With Noisy Text Supervision</a></li>-->
                     <li><a href="https://arxiv.org/abs/2204.06125">Hierarchical Text-Conditional Image Generation with
                         CLIP Latents</a></li>
                     <li><a href="https://arxiv.org/abs/2104.14294">Emerging Properties in Self-Supervised Vision
                         Transformers</a></li>
-<!--                    <li><a href="https://arxiv.org/abs/2106.02636">MERLOT: Multimodal Neural Script Knowledge Models</a>-->
-<!--                    </li>-->
-<!--                    <li><a href="https://imagen.research.google/paper.pdf">Photorealistic Text-to-Image Diffusion Models-->
-<!--                        with Deep Language Understanding</a></li>-->
-<!--                    <li><a href="https://arxiv.org/abs/2208.10442">Image as a Foreign Language: BEiT Pretraining for All-->
-<!--                        Vision and Vision-Language Tasks</a></li>-->
-<!--                    <li><a href="https://arxiv.org/abs/2206.00169">Discovering the Hidden Vocabulary of DALLE-2</a></li>-->
-<!--                    <li><a href="https://arxiv.org/abs/2112.10752">High-Resolution Image Synthesis with Latent Diffusion-->
-<!--                        Models</a></li>-->
+                    <!--                    <li><a href="https://arxiv.org/abs/2106.02636">MERLOT: Multimodal Neural Script Knowledge Models</a>-->
+                    <!--                    </li>-->
+                    <!--                    <li><a href="https://imagen.research.google/paper.pdf">Photorealistic Text-to-Image Diffusion Models-->
+                    <!--                        with Deep Language Understanding</a></li>-->
+                    <!--                    <li><a href="https://arxiv.org/abs/2208.10442">Image as a Foreign Language: BEiT Pretraining for All-->
+                    <!--                        Vision and Vision-Language Tasks</a></li>-->
+                    <!--                    <li><a href="https://arxiv.org/abs/2206.00169">Discovering the Hidden Vocabulary of DALLE-2</a></li>-->
+                    <!--                    <li><a href="https://arxiv.org/abs/2112.10752">High-Resolution Image Synthesis with Latent Diffusion-->
+                    <!--                        Models</a></li>-->
                     <!--                    <li><a href="https://arxiv.org/abs/2111.07991">LiT: Zero-Shot Transfer with Locked-image text Tuning</a></li>-->
                     <!--                    <li><a href="https://arxiv.org/abs/1911.00650">Automatic Detection of Generated Text is Easiest when-->
                     <!--                        Humans are Fooled</a></li>-->
@@ -1060,16 +1051,25 @@
         <tr>
             <td>#15 - Tue Mar 12</td>
             <td>
-                Recap, <br>
-                Defining final projects, <br>
-                Tips for successful project, <br>
+                Connecting language to outside world:
+                <ul>
+                    <li>LMs and other modalities</li>
+                    <li>LMs and tools</li>
+                    <li>Language models and robots</li>
+                    <li>Open questions</li>
+                </ul>
+                Introducing final projects:
+                <ul>
+                    <li>Defining final projects</li>
+                    <li>Tips for successful project</li>
+                </ul>
                 [slides: <a href="files/slides/15.final_project_ideas.pptx">pptx</a>]
             </td>
             <td>
 
             </td>
             <td>
-<!--                HW8 to be released!-->
+                <!--                HW8 to be released!-->
                 <!--                [<a href="https://www.overleaf.com/read/kvhtjytysvjt">tex</a>]-->
                 <!--                [<a href="files/CS_601_471_671_spring2023_homework7.pdf">pdf</a>]-->
             </td>
@@ -1086,30 +1086,30 @@
             <td></td>
             <td>HW7 due</td>
         </tr>
-<!--        <tr class="sechighlight5">-->
-<!--            <td>#13 - Tue Mar 5</td>-->
-<!--            <td>-->
+        <!--        <tr class="sechighlight5">-->
+        <!--            <td>#13 - Tue Mar 5</td>-->
+        <!--            <td>-->
 
-<!--            </td>-->
-<!--            <td>-->
+        <!--            </td>-->
+        <!--            <td>-->
 
-<!--            </td>-->
-<!--            <td>-->
-                <!--                HW? to be released!-->
-                <!--                [<a href="https://www.overleaf.com/read/dpxxhmszytjr">tex</a>]-->
-                <!--                [<a href="files/CS_601_471_671_spring2023_homework6.pdf">pdf</a>]-->
-<!--            </td>-->
-<!--            <td>HW8 due</td>-->
-            <!--            <td>-->
-            <!--                Hallucination issue <br>-->
-            <!--                Calibrating model uncertainties <br>-->
-            <!--                - Consistency <br>-->
-            <!--                - Sensitivity <br>-->
-            <!--                - Mutual information <br>-->
-            <!--                - Flatness <br>-->
-            <!--            </td>-->
-            <!--            <td>-->
-<!--        </tr>-->
+        <!--            </td>-->
+        <!--            <td>-->
+        <!--                HW? to be released!-->
+        <!--                [<a href="https://www.overleaf.com/read/dpxxhmszytjr">tex</a>]-->
+        <!--                [<a href="files/CS_601_471_671_spring2023_homework6.pdf">pdf</a>]-->
+        <!--            </td>-->
+        <!--            <td>HW8 due</td>-->
+        <!--            <td>-->
+        <!--                Hallucination issue <br>-->
+        <!--                Calibrating model uncertainties <br>-->
+        <!--                - Consistency <br>-->
+        <!--                - Sensitivity <br>-->
+        <!--                - Mutual information <br>-->
+        <!--                - Flatness <br>-->
+        <!--            </td>-->
+        <!--            <td>-->
+        <!--        </tr>-->
 
         <tr class="sechighlight4 centered">
             <td>#17 - Tue Mar 19</td>
@@ -1145,12 +1145,12 @@
                     <li><a href="https://arxiv.org/abs/2001.08361">Scaling Laws for Neural Language Models</a></li>
                     <li><a href="https://arxiv.org/abs/2002.08909">REALM: Retrieval-Augmented Language Model
                         Pre-Training</a></li>
-<!--                    <li><a href="https://arxiv.org/abs/2112.09118">Unsupervised Dense Information Retrieval with-->
-<!--                        Contrastive Learning</a></li>-->
+                    <!--                    <li><a href="https://arxiv.org/abs/2112.09118">Unsupervised Dense Information Retrieval with-->
+                    <!--                        Contrastive Learning</a></li>-->
                     <li><a href="https://arxiv.org/abs/2112.04426v3">Improving language models by retrieving from
                         trillions of tokens</a></li>
-<!--                    <li><a href="https://arxiv.org/abs/2208.03299">Atlas: Few-shot Learning with Retrieval Augmented-->
-<!--                        Language Models</a></li>-->
+                    <!--                    <li><a href="https://arxiv.org/abs/2208.03299">Atlas: Few-shot Learning with Retrieval Augmented-->
+                    <!--                        Language Models</a></li>-->
                     <li><a href="https://arxiv.org/abs/2210.16773">An Efficient Memory-Augmented Transformer for
                         Knowledge-Intensive NLP Tasks</a></li>
                     <li><a href="https://arxiv.org/abs/2212.10511">When Not to Trust Language Models: Investigating
@@ -1266,7 +1266,8 @@
                 Additional Reading:
                 <ol>
                     <li><a href="https://arxiv.org/abs/2303.15715">Foundation Models and Fair Use</a></li>
-                    <li><a href="https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4523551">Copyright and the Generative-AI Supply Chain</a></li>
+                    <li><a href="https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4523551">Copyright and the
+                        Generative-AI Supply Chain</a></li>
                 </ol>
             </td>
             <td>
