@@ -153,13 +153,13 @@ for idx, row in enumerate(csv_reader):
         # B-	67.5
         # C+	57.5
         grade = ''
-        if total >= 98:
+        if total >= 96:
             grade = 'A+'
-        elif total >= 92.9:
+        elif total >= 90.5:
             grade = 'A'
-        elif total >= 88:
+        elif total >= 87:
             grade = 'A-'
-        elif total >= 83:
+        elif total >= 82:
             grade = 'B+'
         elif total >= 75:
             grade = 'B'
