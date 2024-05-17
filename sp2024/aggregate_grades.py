@@ -74,44 +74,45 @@ for idx, row in enumerate(csv_reader):
 
         quiz = (num(21) + num(42)) / 2
 
-        # hw1 = (num(3) + num(6))
-        hw1 = num(3) # in hw1, the grade already contains programming
+
+        hw1 = (num(3) + num(6))
         hw1_lateness = normalize_latesness(row[5])
         total_lateness += hw1_lateness
-        total_hw += 100.0 / 90.0 * hw1 * discount(total_lateness, hw1_lateness)
+        total_hw += 100.0 / 130.0 * hw1 * discount(total_lateness, hw1_lateness)
 
-        hw2 = num(9) # in hw2, the grade already contains programming
+        hw2 = (num(9) + num(12))
         hw2_lateness = normalize_latesness(row[11])
         total_lateness += hw2_lateness
-        # max grade is 84
-        # 9 extra credits, leading 84 - 9 = 75
-        total_hw += 100.0 / 75.0 * hw2 * discount(total_lateness, hw2_lateness)
+        # max grade is 124
+        # 9 extra credits, leading 124 - 9 = 115
+        total_hw += 100.0 / 115.0 * hw2 * discount(total_lateness, hw2_lateness)
 
-        hw3 = num(15)
+        hw3 = (num(15) + num(18))
         hw3_lateness = normalize_latesness(row[17])
-        # max is 95.0
-        # 5 extra credits, leading 95 - 5 = 90
+        # max is 125.0
+        # 5 extra credits, leading 15 - 5 = 120
         total_lateness += hw3_lateness
-        total_hw += 100.0 / 90.0 * hw3 * discount(total_lateness, hw3_lateness)
+        total_hw += 100.0 / 120.0 * hw3 * discount(total_lateness, hw3_lateness)
 
-        hw4 = num(24)
+        hw4 = (num(24) + num(27))
         hw4_lateness = normalize_latesness(row[26])
         total_lateness += hw4_lateness
-        total_hw += 100.0 / 60.0 * hw4 * discount(total_lateness, hw4_lateness)
+        # max is 100.0
+        total_hw += 100.0 / 100.0 * hw4 * discount(total_lateness, hw4_lateness)
 
-        hw5 = num(30)
+        hw5 = (num(30) + num(33))
         hw5_lateness = normalize_latesness(row[32])
         total_lateness += hw5_lateness
-        # the maximum grade is 80
-        # 12 extra credits, leading 80 - 12 = 68
-        total_hw += 100.0 * hw5 / 68.0  * discount(total_lateness, hw5_lateness)
+        # the maximum grade is 100
+        # 14 extra credits, leading 100 - 14 = 86
+        total_hw += 100.0 * hw5 / 86.0  * discount(total_lateness, hw5_lateness)
 
-        hw6 = num(36)
+        hw6 = (num(36) + num(39))
         hw6_lateness = normalize_latesness(row[38])
         total_lateness += hw6_lateness
-        # the maximum grade is 85
-        # 17 extra credits, leading 85 - 17 = 68
-        total_hw += 100.0 / 68.0 * hw6 * discount(total_lateness, hw6_lateness)
+        # the maximum grade is 129
+        # 21 extra credits, leading 129 - 21 = 108
+        total_hw += 100.0 / 108.0 * hw6 * discount(total_lateness, hw6_lateness)
 
         project_proposals = num(45)
         proposal_latness = normalize_latesness(row[47])
@@ -121,7 +122,8 @@ for idx, row in enumerate(csv_reader):
         hw7 = num(48)
         hw7_lateness = normalize_latesness(row[50])
         total_lateness += hw7_lateness
-        total_hw += 100 / 61.0 * hw7 * discount(total_lateness, hw7_lateness)
+        # the maximum grade is 86
+        total_hw += 100 / 86.0 * hw7 * discount(total_lateness, hw7_lateness)
 
         if row[0] == 'TRAVIS YOU':
             # registered late and asked for permission to distribute his hw1 grade across the other 6 homeworks
