@@ -101,7 +101,11 @@ for idx, row in enumerate(csv_reader):
         total_hw += 100.0 / 100.0 * hw4 * discount(total_lateness, hw4_lateness)
 
         hw5 = (num(30) + num(33))
-        hw5_lateness = normalize_latesness(row[32])
+        # there was an issue in her submission, we had to submit it manually
+        if row[0] == 'Chuyu Liu':
+            hw5_lateness = 0
+        else:
+            hw5_lateness = normalize_latesness(row[32])
         total_lateness += hw5_lateness
         # the maximum grade is 100
         # 14 extra credits, leading 100 - 14 = 86
