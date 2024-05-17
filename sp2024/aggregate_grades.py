@@ -30,7 +30,7 @@ grade_count = {}
 # average the quiz columsn for each student: index 10 and 20
 for idx, row in enumerate(csv_reader):
 
-    print(row)
+    # print(row)
 
 
     def num(int):
@@ -74,45 +74,54 @@ for idx, row in enumerate(csv_reader):
 
         quiz = (num(21) + num(42)) / 2
 
-        hw1 = (num(3) + num(6))
+        # hw1 = (num(3) + num(6))
+        hw1 = num(3) # in hw1, the grade already contains programming
         hw1_lateness = normalize_latesness(row[5])
         total_lateness += hw1_lateness
-        total_hw += 100.0 / 130.0 * hw1 * discount(total_lateness, hw1_lateness)
+        total_hw += 100.0 / 90.0 * hw1 * discount(total_lateness, hw1_lateness)
 
-        hw2 = (num(9) + num(12))
+        hw2 = num(9) # in hw2, the grade already contains programming
         hw2_lateness = normalize_latesness(row[11])
         total_lateness += hw2_lateness
-        total_hw += 100.0 / 124.0 * hw2 * discount(total_lateness, hw2_lateness)
+        # max grade is 84
+        # 9 extra credits, leading 84 - 9 = 75
+        total_hw += 100.0 / 75.0 * hw2 * discount(total_lateness, hw2_lateness)
 
-        hw3 = (num(15) + num(18))
+        hw3 = num(15)
         hw3_lateness = normalize_latesness(row[17])
+        # max is 95.0
+        # 5 extra credits, leading 95 - 5 = 90
         total_lateness += hw3_lateness
-        total_hw += 100.0 / 125.0 * hw3 * discount(total_lateness, hw3_lateness)
+        total_hw += 100.0 / 90.0 * hw3 * discount(total_lateness, hw3_lateness)
 
-        hw4 = (num(24) + num(27))
+        hw4 = num(24)
         hw4_lateness = normalize_latesness(row[26])
         total_lateness += hw4_lateness
-        total_hw += hw4 * discount(total_lateness, hw4_lateness)
+        total_hw += 100.0 / 60.0 * hw4 * discount(total_lateness, hw4_lateness)
 
-        hw5 = (num(30) + num(33))
+        hw5 = num(30)
         hw5_lateness = normalize_latesness(row[32])
         total_lateness += hw5_lateness
-        total_hw += hw5 * discount(total_lateness, hw5_lateness)
+        # the maximum grade is 80
+        # 12 extra credits, leading 80 - 12 = 68
+        total_hw += 100.0 * hw5 / 68.0  * discount(total_lateness, hw5_lateness)
 
-        hw6 = (num(36) + num(39))
+        hw6 = num(36)
         hw6_lateness = normalize_latesness(row[38])
         total_lateness += hw6_lateness
-        total_hw += 100.0 / 132.0 * hw6 * discount(total_lateness, hw6_lateness)
+        # the maximum grade is 85
+        # 17 extra credits, leading 85 - 17 = 68
+        total_hw += 100.0 / 68.0 * hw6 * discount(total_lateness, hw6_lateness)
 
         project_proposals = num(45)
         proposal_latness = normalize_latesness(row[47])
         total_lateness += proposal_latness
         total_project += 15.0 * project_proposals / 6.0 * discount(total_lateness, proposal_latness)
 
-        hw7 = (num(48) + num(51))
+        hw7 = num(48)
         hw7_lateness = normalize_latesness(row[50])
         total_lateness += hw7_lateness
-        total_hw += hw7 * discount(total_lateness, hw7_lateness)
+        total_hw += 100 / 61.0 * hw7 * discount(total_lateness, hw7_lateness)
 
         if row[0] == 'TRAVIS YOU':
             # registered late and asked for permission to distribute his hw1 grade across the other 6 homeworks
@@ -131,7 +140,7 @@ for idx, row in enumerate(csv_reader):
         total_project += 50.0 * final_report / 60.0 * discount(total_lateness, final_report_lateness)
 
         total = 0.3 * total_project + 0.4 * total_hw + 0.3 * quiz
-        print(total)
+        # print(total)
 
         # map the grade into letter grade
         # A+	above 100
@@ -142,11 +151,13 @@ for idx, row in enumerate(csv_reader):
         # B-	67.5
         # C+	57.5
         grade = ''
-        if total >= 100:
+        if total >= 98:
             grade = 'A+'
-        elif total >= 92.5:
+        elif total >= 92.9:
             grade = 'A'
-        elif total >= 82.5:
+        elif total >= 88:
+            grade = 'A-'
+        elif total >= 83:
             grade = 'B+'
         elif total >= 75:
             grade = 'B'
@@ -159,7 +170,7 @@ for idx, row in enumerate(csv_reader):
 
         grade_count[grade] = grade_count.get(grade, 0) + 1
 
-        print(grade)
+        print(f"{row[0]} --- {total} --- {grade}")
 
     # break
 
