@@ -132,6 +132,7 @@ for idx, row in enumerate(csv_reader):
         if row[0] == 'TRAVIS YOU':
             # registered late and asked for permission to distribute his hw1 grade across the other 6 homeworks
             total_hw = total_hw / 6
+            print(f" YOOOOOOOOOO {row[0]} ")
         else:
             total_hw = total_hw / 7
 
@@ -146,7 +147,8 @@ for idx, row in enumerate(csv_reader):
         total_project += 50.0 * final_report / 60.0 * discount(total_lateness, final_report_lateness)
 
         total = 0.3 * total_project + 0.4 * total_hw + 0.3 * quiz
-        # print(total)
+        # now print all the important information
+        print(f"{row[0]} --- total: {total} --- hw: {total_hw} --- project: {total_project} --- quiz: {quiz}")
 
         # map the grade into letter grade
         # A+	above 100
