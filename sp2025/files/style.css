@@ -2,11 +2,15 @@ body {
     font-family: 'roboto', sans-serif;
     font-weight: 300;
     font-size: 17px;
-    padding-top: 70px;
+    padding-top: 100px;
 }
 
 p {
     text-align: justify;
+}
+
+.container {
+   max-width: 850px;
 }
 
 #header {
@@ -224,7 +228,7 @@ tr {
 }
 
 .navbar-default .navbar-collapse > ul > li {
-    width: 16%;
+    width: 20%;
 }
 
 .navbar-default .navbar-nav > li > a {
