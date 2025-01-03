@@ -60,32 +60,31 @@
 
 <!-- Header -->
 <div id="header" style="text-align:center">
-    <!--    <img src="files/blank.png" class="logo-left">-->
     <a href="https://www.cs.jhu.edu/">
         <img src="files/jhu_shield.png" class="logo-right">
     </a>
-    <!--    <a href="https://www.clsp.jhu.edu/">-->
-    <!--        <img src="files/clsp-logo.png" class="logo-right">-->
-    <!--    </a>-->
     <h1>CS 601.471/671 NLP: Self-supervised Models</h1>
-    <h3>Johns Hopkins University - Spring 2024</h3>
+    <h3>Johns Hopkins University - Spring 2025</h3>
     <div style="clear:both;"></div>
 </div>
 
 <!-- Intro -->
 <div class="container sec" id="intro">
     <p>
-        Large self-supervised (pre-trained) models (such as Large Language Models or LLMs) have transformed various
-        data-driven fields, such as natural language
-        processing (NLP). In this course, students will gain a thorough introduction to self-supervised learning
-        techniques for NLP applications. Through lectures, assignments, and a final project, students will learn the
-        necessary skills to design, implement, and understand their own self-supervised neural network models using the
-        Pytorch framework.
+        Self-supervised learning (pre-training) has led to the development of artifacts like Large Language Models
+        (LLMs), which have revolutionized fields such as natural language processing (NLP). This course serves as an
+        introduction to self-supervised learning within the context of natural language. Its objective is to provide a
+        comprehensive overview of industry standards for pre-training, aligning, and deploying language models. The
+        course is designed to equip you with a diverse set of skills essential for future success, whether you aim to
+        conduct research using language models or apply them in industrial settings. PyTorch will be the primary
+        programming language used in the class. The course will include instructor-led lectures, seven assignments
+        involving both empirical and theoretical work, in-class quizzes, and a final project.
     </p>
 
     <p>
-        <b> Note:</b> The course is different from <a href="https://self-supervised.cs.jhu.edu/fa2022/">601.771</a>
-        (offered in the fall semesters) which is focused on advanced topics in recent papers and is geared toward grad
+        <b> Note:</b> The course is different from <a href="https://self-supervised.cs.jhu.edu/fa2024/">601.771</a>
+        (typically offered in fall semesters) which is focused on advanced topics in recent papers and is geared toward
+        grad
         students that
         want to specialize in the latest developments in self-supervised models.
     </p>
@@ -93,10 +92,12 @@
     <p>
         <strong>Prerequisites</strong>:
         (1) Data Structures (601.226),
-        (2) Background in Natural Language Processing & Machine Learning or having finished one of the relevant courses
-        such as Machine Learning (CS 475/675), Machine Learning: Deep Learning (CS 482/682), Natural Language Processing
-        (CS 465/665),
-        Machine Translation (CS 468/668).
+        (2) Background in "Natural Language Processing" & "Machine Learning" OR having finished one of the relevant
+        courses
+        such as "Machine Learning" (CS 475/675), OR "Machine Learning: Deep Learning" (CS 482/682), OR "Natural Language
+        Processing"
+        (CS 465/665), OR
+        "Machine Translation" (CS 468/668).
         (3) All the class assignments will be in Python/PyTorch. If you don’t know Python or PyTorch but have experience
         in other programming languages (Java, C++, etc.) you can probably pick Python/PyTorch pretty quickly.
         (4) Calculus and linear algebra: you should be comfortable with matrix operations (matrix multiplication,
@@ -179,49 +180,26 @@
         <li><b>Office hours:</b>
             <ul>
                 <li>Daniel office hour: Tuesdays 12 - 1 pm EST (Hackerman hall, 316B),</li>
-                <li>TA office hour: Mondays 3:30 - 4:30 pm (in-person),</li>
-                <li>CAs' office hour: Wednesdays 3-4 pm (in-person).</li>
+                <li>TA office hour: TBD (location: see below),</li>
+                <li>CAs' office hour: TBD (location: see below).</li>
             </ul>
             The TA/CA office hours will be held at Hackerman 3rd Floor common area which is the whiteboard area between
             Hackerman 323 and 324.
         </li>
         <li><b>Contact:</b> If you have any questions about the course, you can post them on Piazza.
-        </li>
-        <li><b>Virtual or in-person</b>: The class will be in-person.
-            <!--            There will be recordings of each class-->
-            <!--            made available online after each class on the Youtube playlist (shared on Piazza).-->
-            <!--            <a href="https://www.youtube.com/playlist?list=PLSeS0sl8xpTwjQuc5DMYSCuL8AkTJejW8">this playlist</a>.-->
-        </li>
         <li><b>Changes:</b> The instructor reserves the right to make changes to the syllabus or project due dates.
             These changes will be announced as early as possible.
         </li>
         <li><b>News and announcements:</b> All the news and announcements will be made on Piazza.</li>
-        <!--            <li><b>Attendance and late work:</b>-->
-        <!--                You can miss 3 sessions.-->
-        <!--                Additionally, you get 2 sessions of presentation relief (i.e., you can skip 2 presentation assignments) to accommodate any deadlines you might have.-->
-        <!--                If you decide to use these, make sure to email the instructor in advance (at least two days).-->
-        <!--                Beyond that limit, you'd lose the attendance/presentation credits for any class you miss.-->
-        <!--&lt;!&ndash;                If you miss a class without completing the corresponding assignment, you'll get a zero for that session.&ndash;&gt;-->
-        <!--&lt;!&ndash;                Unfortunately you can't miss a class in which you're "presenting".&ndash;&gt;-->
-        <!--&lt;!&ndash;                If you have to miss a class where you are in a "presenting" role for that session, you must find someone willing to swap presentations with (e.g., you were expected to present on Tuesday; but you swap presentations with someone who presents on Thursdays).&ndash;&gt;-->
-        <!--&lt;!&ndash;                Alternatively, you must still create the presentation for that role before the class and you must find someone else to present it for you.&ndash;&gt;-->
-        <!--                There's really no way to accept late work.-->
-        <!--&lt;!&ndash;                for the readings since it's vital that we're all reading the same papers at the same time.&ndash;&gt;-->
-        <!--            </li>-->
-        <li><b>COVID:</b> Students who report symptoms associated with COVID-19 are expected not to attend class and
-            to isolate themselves for at least five days and until they have been symptom-free for 24 hours.
-        </li>
 
         <li>
             <b>Course grade:</b>
             Your grade is based on the following activities:
             (1) weekly assignments (40%) -- done individually unless otherwise specified,
-            (2) 2x quizzes (30%) -- done individually and in-class,
-            (3) a final project (30%) -- done in groups and same grade for all members of a team.
+            (2) 3x quizzes (40%) -- done individually and in-class,
+            (3) a final project (20%) -- done in groups and same grade for all members of a team.
             Attendance is not mandatory (hence, 0%) but highly encouraged: participation in class is our chance to
             learn more effectively.
-            Up to 3% additional credit for any actions taken to improve the course that is brought to the instructors'
-            attention.
         </li>
     </ul>
     <br>
@@ -230,26 +208,26 @@
 <div class="container sec" id="links">
     <h2>Key links</h2>
     <ul>
-        <li><a href="https://piazza.com/class/lrpgv1zcpkpyk">Piazza</a> for discussion and announcements. Sign up,
+        <li><a href="https://piazza.com/class/TBD">Piazza</a> for discussion and announcements. Sign up,
             follow, ask questions, and participate in discussions!
         </li>
-        <li><a href="https://www.gradescope.com/courses/719120">Gradescope</a> for submitting your assignments.</li>
+        <li><a href="https://www.gradescope.com/courses/TBD">Gradescope</a> for submitting your assignments.</li>
     </ul>
 </div>
 <hr>
 <div class="container sec" id="course">
     <h2>Assignments</h2>
     <p>
-        The homework is your opportunity to practice doing the thing. The lectures and office hours hopefully
-        provide good intuition and motivation and justification for the skills we want you to develop, but the best way
-        to develop those skills is by trying to solve the problems yourself. The practice is far more important than
-        the solution.
+        The homework offers you a chance to practice applying what you've learned. It is intended to complement lectures
+        and office hours, which aim to provide intuition, motivation, and justification for the skills we want you to
+        develop. However, the most effective way to build these skills is by attempting to solve the problems on your
+        own. The process of practicing is far more valuable than simply being provided with the solution.
     </p>
     <p>
-        The course has 7 ~weekly assignments which will improve both your theoretical understanding
-        and your practical skills. All assignments contain both written questions and programming parts (mainly in
-        Python).
-        They will be released on this website, and submissions should be uploaded to Gradescope.
+        The course includes 7 weekly assignments leading up to spring break, designed to enhance both your
+        theoretical knowledge and practical abilities. Each assignment consists of written questions and programming
+        components (Python). Assignments will be posted on this website, and submissions should be uploaded
+        to Gradescope.
     </p>
     <p>
         Here is a tentative list of topics for the assignments:
@@ -265,7 +243,6 @@
         <tr class="active">
             <th>#</th>
             <th>Focus</th>
-            <!--            <th>Practice</th>-->
         </tr>
         </thead>
         <tbody>
