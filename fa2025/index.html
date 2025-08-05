@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1">
+
+    <meta property="og:site_name" content="CSCI 601.771 (Self-supervised Models)">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="CSCI 601.771 (Self-supervised Models)">
+    <meta property="og:description" content="Discussing latest breakthroughs in self-supervised language models">
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="CSCI 601.771: Self-supervised Models">
+    <meta name="twitter:description" content="Discussing latest breakthroughs in self-supervised language models">
+    <meta name="twitter:url" content="https://self-supervised.cs.jhu.edu/">
+
+    <title>CS 601.771: Advances in Self-supervised Models </title>
+
+    <!-- bootstrap -->
+    <link rel="stylesheet" href="files/bootstrap.min.css">
+
+    <!-- Google fonts -->
+    <link href="files/fonts.css" rel="stylesheet" type="text/css">
+
+    <link rel="stylesheet" type="text/css" href="files/style.css">
+    <link rel="stylesheet" href="files/font-awesome.min.css">
+
+    <!--favicon-->
+    <link rel="shortcut icon" href="files/favicon.ico"/>
+
+</head>
+
+<body data-new-gr-c-s-check-loaded="14.1063.0" data-gr-ext-installed="">
+
+<!-- <script src="header.js"></script> -->
+<!-- Navbar -->
+<nav class="navbar navbar-default navbar-fixed-top">
+    <div class="container">
+        <div class="navbar-header">
+            <a class="navbar-brand brand" href="index.html">CS 771</a>
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse"
+                    data-target="#bs-example-navbar-collapse-1" aria-expanded="false">
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+        </div>
+        <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+            <ul class="nav navbar-nav navbar-right">
+                <li><a href="#schedule">Schedule</a></li>
+                <li><a href="#course">Expectations</a></li>
+                <li><a href="#project">Final Project</a></li>
+                <li><a href="#conduct">Conduct</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<!-- Header -->
+<div id="header" style="text-align:center">
+    <a href="https://www.cs.jhu.edu/">
+        <img src="files/jhu_shield.png" class="logo-right">
+    </a>
+    <h1>CS 601.771 Advances in Self-supervised Models</h1>
+    <h3>Johns Hopkins University - Fall 2025</h3>
+    <div style="clear:both;"></div>
+</div>
+
+<!-- Intro -->
+<div class="container sec" id="intro">
+    <p>
+
+        Large self-supervised (pre-trained) models (such as LLMs) have transformed various
+        data-driven fields, such as natural language
+        processing (NLP).
+        This advanced course aims to offer a more in-depth knowledge of these technologies.
+    </p>
+    <p>
+        Specifically, this year we will focus on the following topics:
+    <ul>
+        <li><b>Reasoning:</b> How can models perform complex, multi-step inference reliably? What forms of reasoning do
+            LLMs naturally support, and where do they fail?
+        </li>
+        <li><b>Long inputs and memory:</b> Are recurrence, memory retrieval, or other augmentations the future of
+            long-sequence modeling?
+        </li>
+        <li><b>Efficient inference:</b> What are the latest advances in compressing, pruning, or accelerating large
+            models? What are the bottlenecks?
+        </li>
+        <!--        The focuses of this class will involve various issues:-->
+        <!--        data efficiency, robustness, long context, multi-modality, reasoning grounded in web or physical world,-->
+        <!--        security/legal/privacy issues.-->
+    </ul>
+    </p>
+
+    <p>
+        <b> Note:</b> The course is different from (more advanced than) <a
+            href="https://self-supervised.cs.jhu.edu/sp2025/">601.471/671</a>
+        (offered in the spring semesters) which is focused on building the foundational concepts.
+    </p>
+
+    <p>
+        <strong>Prerequisites</strong>:
+        Natural Language Processing (CS 465/665), NLP: Self-Supervised Models (CS 471/671), or instructor consent.
+    </p>
+    <p>
+        <strong>Relevant Courses at Hopkins</strong>:
+        This course has some overlap with "Natural Language Processing" (EN.601/665), and "Artificial Agents"
+        (EN.601.470/670), though the courses have different focuses.
+    </p>
+</div>
+
+
+<!-- Staff Info -->
+<div class="sechighlight">
+    <div class="container sec" id="people">
+        <div class="col-md-5" style="width: 100%; text-align: center">
+            <br>
+            <div class="instructor">
+                <a target="_blank" rel="noopener noreferrer" href="http://danielkhashabi.com/">
+                    <div class="instructorphoto"><img src="files/daniel.png" alt="missing image"></div>
+                    <div>Daniel Khashabi<br>Instructor</div>
+                </a>
+                <div></div>
+            </div>
+            <div class="instructor">
+                <a target="_blank" rel="noopener noreferrer" href="https://www.linkedin.com/in/anushrisuresh/">
+                    <div class="instructorphoto"><img src="files/pics/Anushri.png" alt="missing image"></div>
+                    <div>Anushri Suresh<br>Course Assistant</div>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container sec" id="logistics">
+    <h2>Logistics</h2>
+    <ul>
+        <li><b>Classes:</b> on Tuesday/Thursday 4:30 - 5:45 am EST (room: Malone 228)
+        </li>
+        <li><b>Office hours:</b> Daniel office hour: Tuesdays 3:30 - 4:30 pm EST, or by appointment (Hackerman hall,
+            316B).
+        </li>
+        <li><b>Contact:</b> If you have any questions about the course, you can post them on Slack.
+        </li>
+        <li><b>Virtual or in-person</b>: The class will be in-person.</li>
+
+        <li><b>News and announcements:</b> All the news and announcements will be made on Slack.</li>
+    </ul>
+</div>
+<hr>
+<div class="container sec" id="links">
+    <h2>Key links</h2>
+    <ul>
+        <li>
+            <a href="https://join.slack.com/t/cs771-fall2025/shared_invite/zt-3an1eqi9y-tNjGKW6~zdHM0X2Gn_eO5Q">Slack</a>
+            for discussion and announcements. Sign up,
+            follow, ask questions, and participate in discussions!
+        </li>
+        <li>Gradescope for submitting your reports (entry code: PG87D2).</li>
+    </ul>
+</div>
+<hr>
+<div class="container sec" id="overview">
+    <h2><b>Format Overview</b></h2>
+    <p>
+        There will be student-driven discussion and critique sessions in which we go over and discuss selected papers in
+        each area. For each paper, ~two students will be assigned to write a review describing the ‘pros’ and ‘cons’ of
+        the paper, and they will present their critique during the discussion.
+    </p>
+</div>
+
+<hr>
+<div class="container sec" id="expetations">
+    <h2><b>Evaluation and Format Details</b></h2>
+    <ul>
+        <li><b>One assignment (10%)</b> -- <i>individually</i>: The course has ONE assignment to measure your
+            understanding of the foundational
+            concepts of self-supervised learning. This is to make sure that when coming in, you know all the
+            pre-requisites needed for the class. They will be released on this website, and submissions should be
+            uploaded to Gradescope.
+            <ul>
+                <li><b>Submission:</b>The assignment must be submitted through Gradescope.</li>
+                <li><b>Regrading:</b> Regrade requests can be submitted directly within Gradescope and must include a
+                    brief written justification
+                    for the request.
+                </li>
+                <li><b>Late days:</b> There are no late days for the one homework assignment.</li>
+            </ul>
+        </li>
+        <li><b>In-class participation (20%)</b> -- <i>individually</i>. This includes engagement and punctuality
+            (being present in class before the presentation starts).
+            It is important that you attend each session, complete the readings prior to class to participate in the
+            discussions during the class.
+            <ul>
+                <li><b>Step Up/Step Back:</b>
+                    This means, if you are the person who feels very comfortable sharing, take note of how often you are
+                    sharing, and consider giving time for others to share (make sure to not monopolize the class time).
+                    By all means, be present and active in this conversation, but make sure others have the time to as
+                    well. If you tend to be a quiet participant, take a chance and “step up” with your idea, share your
+                    concerns, your ideas, concerns, and excitement with the group. A good facilitator will make sure
+                    this is safe for you.
+                </li>
+                <li><b>Punctuality:</b> We expect you to arrive before the presentations start.
+                    Late arrivals will negatively impact your participation grade.
+                </li>
+            </ul>
+        </li>
+        <li><b>One-page summary and presentation (15%)</b> -- <i>individually</i>.
+            One-page summaries are meant to be mechanism to force us to think about what learned during the class.
+            <ul>
+                <li><b>After the class:</b> After each class, each student will write a "one-pager" summary of what this
+                    class was about and what they learned (due the night before the class). They should organize it so
+                    that one can quicky see the main takeaways.
+                </li>
+                <li><b>Beginning of the class:</b>At the beginning of each class, one of the students (randomly
+                    selected) will remind us what we talked about in the previous class based on their one-pager.
+                </li>
+            </ul>
+        </li>
+        <li><b>Student-led paper presentation and critique (20%)</b> -- <i>in group</i>.
+            This includes presenting papers assigned to you.
+            Most class will involve a ~30-minute presentation by a team of 2-3 students about 1-2 assigned papers.
+            The teams/paper assignments will be communicated at least 10 days ahead of the presentation.
+            <ul>
+                <li><b>Slide feedback:</b> The presenting team must share their slides ahead of time with the course
+                    staff 48
+                    hours before the presentation (Slack channel: #presentation-feedback). We will review the slides and
+                    provide feedback about its content.
+                </li>
+                <li><b>Late days:</b> There are no late days for paper presentations. You cannot miss your presentation
+                    day. If you can't make it, you're responsible for communicating it well in advance (>2 weeks
+                    earlier).
+                </li>
+            </ul>
+        </li>
+        <li><b>The course project (30%)</b> -- <i>teams or individually</i>. See the paragraph below for details</li>
+
+        <li><b>Skip days:</b> You may skip up to 3 classes (during the dates that you're not presenting) with instructor
+            consent ahead of time.
+        </li>
+    </ul>
+</div>
+
+<hr>
+
+<div class="container sec sechighlight6">
+    <h2 id="project">Course Project</h2>
+    <p>
+        The objective of the final project is to make use of what you have learned during this course
+        to solve a hard problem.
+    </p>
+    <p>
+        The final project milestones include:
+        (1) A project proposal,
+        (2) A project midway report,
+        (3) a final report,
+        (4) a final project poster summarizing the technical aspects of the project.
+        See the course calendar for the due dates.
+    </p>
+    <ul>
+        <li><b>Topic:</b>
+            The topic of this project is open-ended, as long as it's related to the course's focus. For example, the
+            project may
+            involve one method or a setting covered in the course.
+        <li><b>Group work:</b> Students are strongly encouraged to work in groups on the final project (team sizes
+            limited to a maximum of 4 people).
+        </li>
+        <li><b>Project proposals:</b> All groups will be required to submit a project proposal (due on the class
+            calendar).
+            The project proposal is a 2-page description of what you intend to do (experiments, datasets,
+            methods, etc.)
+            All documents (proposal, midway report and final report) should use this <a
+                    href="https://www.overleaf.com/latex/templates/neurips-2024/tpsbbrdqcmsh">template</a>.
+            The instructor(s) will provide feedback on these ideas to help the teams with finding a
+            concrete idea. Here is examples of project proposals from previous years:
+            <ul>
+                <li><a href="../sp2025/files/prompting_unlearned_LLM_proopsal.pdf">Adversarial Prompting of Unlearned
+                    Language
+                    Models</a></li>
+                <li><a href="../sp2025/files/proposal-2_seek-extracted_171762894.pdf">Ensemble Domain-Specific Knowledge
+                    Distillation </a></li>
+            </ul>
+        </li>
+        <li><b>Midway progress reports:</b> Reports discussing the
+            progress made thus far (at most 5 pages; use the same suggested template for the proposals) and
+            elaborates on the remaining work.
+            Describe the progress made, experiments you have run, preliminary results you have obtained, how you plan to
+            spend the rest of your time, etc.
+            While this is called "midway" in practice it should be considered more than halfway! By this milestone,
+            you’re expected to have implemented something, and to have some experimental results to show by this date.
+        </li>
+        <li><b>Final poster presentations:</b>
+            All students will present their findings at a poster presentation during the final exam period.
+        </li>
+        <li><b>Final report:</b> Students should write code and carry out additional experiments and then write up the
+            results in a standard conference paper format (at most 8 pages; use the same template we had suggested for
+            the proposals).
+            References don't count toward the page limit. Note
+            that longer reports are not necessarily better.
+            Students in groups are required to include a “contributions” section concretely lists each
+            author’s contributions (see Section 8 of this paper, for example).
+            The final report should concisely summarize your findings and answer the following questions:
+            1. What approach did you take to address this problem, and why?
+            2. How did you explore the space of solutions?
+            3. How did you evaluate the performance of the approach(es) you investigated?
+            4. What worked, what did not work, and why?
+            <br>
+            Here are examples of final reports from the previous year:
+            <ul>
+                <li><a href="../sp2025/files/prompting_unlearned_LLM_Final_Project.pdf">Adversarial Prompting of
+                    Unlearned
+                    Language Models</a></li>
+                <li><a href="../sp2025/files/final-seek.pdf">Ensemble Domain-Specific Knowledge Distillation </a></li>
+                <li><a href="../sp2025/files/final-efficient_distillation_671_May_14.pdf">Efficient Distillation of
+                    Transformers
+                    via Self-Teaching</a></li>
+            </ul>
+        </li>
+        <li><b>Project grading:</b>
+            The goal of the project is to demonstrate the group’s understanding of the tools
+            and challenges when using self-supervised models.
+            Grading will reflect the quality of
+            the approach, the rigor of evaluation, and reasoning about successes and failures.
+            Grading will also depend on the completeness of the project, the clarity of the writeup,
+            the level of complexity/difficulty of the approach, and your ability to justify the choices you made.
+
+            Here is the grade breakdown for the projects:
+
+            <ul>
+                <li>Project proposal: 20%</li>
+                <li>Midway report: 20%</li>
+                <li>Quality of final report write-up, implementation and results: 40%</li>
+                <ul>
+                    <li>Compelling introduction/motivation and clear problem statement and desired outcome: 5%</li>
+                    <li>Clear description of methods and evaluation protocol: 5%</li>
+                    <li>Clear and complete coverage of related work: 5%</li>
+                    <li>The rigor of evaluation and reasoning / discussion: 5%</li>
+                    <li>Clear articulation of the results (includes figures, tables): 10%</li>
+                    <li>Innovativeness: 5%</li>
+                    <li>Discussion and conclusion comprised of well-formulated arguments, grounded in the experimental
+                        results and the broader scientific
+                        literature: 5%
+                    </li>
+                </ul>
+                <li>Final poster and its presentation: 20%</li>
+            </ul>
+        </li>
+        <li>
+            <b>Using Other Resources:</b>
+            We strongly encourage you to use any outside source at your disposal, provided you use your sources properly
+            and give them proper credit. If you get an idea from an outside source, citing that source will not lower
+            your grade. Failing to properly cite an outside source—thereby taking credit for ideas that are not your
+            own—is plagiarism.
+        </li>
+        <li><b>AI can be used?</b>
+            Of course! Chatbots have become essential ingredients of daily workflows.
+            You're welcome to use in various stages of your project to augment your productivity.
+        </li>
+        <li>
+            <b>Appropriate Citations:</b>
+            You must write everything in your own words, and properly cite every outside source you use, including other
+            students. Using ideas from other sources or people without citation is plagiarism. Copying other sources
+            verbatim,
+            even with proper citation, is plagiarism. Don't do that.
+            The only sources that you are not required to cite are the official course materials (lectures, slides, and
+            assignments).
+        </li>
+        <li><b>Can it become a paper?</b>
+            It often takes a lot of effort to turn a class project into a publishable work.
+            But it's certainly feasible (prior students have done it; e.g.,
+            <a href="https://arxiv.org/abs/2305.10713">this</a> or <a href="https://arxiv.org/abs/2406.14673">this</a>
+            or <a href="https://arxiv.org/abs/2504.19395">this</a>).
+            In terms of timing, it's something that can be discussed after the semester is over.
+        </li>
+        <li><b>Can I skip the final project presentation?</b>
+            Sure! But you'd lose the grade final presentation.
+            The final project presentation is essentially a replacement for the final exam and is in-person.
+            The date is determined by the registrar (out of our control).
+            You have the option to skip it in which case you (not your team) would lose the grade for the presentation.
+        </li>
+    </ul>
+</div>
+
+
+<hr>
+
+
+<div class="container sec" id="schedule" style="margin-top:-20px">
+    <br>
+    <h2>Content Schedule</h2>
+    <p> The current class schedule is below (subject to change).
+    </p>
+
+    <table class="table">
+        <colgroup>
+            <col style="width:6%">
+            <col style="width:32%">
+            <col style="width:32%">
+        </colgroup>
+        <thead>
+        <tr class="active">
+            <th>Date</th>
+            <th>Research questions</th>
+            <th>Papers and/or slides</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+            <td>#1 - Tue Aug 26</td>
+            <td style="background-color: #e5e9ff;">
+                Reviewing the foundation:
+                <ul>
+                    <li>Course overview</li>
+                    <li>Plan and expectations</li>
+                </ul>
+            </td>
+            <td>
+<!--                [slides: <a href="files/slides/1.intro.pptx">pptx</a>, <a href="files/slides/1.intro.pdf">pdf</a>]-->
+            </td>
+        </tr>
+        <tr>
+            <td>#2 - Thu Aug 28</td>
+            <td style="background-color: #e5e9ff;">
+                Reviewing the foundation:
+                <ul>
+                    <li>Transformers</li>
+                    <li>Pre-training</li>
+                </ul>
+            </td>
+            <td>
+<!--                [slides: <a href="files/slides/1.intro.pptx">pptx</a>, <a href="files/slides/1.intro.pdf">pdf</a>]-->
+            </td>
+        </tr>
+        <tr>
+            <td>#3 - Tue Sept 2</td>
+            <td style="background-color: #e5e9ff;">
+                Reviewing the foundation:
+                <ul>
+                    <li>TBD</li>
+                </ul>
+            </td>
+            <td>
+<!--                <ul>-->
+<!--                    <li>Prompting</li>-->
+<!--                    <li>Tuning</li>-->
+<!--                </ul>-->
+<!--                [slides: <a href="files/slides/123.foundations.pptx">pptx</a>, <a-->
+<!--                    href="files/slides/123.foundations.pdf">pdf</a>]-->
+            </td>
+        </tr>
+        <tr>
+            <td>#4 - Thu Sept 4</td>
+            <td style="background-color: #e5e9ff;">
+                Reviewing the foundation:
+                <ul>
+                    <li>TBD</li>
+                </ul>
+            </td>
+            <td>
+<!--                <ul>-->
+<!--                    <li>Retrieval</li>-->
+<!--                    <li>Alignment</li>-->
+<!--                </ul>-->
+<!--                [slides: <a href="files/slides/123.foundations.pptx">pptx</a>, <a-->
+<!--                    href="files/slides/123.foundations.pdf">pdf</a>]-->
+            </td>
+        </tr>
+        <tr>
+            <td>#5 - Tue Sept 9</td>
+            <td style="background-color: #e5e9ff;">
+                Reviewing the foundation:
+                <ul>
+                    <li>TBD</li>
+                </ul>
+            </td>
+            <td>
+<!--                Main Reading(s): <a href="https://arxiv.org/abs/2407.21783">The Llama 3 Herd of Models (Sec 3 and the-->
+<!--                relevant portion of Sec 5)</a>-->
+<!--                <br>-->
+<!--                Additional Suggested Reading:-->
+<!--                <ol>-->
+<!--                    <li><a href="https://arxiv.org/abs/2402.00838">OLMo: Accelerating the Science of Language Models</a>-->
+<!--                    </li>-->
+<!--                    <li><a href="https://arxiv.org/abs/2407.21075">Apple Intelligence Foundation Language Models (up to-->
+<!--                        Sec 4 and relevants from Sec 6)</a></li>-->
+<!--                </ol>-->
+<!--                [slides: <a href="files/presentations/9-10-llama3-Kim-Mou.pptx">pptx</a>, <a-->
+<!--                    href="files/presentations/9-10-llama3-Kim-Mou.pdf">pdf</a>]-->
+            </td>
+        </tr>
+        <tr>
+            <td>#6 - Thu Sept 11</td>
+            <td style="background-color: #ffe5e6;">
+                TBD
+            </td>
+            <td>
+<!--                Main Reading(s): <a href="https://arxiv.org/abs/2407.21783">The Llama 3 Herd of Models (Sec 4 and the-->
+<!--                relevant portion of Sec 5)</a>-->
+<!--                <br>-->
+<!--                Additional Suggested Reading:-->
+<!--                <ol>-->
+<!--                    <li><a href="https://arxiv.org/abs/2406.08464v1">Magpie: Alignment Data Synthesis from Scratch by-->
+<!--                        Prompting Aligned LLMs with Nothing</a></li>-->
+<!--                    <li><a href="https://arxiv.org/abs/2304.11082">Fundamental Limitations of Alignment in Large-->
+<!--                        Language Models</a></li>-->
+<!--                </ol>-->
+<!--                [slides: <a href="files/presentations/9-12-llama3-Zhao-Huang.pptx">pptx</a>, <a-->
+<!--                    href="files/presentations/9-12-llama3-Zhao-Huang.pdf">pdf</a>]-->
+            </td>
+        </tr>
+        <tr>
+            <td>#8 - Tue Sept 16</td>
+            <td style="background-color: #fff2e5;">
+                TBD
+            </td>
+            <td>
+<!--                Main Reading(s): <a href="https://arxiv.org/abs/2406.17557">The FineWeb Datasets: Decanting the Web for-->
+<!--                the Finest Text Data at Scale</a>-->
+<!--                <br>-->
+<!--                Additional Suggested Reading:-->
+<!--                <ol>-->
+<!--                    <li><a href="https://openreview.net/forum?id=wS7PxDjy6m#discussion">Dated Data: Tracing Knowledge-->
+<!--                        Cutoffs in Large Language Models</a></li>-->
+<!--                    <li><a href="https://aclanthology.org/2024.naacl-long.179/">A Pretrainer’s Guide to Training Data:-->
+<!--                        Measuring the Effects of Data Age, Domain Coverage, Quality, & Toxicity</a></li>-->
+<!--                </ol>-->
+<!--                [slides: <a href="files/presentations/9-17-FineWeb-Sharma-Guan.pptx">pptx</a>, <a-->
+<!--                    href="files/presentations/9-17-FineWeb-Sharma-Guan.pdf">pdf</a>]-->
+            </td>
+        </tr>
+        <tr>
+            <td>#9 - Thu Sept 18</td>
+            <td style="background-color: #fffce5;">
+                TBd
+            </td>
+            <td>
+<!--                Main Reading(s): <a href="https://arxiv.org/abs/2304.15004">Are Emergent Abilities of Large Language-->
+<!--                Models a Mirage?</a>-->
+<!--                <br>-->
+<!--                Additional Suggested Reading:-->
+<!--                <ol>-->
+<!--                    <li><a href="https://arxiv.org/abs/2402.12483">Artifacts or Abduction: How Do LLMs Answer-->
+<!--                        Multiple-Choice Questions Without the Question?</a></li>-->
+<!--                    <li><a href="https://arxiv.org/abs/2406.06565">MixEval: Deriving Wisdom of the Crowd from LLM-->
+<!--                        Benchmark Mixtures</a></li>-->
+<!--                    <li><a href="https://arxiv.org/abs/2403.15796">Understanding Emergent Abilities of Language-->
+<!--                        Models from the Loss Perspective</a></li>-->
+<!--                </ol>-->
+<!--                [slides: <a href="files/presentations/9-19-EmergentAbility-Zhong-Bafna.pptx">pptx</a>, <a-->
+<!--                    href="files/presentations/9-19-EmergentAbility-Zhong-Bafna.pdf">pdf</a>]-->
+            </td>
+        </tr>
+        <tr>
+            <td>#9 - Tue Sept 23</td>
+            <td style="background-color: #f7ffe5;">
+                TBD
+            </td>
+            <td>
+<!--                Main Reading(s): <a href="https://arxiv.org/abs/2312.09390">Weak-to-Strong Generalization: Eliciting-->
+<!--                Strong Capabilities With Weak Supervision</a>-->
+<!--                <br>-->
+<!--                Additional Suggested Reading:-->
+<!--                <ol>-->
+<!--                    <li><a href="https://arxiv.org/abs/2407.04622">On scalable oversight with weak LLMs judging strong-->
+<!--                        LLMs</a></li>-->
+<!--                    <li><a href="https://arxiv.org/abs/2211.03540">Measuring Progress on Scalable Oversight for Large-->
+<!--                        Language Models</a></li>-->
+<!--                    <li><a href="https://arxiv.org/abs/2407.13692">Prover-Verifier Games improve legibility of LLM-->
+<!--                        outputs</a></li>-->
+<!--                </ol>-->
+<!--                [slides: <a href="files/presentations/9-24-Supervision-Zhong-Lin.pptx">pptx</a>, <a-->
+<!--                    href="files/presentations/9-24-Supervision-Zhong-Lin.pdf">pdf</a>]-->
+            </td>
+        </tr>
+        <tr>
+            <td>#10 - Thu Sept 25</td>
+            <td style="background-color: #e8ffdf;">
+                TBD
+            </td>
+            <td>
+<!--                Main Reading(s): <a href="https://arxiv.org/abs/2408.03314">Scaling LLM Test-Time Compute Optimally can-->
+<!--                be More Effective than Scaling Model Parameters</a>-->
+<!--                <br>-->
+<!--                Additional Suggested Reading:-->
+<!--                <ol>-->
+<!--                    <li><a href="https://arxiv.org/abs/2408.00724">An Empirical Analysis of Compute-Optimal Inference-->
+<!--                        for Problem-Solving with Language Models</a></li>-->
+<!--                    <li><a href="https://arxiv.org/abs/2407.21787">Large Language Monkeys: Scaling Inference Compute-->
+<!--                        with Repeated Sampling</a></li>-->
+<!--                    <li><a href="https://arxiv.org/abs/2403.02419">Are More LM Calls All You Need? Towards the Scaling-->
+<!--                        Properties of Compound AI Systems</a></li>-->
+<!--                    <li><a href="https://arxiv.org/abs/2408.16737">Smaller, Weaker, Yet Better: Training LLM Reasoners-->
+<!--                        via Compute-Optimal Sampling</a></li>-->
+<!--                </ol>-->
+<!--                [slides: <a href="files/presentations/9-26-Reasoning-Kote-Gao.pptx">pptx</a>, <a-->
+<!--                    href="files/presentations/9-26-Reasoning-Kote-Gao.pdf">pdf</a>]-->
+            </td>
+        </tr>
+        <tr>
+            <td>#11 - Tue Sept 30</td>
+            <td style="background-color: #dfffe3;">
+                TBD
+            </td>
+            <td>
+<!--                Main Reading(s): <a href="https://transformer-circuits.pub/2024/scaling-monosemanticity/">Scaling-->
+<!--                Monosemanticity: Extracting Interpretable Features from Claude 3 Sonnet</a>-->
+<!--                (Section 1-4, i.e. From the top to "Features as Computational Intermediates")-->
+<!--                <br>-->
+<!--                Additional Suggested Reading:-->
+<!--                <ol>-->
+<!--                    <li><a href="https://arxiv.org/abs/2406.04093">Scaling and evaluating sparse autoencoders</a></li>-->
+<!--                    <li><a href="https://arxiv.org/abs/2408.00657">Disentangling Dense Embeddings with Sparse-->
+<!--                        Autoencoders</a></li>-->
+<!--                </ol>-->
+<!--                [slides: <a href="files/presentations/10-1-Reasoning-Nadella-Kalicheti.pptx">pptx</a>, <a-->
+<!--                    href="files/presentations/10-1-Reasoning-Nadella-Kalicheti.pdf">pdf</a>]-->
+            </td>
+        </tr>
+        <tr class="sechighlight5">
+            <td> Oct 3</td>
+            <td>Project proposals deadline</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>#12 - Thu Oct 2</td>
+            <td style="background-color: #dffff8;">
+                TBD
+            </td>
+            <td>
+<!--                Main Reading(s): <a href="https://arxiv.org/pdf/2403.06634">Stealing Part of a Production Language-->
+<!--                Model</a> (<a href="https://not-just-memorization.github.io/partial-model-stealing.html">summary</a>)-->
+<!--                <br>-->
+<!--                Additional Suggested Reading:-->
+<!--                <ol>-->
+<!--                    <li><a href="https://arxiv.org/abs/2403.09539">Logits of API-protected LLMs leak proprietary-->
+<!--                        information</a></li>-->
+<!--                    &lt;!&ndash;                    <li><a href="TBD">TBD</a></li>&ndash;&gt;-->
+<!--                </ol>-->
+<!--                [slides: <a href="files/presentations/10-3-Security-Revsine-Zhao.pptx">pptx</a>, <a-->
+<!--                    href="files/presentations/10-3-Security-Revsine-Zhao.pdf">pdf</a>]-->
+            </td>
+        </tr>
+        <tr>
+            <td>#13 - Tue Oct 7</td>
+            <td style="background-color: #dff9ff;">
+                TBD
+            </td>
+            <td>
+
+            </td>
+        </tr>
+        <tr>
+            <td>#14 - Thu Oct 9</td>
+            <td style="background-color: #dff1ff;">
+                TBD
+            </td>
+            <td>
+<!--                Main Reading(s): <a href="https://arxiv.org/abs/2306.00978">AWQ: Activation-aware Weight Quantization-->
+<!--                for LLM Compression and Acceleration</a>-->
+<!--                <br>-->
+<!--                Additional Suggested Reading:-->
+<!--                <ol>-->
+<!--                    <li><a href="https://arxiv.org/abs/2210.17323">GPTQ: Accurate Post-Training Quantization for-->
+<!--                        Generative Pre-trained Transformers</a></li>-->
+<!--                    <li><a href="https://arxiv.org/abs/2208.11580">Optimal brain compression: A framework for accurate-->
+<!--                        post-training quantization and pruning</a></li>-->
+<!--                    <li><a href="https://arxiv.org/pdf/2401.06118">Extreme Compression of Large Language Models via-->
+<!--                        Additive Quantization</a></li>-->
+<!--                    <li><a href="https://arxiv.org/abs/2211.10438">SmoothQuant: Accurate and Efficient Post-Training-->
+<!--                        Quantization for Large Language Models</a></li>-->
+<!--                </ol>-->
+<!--                [slides: <a href="files/presentations/10-10-Quantization-Li-Ramesh.pptx">pptx</a>, <a-->
+<!--                    href="files/presentations/10-10-Quantization-Li-Ramesh.pdf">pdf</a>]-->
+            </td>
+        </tr>
+        <tr>
+            <td>#15 - Tue Oct 14</td>
+            <td style="background-color: #dfefff;">
+                TBD
+            </td>
+            <td>
+<!--                Main Reading(s): <a href="https://arxiv.org/abs/2401.17377">Infini-gram: Scaling Unbounded n-gram-->
+<!--                Language Models to a Trillion Tokens</a>-->
+<!--                <br>-->
+<!--                Additional Suggested Reading:-->
+<!--                <ol>-->
+<!--                    <li><a href="https://arxiv.org/abs/2303.03919">Data Portraits: Recording Foundation Model Training-->
+<!--                        Data</a></li>-->
+<!--                    <li><a href="https://aclanthology.org/2022.findings-emnlp.109.pdf">N-gram Is Back: Residual Learning-->
+<!--                        of Neural Text Generation with n-gram Language Model</a></li>-->
+<!--                </ol>-->
+<!--                [slides: <a href="files/presentations/10-15-Reasoning-Liang-Kim.pptx">pptx</a>, <a-->
+<!--                    href="files/presentations/10-15-Reasoning-Liang-Kim.pdf">pdf</a>]-->
+            </td>
+        </tr>
+        <tr class="sechighlight5">
+            <td> Oct 15</td>
+            <td>Project proposal revision deadline</td>
+            <td></td>
+        </tr>
+        <tr class="sechighlight4 centered">
+            <td>#16 - Thu Oct 17</td>
+            <td>No Class - Fall break</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>#17 - Tue Oct 21</td>
+            <td style="background-color: #dfe8ff;">
+                Guest speaker
+            </td>
+            <td>
+<!--                Main Reading(s): <a href="https://arxiv.org/pdf/2211.17192">Fast Inference from Transformers via-->
+<!--                Speculative Decoding</a>-->
+<!--                <br>-->
+<!--                Additional Suggested Reading:-->
+<!--                <ol>-->
+<!--                    <li><a href="https://arxiv.org/pdf/2405.19325">Nearest Neighbor Speculative Decoding for LLM-->
+<!--                        Generation and Attribution</a></li>-->
+<!--                    <li><a href="https://arxiv.org/pdf/2401.10774">Medusa: Simple LLM Inference Acceleration Framework-->
+<!--                        with Multiple Decoding Heads</a></li>-->
+<!--                    <li><a href="https://aclanthology.org/2022.naacl-main.396/">Few-Shot Semantic Parsing with Language-->
+<!--                        Models Trained on Code</a></li>-->
+<!--                    <li><a href="https://github.com/hemingkx/SpeculativeDecodingPapers">A semi-comprehensive collection-->
+<!--                        of papers around "speculative decoding"</a></li>-->
+<!--                </ol>-->
+<!--                [slides: <a href="files/presentations/10-22-Reasoning-Jiang-Zhong.pptx">pptx</a>, <a-->
+<!--                    href="files/presentations/10-22-Reasoning-Jiang-Zhong.pdf">pdf</a>]-->
+            </td>
+        </tr>
+        <tr>
+            <td>#18 - Thu Oct 23</td>
+            <td style="background-color: #e1dfff;">
+                Guest speaker
+            </td>
+            <td>
+<!--                Main Reading(s): <a href="https://arxiv.org/pdf/2410.02660">How to Train Long-Context Language Models-->
+<!--                (Effectively)</a>-->
+<!--                <br>-->
+<!--                Additional Suggested Reading:-->
+<!--                <ol>-->
+<!--                    <li><a href="https://arxiv.org/pdf/2309.16039">Effective Long-Context Scaling of Foundation-->
+<!--                        Models</a></li>-->
+<!--                    <li><a href="https://arxiv.org/pdf/2402.10171">Data Engineering for Scaling Language Models to 128K-->
+<!--                        Context</a></li>-->
+<!--                </ol>-->
+<!--                [slides: <a href="files/presentations/10-24-Reasoning-Revsine-Wang.pptx">pptx</a>, <a-->
+<!--                    href="files/presentations/10-24-Reasoning-Revsine-Wang.pdf">pdf</a>]-->
+            </td>
+        </tr>
+        <tr>
+            <td>#19 - Tue Oct 28</td>
+            <td style="background-color: #f0dfff;">
+                TBD
+            </td>
+            <td>
+<!--                Main Reading(s): <a href="https://arxiv.org/pdf/2306.01708">TIES-Merging: Resolving Interference When-->
+<!--                Merging Models</a>-->
+<!--                <br>-->
+<!--                Additional Suggested Reading:-->
+<!--                <ol>-->
+<!--                    <li><a href="https://arxiv.org/abs/2405.15007">RE-Adapt: Reverse Engineered Adaptation of Large-->
+<!--                        Language Models</a></li>-->
+<!--                    <li><a href="TBD">TBD</a></li>-->
+<!--                </ol>-->
+<!--                [slides: <a href="files/presentations/10-29-Reasoning-Zhao-Mou.pptx">pptx</a>, <a-->
+<!--                    href="files/presentations/10-29-Reasoning-Zhao-Mou.pdf">pdf</a>]-->
+            </td>
+        </tr>
+        <tr>
+            <td>#20 - Thu Oct 30</td>
+            <td style="background-color: #f9dfff;">
+                TBD
+            </td>
+            <td>
+<!--                Main Reading(s): <a href="https://arxiv.org/pdf/2405.07987">The Platonic Representation Hypothesis</a>-->
+<!--                <br>-->
+<!--                Additional Suggested Reading:-->
+<!--                <ol>-->
+<!--                    <li><a href="https://openreview.net/pdf?id=UGpGkLzwpP">The Linear Representation Hypothesis and the-->
+<!--                        Geometry of Large Language Models</a></li>-->
+<!--                    <li><a href="https://arxiv.org/pdf/2309.00941">Emergent Linear Representations in World Models of-->
+<!--                        Self-Supervised Sequence Models</a></li>-->
+<!--                </ol>-->
+<!--                [slides: <a href="files/presentations/10-31-Representation-Lin-Ramesh.pptx">pptx</a>, <a-->
+<!--                    href="files/presentations/10-31-Representation-Lin-Ramesh.pdf">pdf</a>]-->
+            </td>
+        </tr>
+        <tr>
+            <td>#21 - Tue Nov 4</td>
+            <td style="background-color: #ffdff8;">
+                TBD
+            </td>
+            <td>
+<!--                Main Reading(s): <a href="https://arxiv.org/pdf/2402.09353">DoRA: Weight-Decomposed Low-Rank-->
+<!--                Adaptation</a>-->
+<!--                <br>-->
+<!--                Additional Suggested Reading:-->
+<!--                <ol>-->
+<!--                    <li><a href="https://arxiv.org/abs/2305.14314">QLoRA: Efficient Finetuning of Quantized LLMs</a>-->
+<!--                    </li>-->
+<!--                    <li><a href="https://arxiv.org/pdf/2401.04679">RoSA: Accurate Parameter-Efficient Fine-Tuning via-->
+<!--                        Robust Adaptation</a></li>-->
+<!--                </ol>-->
+<!--                [slides: <a href="files/presentations/11-5-Adaptation-Guan-Bafna.pptx">pptx</a>, <a-->
+<!--                    href="files/presentations/11-5-Adaptation-Guan-Bafna.pdf">pdf</a>]-->
+            </td>
+        </tr>
+        <tr>
+            <td>#22 - Thu Nov 6</td>
+            <td style="background-color: #ffdfdf;">
+                TBD
+            </td>
+            <td>
+<!--                Main Reading(s): <a href="https://arxiv.org/abs/2308.10248">Steering Language Models With Activation-->
+<!--                Engineering</a>-->
+<!--                <br>-->
+<!--                Additional Suggested Reading:-->
+<!--                <ol>-->
+<!--                    <li><a href="https://arxiv.org/pdf/2311.06668">In-context Vectors: Making In Context Learning More-->
+<!--                        Effective and Controllable Through Latent Space Steering</a></li>-->
+<!--                    <li><a href="https://arxiv.org/pdf/2404.03592">ReFT: Representation Finetuning for Language-->
+<!--                        Models</a></li>-->
+<!--                </ol>-->
+<!--                [slides: <a href="files/presentations/11-7-Adaptation-Wang-Li.pptx">pptx</a>, <a-->
+<!--                    href="files/presentations/11-7-Adaptation-Wang-Li.pdf">pdf</a>]-->
+            </td>
+        </tr>
+        <tr>
+            <td>#23 - Tue Nov 11</td>
+            <td style="background-color: #ffebdf;">
+                TBD
+            </td>
+            <td>
+<!--                Main Reading(s): <a href="https://openreview.net/pdf?id=xS6zx1aBI9">CLIN: A Continually Learning-->
+<!--                Language Agent for Rapid Task Adaptation and Generalization</a>-->
+<!--                <br>-->
+<!--                Additional Suggested Reading:-->
+<!--                <ol>-->
+<!--                    <li><a href="https://arxiv.org/pdf/2406.11830">Language Modeling with Editable External-->
+<!--                        Knowledge</a></li>-->
+<!--                    <li><a href="https://arxiv.org/abs/2405.14831">HippoRAG: Neurobiologically Inspired Long-Term Memory-->
+<!--                        for Large Language Models</a></li>-->
+<!--                </ol>-->
+<!--                [slides: <a href="files/presentations/11-12-Memory-Jiang-Nadella.pptx">pptx</a>, <a-->
+<!--                    href="files/presentations/11-12-Memory-Jiang-Nadella.pdf">pdf</a>]-->
+            </td>
+        </tr>
+        <tr>
+            <td>#24 - Thu Nov 13</td>
+            <td style="background-color: #fff5df;">
+                TBD
+            </td>
+            <td>
+<!--                Main Reading(s): <a href="https://arxiv.org/pdf/2404.03626">Training LLMs over Neurally Compressed-->
+<!--                Text</a>-->
+<!--                <br>-->
+<!--                Additional Suggested Reading:-->
+<!--                <ol>-->
+<!--                    <li><a href="https://arxiv.org/pdf/2404.15146">Rethinking LLM Memorization through the Lens of-->
+<!--                        Adversarial Compression</a></li>-->
+<!--                    &lt;!&ndash;                    <li><a href="TBD">TBD</a></li>&ndash;&gt;-->
+<!--                </ol>-->
+<!--                [slides: <a href="files/presentations/11-14-Compression-Liang-Huang.pptx">pptx</a>, <a-->
+<!--                    href="files/presentations/11-14-Compression-Liang-Huang.pdf">pdf</a>]-->
+            </td>
+        </tr>
+        <tr class="sechighlight5">
+            <td> Nov 1
+            </td>
+            <td>Midway progress reports deadline</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>#25 - Tue Nov 18</td>
+            <td style="background-color: #fffddf;">
+                TBD
+            </td>
+            <td>
+<!--                Main Reading(s): <a href="https://arxiv.org/pdf/2403.04746">LLMs in the Imaginarium: tool learning-->
+<!--                through simulated trial and error</a>-->
+<!--                <br>-->
+<!--                Additional Suggested Reading:-->
+<!--                <ol>-->
+<!--                    <li><a href="https://arxiv.org/abs/2305.14318">CREATOR: Tool Creation for Disentangling Abstract and-->
+<!--                        Concrete Reasoning of Large Language Models</a></li>-->
+<!--                    <li><a href="https://arxiv.org/abs/2407.07778">WorldAPIs: The World Is Worth How Many APIs? A-->
+<!--                        Thought Experiment</a></li>-->
+<!--                </ol>-->
+<!--                [slides: <a href="files/presentations/11-19-Tools-Kote-Kalichheti.pptx">pptx</a>, <a-->
+<!--                    href="files/presentations/11-19-Tools-Kote-Kalichheti.pdf">pdf</a>]-->
+            </td>
+        </tr>
+        <tr>
+            <td>#26 - Thu Nov 20</td>
+            <td style="background-color: #f4ffdf;">
+                TBD
+            </td>
+            <td>
+<!--                Main Reading(s): <a href="https://arxiv.org/pdf/2401.04088">Mixtral of Experts</a>-->
+<!--                <br>-->
+<!--                Additional Suggested Reading:-->
+<!--                <ol>-->
+<!--                    <li><a href="https://arxiv.org/abs/2202.08906">ST-MoE: Designing Stable and Transferable Sparse-->
+<!--                        Expert Models</a></li>-->
+<!--                    <li><a href="https://arxiv.org/abs/2212.05055">Sparse Upcycling: Training Mixture-of-Experts from-->
+<!--                        Dense Checkpoints</a></li>-->
+<!--                </ol>-->
+<!--                [slides: <a href="files/presentations/11-19-MoE-Mian-Zhao.pptx">pptx</a>, <a-->
+<!--                    href="files/presentations/11-19-MoE-Mian-Zhao.pdf">pdf</a>]-->
+            </td>
+        </tr>
+        <tr class="sechighlight4 centered">
+            <td>#27 - Tue Nov 25</td>
+            <td>No Class - Fall Recess</td>
+            <td></td>
+        </tr>
+        <tr class="sechighlight4 centered">
+            <td>#28 - Thu Nov 27</td>
+            <td>No Class - Fall Recess</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>#29 - Tue Dec 2</td>
+            <td style="background-color: #e2ffdf;">
+                TBD
+            </td>
+            <td>
+<!--                Main Reading(s): <a href="https://arxiv.org/abs/2307.05973">VoxPoser: Composable 3D Value Maps for-->
+<!--                Robotic Manipulation with Language Models</a>-->
+                <!--                <br>-->
+                <!--                Additional Suggested Reading:-->
+                <!--                <ol>-->
+                <!--                    <li><a href="TBD">TBD</a></li>-->
+                <!--                    <li><a href="TBD">TBD</a></li>-->
+                <!--                </ol>-->
+<!--                <br>-->
+<!--                [slides: <a href="files/presentations/12-3-Robotics-Gao.pptx">pptx</a>, <a-->
+<!--                    href="files/presentations/12-3-Robotics-Gao.pdf">pdf</a>]-->
+            </td>
+        </tr>
+        <tr>
+            <td>#30 - Thu Dec 4</td>
+            <td style="background-color: #dfffe7;">
+                TBD
+<!--                Open discussion-->
+            </td>
+            <td>
+                <!--                Main Reading(s): <a href="TBD">TBD</a>-->
+                <!--                <br>-->
+                <!--                Additional Suggested Reading:-->
+                <!--                <ol>-->
+                <!--                    <li><a href="TBD">TBD</a></li>-->
+                <!--                    <li><a href="TBD">TBD</a></li>-->
+                <!--                </ol>-->
+            </td>
+        </tr>
+
+        <tr class="sechighlight4 centered">
+            <td>Dec 8-11</td>
+            <td>Reading Days</td>
+            <td></td>
+        </tr>
+
+        <tr class="sechighlight5">
+            <td> Dec TBD
+            </td>
+            <td>Final project reports</td>
+            <td>
+            </td>
+        </tr>
+
+        <tr class="sechighlight5">
+            <td>Dec TBD</td>
+            <td colspan="2">Final project poster session (6-9pm) -- <a
+                    href="https://studentaffairs.jhu.edu/registrar/wp-content/uploads/sites/23/2024/08/Fall-2024-Final-Exam-Schedule.pdf">final
+                exam schedule</a></td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+<!--<hr>-->
+<!--<div class="container sec" id="resources">-->
+<!--    <h2>Relevant Resources</h2>-->
+<!--    <p>Here are several resources available for free:</p>-->
+<!--    <ul>-->
+<!--        <li>Compute resources:-->
+<!--            <ul>-->
+<!--                &lt;!&ndash;                <li>Grad students should have access to the graduate grid which has GPUs.</li>&ndash;&gt;-->
+<!--                &lt;!&ndash;                <li>Undergraduate students should have access to the undergrad grid.</li>&ndash;&gt;-->
+<!--                <li><a href="https://colab.research.google.com/">Google Colab</a> provides free GPU usage for up to 12-->
+<!--                    hours/day for academic purposes. One can obtain <a-->
+<!--                            href="https://medium.com/@yufengg/how-to-upgrade-colab-with-more-compute-64d53a9b05dc"> more-->
+<!--                        compute on Colab</a> with relatively minimal pay.-->
+<!--                </li>-->
+<!--                <li>Google offers <a href="https://sites.research.google/trc/about/">research TPU credits</a>.</li>-->
+<!--                &lt;!&ndash;                <li><a href="https://www.kaggle.com/general/108481">Kaggle</a> offers GPUs for its users.</li>&ndash;&gt;-->
+<!--                <li><a href="https://aws.amazon.com/education/awseducate/">AWS</a> and <a-->
+<!--                        href="https://azure.microsoft.com/en-us/free/students/">Azure</a> both offer welcome credits to-->
+<!--                    students.-->
+<!--                </li>-->
+<!--                <li>If you need credits to use GPT3/GPT4 or other APIs, discuss it with the instructor.</li>-->
+<!--            </ul>-->
+<!--        </li>-->
+<!--        <li>Demos:-->
+<!--            <ul>-->
+<!--                <li><a href="https://arena.lmsys.org/">Chatbot Arena</a></li>-->
+<!--                <li><a href="https://www.together.ai/">Together provides fast infrastructure for running models</a></li>-->
+<!--                <li><a href="https://c4-search.apps.allenai.org">A queryable interface to C4</a></li>-->
+<!--            </ul>-->
+<!--        </li>-->
+<!--        <li>Tutorials:</li>-->
+<!--        <ul>-->
+<!--            <li>A <a href="https://huggingface.co/course/chapter1/1">course</a> on Huggingface's Transformers library.-->
+<!--            </li>-->
+<!--        </ul>-->
+<!--    </ul>-->
+<!--    <p>-->
+<!--&lt;!&ndash;        Besides these resources, we will try our best to satisfy individual needs through discussion.&ndash;&gt;-->
+<!--    </p>-->
+<!--</div>-->
+
+
+<hr>
+<div class="container sec" id="conduct">
+    <h2>Code of Conduct</h2>
+    <p>
+        The strength of the university depends on academic and personal integrity. In this course,
+        you must be honest and truthful, abiding by the Computer Science Academic Integrity Policy:
+    </p>
+
+
+    <div class="container sec" id="cs-conduct">
+        <i>
+            <p>
+                Cheating is wrong. Cheating hurts our community by undermining academic
+                integrity, creating mistrust, and fostering unfair competition. The university will
+                punish cheaters with failure on an assignment, failure in a course, permanent
+                transcript notation, suspension, and/or expulsion. Offenses may be reported to
+                medical, law or other professional or graduate schools when a cheater applies.
+                Violations can include cheating on exams, plagiarism, reuse of assignments without
+                permission, improper use of the Internet and electronic devices, unauthorized
+                collaboration, alteration of graded assignments, forgery and falsification, lying,
+                facilitating academic dishonesty, and unfair competition. Ignorance of these rules
+                is not an excuse.
+            </p>
+            <p>
+                Academic honesty is required in all work you submit to be graded. Except where
+                the instructor specifies group work, you must solve all homework and programming
+                assignments without the help of others. For example, you must not look at anyone
+                else’s solutions (including program code) to your homework problems. However,
+                you may discuss assignment specifications (not solutions) with others to be sure
+                you understand what is required by the assignment.
+                If your instructor permits using fragments of source code from outside sources, such
+                as your textbook or on-line resources, you must properly cite the source. Not citing
+                it constitutes plagiarism. Similarly, your group projects must list everyone who
+                participated.
+            </p>
+            <p>
+                In the above paragraph "outside sources" also include content that was produced by an AI assistant
+                like ChatGPT.
+                This follows either by treating the AI assistant as a person for the purposes of this policy
+                (controversial) or acknowledging that the AI assistant was trained directly on people's original work.
+                Thus, while you are not forbidden from using these tools, you should consider the above policy
+                carefully and quote where appropriate. Assignments that are in large part quoted from an AI
+                assistant are very unlikely to be evaluated positively. In addition, if a student's work is
+                substantially identical to another student's work, that will be grounds for an investigation
+                of plagiarism regardless of whether the prose was produced by an AI assistant.
+            </p>
+            <p>
+                Falsifying program output or results is prohibited.
+                Your instructor is free to override parts of this policy for particular assignments. To
+                protect yourself: (1) Ask the instructor if you are not sure what is permissible. (2)
+                Seek help from the instructor, TA or CAs, as you are always encouraged to do,
+                rather than from other students. (3) Cite any questionable sources of help you may
+                have received.
+            </p>
+        </i>
+    </div>
+
+    <p>
+        <!--        On every exam, you will sign the following pledge: "I agree to complete this exam-->
+        <!--    without unauthorized assistance from any person, materials or device. [Signed and-->
+        <!--    dated]". Your course instructors will let you know where to find copies of old exams,-->
+        <!--    if they are available.-->
+        Report any violations you witness to the instructor.
+        You can find more information about university misconduct policies on the web for
+        <a href="https://studentaffairs.jhu.edu/policies-guidelines/undergradethics/">undergraduates</a> and
+        <a href="http://e-catalog.jhu.edu/grad-students/graduate-specificpolicies/">graduates</a> students.
+    </p>
+    <!--    <p>-->
+    <!--        This course will have a zero-tolerance philosophy regarding <a-->
+    <!--            href="https://www.cs.jhu.edu/academic-programs/academic-integrity-code/">plagiarism or other forms of-->
+    <!--        cheating</a>, and incidents-->
+    <!--        of academic dishonesty will be reported. A student who has doubts about how the Honor Code applies to this-->
+    <!--        course should obtain specific guidance from the course instructor before submitting the respective assignment.-->
+    <!--    </p>-->
+    <p>
+        Johns Hopkins University is committed to equal opportunity for its faculty, staff, and students.
+        To that end, the university does not discriminate on the basis of sex, gender, marital status, pregnancy, race,
+        color, ethnicity, national origin, age, disability, religion, sexual orientation, gender identity or expression,
+        veteran status, military status, immigration status or other legally protected characteristic.
+        The University's <a
+            href="https://oie.jhu.edu/policies-and-laws/JHU-Discrimination-and-Harassment-Policy-and-Procedures-7.1.21-Present">Discrimination
+        and Harassment Policy and Procedures</a> provides information on how to report or file a complaint of
+        discrimination or harassment based on any of the protected statuses listed in the earlier sentence, and the
+        University’s prompt and equitable response to such complaints.
+    </p>
+</div>
+<br><br><br><br>
+
+
+<!-- jQuery and Bootstrap -->
+<script src="files/jquery.min.js"></script>
+<script src="files/bootstrap.min.js"></script>
+
+
+</body>
+</html>
