@@ -10,6 +10,10 @@ schedule in `fa2026/index.html`.
 | 1 | `01.foundations.html` | Foundations & prerequisites (math/CS review, what self-supervision is) |
 | 2 | `02.language-modeling.html` | Language modeling: formal setup, scoring/generation, n-grams, sparsity, smoothing, perplexity |
 | 3 | `03.neural-nets.html` | From counting to learning: fixed-window neural LM, what a neural net is, history, batched algebra, gradient descent |
+| 5 | `05.backprop-in-practice.html` | Backprop as chain rule on a graph, reverse mode, autograd, the LM loss in PyTorch |
+
+(No Handout #4 yet — Session 4 is analytical backprop, currently covered only by the assigned
+3Blue1Brown videos.)
 
 Widgets: `ssl-objective.js` (Handout #1), `next-token.js` (Handout #2 — order selector, per-model
 perplexity table, sampler), `gradient-descent.js` (Handout #3 — learning-rate explorer).
@@ -30,6 +34,10 @@ Three arithmetic errors found in these while porting (handouts use corrected val
   *observed*.
 - sp2024 quiz1 Q2.4: `H` uses `log2 2/6` while the same page's table and `P(s1)` both use `1/6`.
   With 1/6, H = 1.581 and ppl = 2.99, not 1.33 / 2.51.
+
+PyTorch snippets live in Handout #1 §1.5, Handout #3 §4/§5, and Handout #5 §3/§4.
+Handout #2 §3.2 is pure-Python n-gram counting (deliberately not PyTorch).
+Every `assert` in them has been run against torch 2.12 — keep it that way when editing.
 
 **Check every numeric claim against the running widget.** A probability, a perplexity, a divergence
 threshold, a status message — several of these were wrong on the first pass in both handouts, and

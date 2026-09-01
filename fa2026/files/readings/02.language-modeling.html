@@ -431,7 +431,7 @@ while True:
                     (<code>the cat slept on the mat</code>) — but look closely: they are corpus
                     sentences. With only 18 examples a trigram model has essentially memorized them,
                     so "fluent" here means <em>overfit</em>. That is the same coin as the sparsity in
-                    §3.2, seen from the other side.
+                    §3.3, seen from the other side.
                     <p style="margin:6px 0 0">
                         Keep the context as <code>the cat</code> instead and generation will often stop
                         immediately. That is not a bug — $\hat{p}(\texttt{&lt;/s&gt;} \mid
@@ -460,10 +460,79 @@ while True:
             window is plausible English, because that is precisely what the model was fit to; nothing
             holds the sentence together across a longer span, because the model cannot see that far.
             The obvious fix — raise $n$ — makes coherence better and sparsity worse, and that trade-off
-            is a wall, not a dial. §3.2 says why.
+            is a wall, not a dial. §3.3 says why.
         </p>
 
-        <h3 id="s3-sparsity">3.2 &nbsp;Why this stops working: sparsity</h3>
+        <h3 id="s3-code">3.2 &nbsp;The whole model, in code</h3>
+
+        <p>
+            §3 claimed the model is "one pass over the corpus and you are done." That is worth seeing
+            literally, because it is the last time in this course a model will be this small. Here is
+            the entire trigram estimator — the same one the widget runs:
+        </p>
+
+        <pre><code class="language-python">from collections import Counter
+
+N = 3                                    # trigram: condition on the previous N-1 = 2 words
+
+context_counts, ngram_counts = Counter(), Counter()
+
+for line in CORPUS:                                    # ONE pass. No epochs.
+    tokens = ["&lt;s&gt;"] * (N - 1) + line.split() + ["&lt;/s&gt;"]
+    for i in range(N - 1, len(tokens)):
+        context = tuple(tokens[i - N + 1:i])           # the two preceding words
+        context_counts[context] += 1
+        ngram_counts[(context, tokens[i])] += 1
+
+def p(word, context):
+    """MLE estimate. Returns None when the context was never observed."""
+    context = tuple(context[-(N - 1):])
+    if context_counts[context] == 0:
+        return None                                    # not zero -- undefined
+    return ngram_counts[(context, word)] / context_counts[context]
+
+p("sat",   ("the", "cat"))     # 0.4   -- matches the widget, and 2/5 by hand
+p("&lt;/s&gt;", ("the", "cat"))     # 0.4   -- the two sentences that END here
+p("on",    ("cat", "sat"))     # 1.0   -- certain, on two observations
+p("on",    ("dog", "slept"))   # None  -- context never seen</code></pre>
+
+        <p>Four details in there are the whole lesson of this section:</p>
+        <ul>
+            <li>
+                <code>["&lt;s&gt;"] * (N - 1)</code> — padding the left edge is what lets position 1 have
+                a context at all. Get this wrong and you silently drop the first word of every
+                sentence from training.
+            </li>
+            <li>
+                <code>+ ["&lt;/s&gt;"]</code> — the end marker is appended as a real token, so
+                <code>p("&lt;/s&gt;", ("the","cat")) = 0.4</code> falls out of the counting like any other
+                word. §1.1's requirement that the distribution sum over $\Sigma^*$ is enforced right
+                here.
+            </li>
+            <li>
+                <code>return None</code>, not <code>return 0.0</code> — an unseen <em>context</em> has no
+                distribution, which is a different failure from an unseen <em>word</em> in a seen
+                context. §5.2's &ldquo;two different zeros&rdquo; keeps that distinction alive; conflating them
+                is how you end up dividing
+                by zero.
+            </li>
+            <li>
+                There is no <code>loss</code>, no <code>backward()</code>, no learning rate, and nothing
+                to tune. Compare this against the five-line training loop in
+                <a href="03.neural-nets.html#s5-sgd">Handout #3 §5.2</a> — that is the price of
+                generalization.
+            </li>
+        </ul>
+
+        <div class="callout aside">
+            <span class="callout-label">Try it</span>
+            Paste the snippet into a file with <code>CORPUS</code> set to the sentence list from §3.1
+            and check a few probabilities against the widget. Then set <code>N = 2</code> and
+            <code>N = 4</code> — the code does not otherwise change, which is exactly why $n$ is the
+            only knob an n-gram model has, and why §3.3 is about what happens when you turn it up.
+        </div>
+
+        <h3 id="s3-sparsity">3.3 &nbsp;Why this stops working: sparsity</h3>
 
         <p>
             The failure of counting is not that it is inaccurate. On contexts it has seen often, the
@@ -727,10 +796,30 @@ while True:
                     $$H = -\frac{1}{n}\sum_t \log_2 1 = 0
                     \quad\Longrightarrow\quad \text{ppl} = 2^0 = 1.$$
                     <p>
-                        Branching factor 1 — no choice at all. Together with the first case this brackets
-                        the metric: <strong>empirical perplexity lies between 1 and $V$</strong>, where 1
-                        is clairvoyance and $V$ is knowing nothing.
+                        Branching factor 1 — no choice at all, and a true floor: every probability is
+                        at most 1, so every surprisal is at least 0, so
+                        <strong>perplexity is never below 1</strong>.
                     </p>
+                    <div class="callout warn" style="margin-bottom:0">
+                        <span class="callout-label">$V$ is a baseline, not a ceiling</span>
+                        It is tempting to read the first and third cases as bracketing the metric
+                        between 1 and $V$. The lower bound is real; the upper one is not. $V$ is the
+                        perplexity of the <em>uniform</em> model — the do-nothing reference point — and a
+                        model that is confidently wrong does worse. Suppose $V = 1000$, so the uniform
+                        baseline is a perplexity of 1000 and a surprisal of $\log_2 1000 \approx 10$
+                        bits per token. A model that confidently puts $0.999$ on one word has only
+                        $0.001$ left to spread over the other 999; if the word that actually occurs is
+                        one of those, its surprisal is at least $\log_2 1000 \approx 10$ bits and
+                        typically far more. A test set full of such tokens averages <em>above</em> 10
+                        bits, i.e. perplexity above $V$. In the limit, a model that assigns the observed
+                        word probability 0 has infinite perplexity — §3.3's catastrophic zero, seen as
+                        an unbounded metric.
+                        <p style="margin:8px 0 0">
+                            So read $V$ as the score to beat, not as a worst case. <strong>Being
+                            confidently wrong is worse than being ignorant</strong> — an asymmetry that
+                            comes back in §5.5.
+                        </p>
+                    </div>
                 </div></details>
             </div>
         </div>
@@ -755,7 +844,7 @@ while True:
                     <summary>Answers</summary>
                     <div class="ans-body">
                         <p>
-                            <strong>1. False</strong> — and this is the whole of §3.2 in one sentence. An
+                            <strong>1. False</strong> — and this is the whole of §3.3 in one sentence. An
                             unsmoothed bigram model assigns probability zero to any bigram it never
                             counted, and one zero factor zeroes the sentence. "Regardless of how it was
                             trained" is what makes the claim false: it would be true of a
@@ -968,6 +1057,13 @@ BOS Tianjian ran EOS</code></pre>
                     </div>
                 </details>
             </div>
+        </div>
+
+        <div class="callout aside">
+            <span class="callout-label">And in code?</span>
+            One line — <code>torch.exp(F.cross_entropy(logits, targets))</code> — plus three ways to
+            get it wrong that are worth knowing before you write a training loop. That belongs with
+            the PyTorch mechanics in <a href="05.backprop-in-practice.html">Handout #5</a>, not here.
         </div>
 
         <h3 id="s5-limits">5.5 &nbsp;What perplexity does not tell you</h3>
@@ -1240,7 +1336,8 @@ BOS Tianjian ran EOS</code></pre>
                 <strong>Next session.</strong> #3, Tue Sept 8 — Neural nets: definitions, history,
                 and the algebra and optimization behind them. See
                 <a href="03.neural-nets.html">Handout #3</a>, which picks up exactly where §5 stops.
-                <em>Quiz #1 is that session</em>, covering everything up to this point.
+                <em>Quiz #1 follows on Thu, Sept 10</em>, covering everything up to and including
+                that session.
             </p>
             <p>
                 Found an error, or a passage that doesn't land? Post on
