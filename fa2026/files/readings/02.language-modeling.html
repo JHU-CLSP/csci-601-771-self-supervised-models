@@ -1,0 +1,1261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Handout #2: Language Modeling — CS 601.471/671</title>
+    <meta name="description"
+          content="Session 2 reading handout: what a language model is, counting n-grams, the zero problem, and how perplexity measures quality.">
+
+    <link rel="shortcut icon" href="../favicon.ico">
+    <link rel="stylesheet" href="../fonts.css">
+    <link rel="stylesheet" href="vendor/katex/katex.min.css">
+    <link rel="stylesheet" href="vendor/highlight/github.min.css">
+    <link rel="stylesheet" href="handout.css">
+</head>
+
+<body class="handout" data-handout="02.language-modeling">
+
+<header class="hd-mast">
+    <div class="hd-wrap" style="display:block">
+        <div class="hd-course">CS 601.471/671 &nbsp;·&nbsp; NLP: Self-supervised Models &nbsp;·&nbsp; Fall 2026</div>
+        <h1>Handout #2 — Language Modeling</h1>
+        <p class="hd-sub">
+            Session 2 (Thu, Sept 3) &nbsp;·&nbsp;
+            <a href="../slides/02.language-modeling.pdf">Slides: Language Modeling</a> &nbsp;·&nbsp;
+            <a href="../../index.html">Course page</a>
+        </p>
+    </div>
+</header>
+
+<div class="hd-wrap">
+
+    <!-- TOC is populated by handout.js from the h2/h3 ids below -->
+    <nav class="hd-toc" aria-label="Contents">
+        <div class="hd-toc-title">On this page</div>
+    </nav>
+
+    <main class="hd-body">
+
+                <p class="lead">
+            <a href="01.foundations.html">Handout #1</a> ended with one line: a language model is a
+            distribution over sequences, factored by the chain rule into one next-word prediction per
+            position. This handout asks what that buys you, how to <em>estimate</em> those predictions
+            by counting, how to <em>measure</em> whether they are any good, and what to do when one of
+            them comes out as exactly zero.
+        </p>
+
+        <div class="hd-glance">
+            <dl>
+                <dt>Assigned papers</dt>
+                <dd>None. <strong>This handout is the reading for Session 2.</strong>
+                    §7 lists optional depth if you want it.</dd>
+
+                <dt>Time</dt>
+                <dd>50–70 minutes.</dd>
+
+                <dt>By the end you should be able to</dt>
+                <dd>
+                    <ul style="margin-bottom:0">
+                        <li>state the language modeling problem formally, and say what the Markov
+                            assumption gives up;</li>
+                        <li>describe the two things an LM lets you do — score and generate — and how
+                            recursive sampling works;</li>
+                        <li>estimate n-gram probabilities from counts, by hand, on a small corpus;</li>
+                        <li>define perplexity two equivalent ways, and read it as a branching factor;</li>
+                        <li>explain why sparsity — not compute — is what limited counting-based models;</li>
+                        <li>say why counting hits a wall, and what would have to replace it.</li>
+                    </ul>
+                </dd>
+
+                <dt>Assumes</dt>
+                <dd>
+                    <a href="01.foundations.html#s2-objective">Handout #1 §2.2</a> (the chain-rule
+                    factorization and the cross-entropy objective) and
+                    <a href="01.foundations.html#s1-prob">§1.2</a> (conditionals, log space).
+                </dd>
+            </dl>
+        </div>
+
+
+        <!-- ================================================================ -->
+        <h2 id="s1"><span class="hd-secnum">1</span>What a language model is</h2>
+
+        <p>
+            A language model assigns a probability to a sequence of words. That is the entire
+            definition — and it is worth noticing how strange a goal it is. Nobody wants the number.
+            What we want is what the model must know in order to produce a good one.
+        </p>
+
+        <h3 id="s1-formal">1.1 &nbsp;The problem, stated formally</h3>
+
+        <p>
+            Fix a finite vocabulary $\Sigma = \{x_1, x_2, \ldots, x_V\}$. Let $\Sigma^*$ be the set of
+            all finite sequences over it — <code>the</code>, <code>the cat</code>,
+            <code>cat the the</code>, and so on, an infinite set. A language model is a probability
+            distribution over $\Sigma^*$:
+        </p>
+        $$
+        \sum_{e \in \Sigma^*} p_{\text{LM}}(e) = 1,
+        \qquad p_{\text{LM}}(e) \geq 0 \;\; \forall e \in \Sigma^*.
+        $$
+        <p>
+            Two things in that statement deserve attention. First, the mass has to be spread over an
+            <em>infinite</em> set, which is why the end-of-sequence token matters so much — it is what
+            lets the total converge rather than leaking away into ever-longer strings. Second, the
+            definition never says what the atomic unit <em>is</em>. Words, characters, bytes, subword
+            pieces: all are legal choices of $\Sigma$, and the choice turns out to matter enormously
+            (both for the zero problem in §4 and for the numbers in §5).
+        </p>
+
+        <h3 id="s1-marginal">1.2 &nbsp;Trained on conditionals, learning the joint</h3>
+
+        <p>
+            In practice we never touch $p_{\text{LM}}(e)$ directly. We train on next-word predictions —
+            "the cat sat on the ___" — which are conditionals, sometimes loosely called the
+            <em>marginals</em> the model is fit to. The chain rule from Handout #1 is what promotes
+            those local predictions into the full joint distribution:
+        </p>
+        $$
+        p(x_1, \ldots, x_T) = \prod_{t=1}^{T} p(x_t \mid x_{&lt;t}).
+        $$
+
+        <div class="callout">
+            <span class="callout-label">The point to hold on to</span>
+            You <strong>train on conditionals</strong> and you <strong>get the joint for free</strong>.
+            Nothing in the training procedure ever computes a probability over a whole document, yet
+            the chain rule means the model implicitly defines one. Every sampling, scoring and ranking
+            trick in the rest of the course is cashing in on that identity.
+        </div>
+
+        <div class="ex">
+            <div class="ex-head"><span>Quick check — what is language modeling?</span>
+                <span class="ex-src">Quiz 1, sp2024 &amp; sp2025</span></div>
+            <div class="ex-body">
+                <p>Which of these describes language modeling?</p>
+                <ul class="qlist" style="list-style:none;padding-left:8px">
+                    <li>&#9675; Self-supervised learning over language data.</li>
+                    <li>&#9675; Learning a joint distribution over word sequences in a language.</li>
+                    <li>&#9675; Learning a marginal (conditional) distribution over word sequences.</li>
+                    <li>&#9675; All of the above.</li>
+                </ul>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    <strong>All of the above</strong> — which is the point of this subsection, and the
+                    reason the question is worth asking. The three descriptions are not competing
+                    definitions; they are the same object from three angles. It is self-supervised
+                    because the targets come from the text itself; you fit it to conditionals; and the
+                    chain rule means those conditionals define the joint whether you compute it or not.
+                    A student who picks only one has usually lost track of which of the three the
+                    training loop actually touches.
+                </div></details>
+            </div>
+        </div>
+
+        <h3 id="s1-markov">1.3 &nbsp;The Markov assumption</h3>
+
+        <p>
+            The factorization is exact — no assumptions. But there is a problem hiding in $x_{&lt;t}$:
+            as $t$ grows, the conditioning context grows without bound. To predict word 500 you would
+            need a distribution conditioned on a specific 499-word prefix, and essentially every
+            499-word prefix in the language has occurred either once or never. No amount of data fixes
+            this.
+        </p>
+
+        <p>So we approximate, by truncating the context:</p>
+        $$
+        p(x_t \mid x_{&lt;t}) \approx p(x_t \mid x_{t-n+1}, \ldots, x_{t-1}).
+        $$
+        <p>
+            Concretely, for <code>P(mat | the cat sat on the)</code>, keeping one word of context gives
+            <code>P(mat | the)</code>; two gives <code>P(mat | on the)</code>; three gives
+            <code>P(mat | sat on the)</code>. This is the <strong>only</strong> approximation an n-gram
+            model makes. Everything else — the counting, the smoothing — is bookkeeping.
+        </p>
+
+        <p>
+            It is also obviously false, and the lecture's example is the one to remember:
+            <em>"The computer which I had just put into the machine room on the fifth floor
+            crashed."</em> The subject of <code>crashed</code> is <code>computer</code>, thirteen words
+            back. No n-gram model of any practical order can see it. And yet for two decades this was
+            the best we had, and it was good enough to build speech recognition and machine
+            translation on. Understanding why it worked, and precisely where it broke, is the fastest
+            route to understanding what replaced it.
+        </p>
+
+        <h3 id="s1-history">1.4 &nbsp;A very short history</h3>
+
+        <div class="tbl-scroll">
+        <table class="tbl">
+            <thead><tr><th>When</th><th>What</th><th>Why it mattered</th></tr></thead>
+            <tbody>
+            <tr>
+                <td>1913</td>
+                <td>Markov counts letter transitions in <em>Eugene Onegin</em>.</td>
+                <td>The first n-gram model, built by hand, to argue about dependent random variables.</td>
+            </tr>
+            <tr>
+                <td>1948–51</td>
+                <td>Shannon frames language as an information source, measures the entropy of printed
+                    English by having people guess the next letter, and builds
+                    "$k$-th order approximations" to English from co-occurrence counts.</td>
+                <td>Establishes the idea this whole course rests on: <em>how well you can predict the
+                    next symbol measures how well you model the language.</em> Perplexity is his
+                    entropy, exponentiated.</td>
+            </tr>
+            <tr>
+                <td>1980s–90s</td>
+                <td>Fred Jelinek's group at IBM — and later here at Hopkins, where he founded
+                    CLSP — scales n-grams into working speech recognition and statistical machine
+                    translation. The smoothing literature (Good–Turing, Kneser–Ney) grows up around
+                    the zero problem.</td>
+                <td>Language models become infrastructure. Jelinek's provocation — <em>"every time I
+                    fire a linguist, the performance of the speech recognizer goes up"</em> — is the
+                    moment the field's centre of gravity moved from hand-built rules to counting, and
+                    it prefigures every scaling argument you will meet later.</td>
+            </tr>
+            <tr>
+                <td>2003</td>
+                <td>Bengio et al. replace the count table with a neural network over word vectors.</td>
+                <td>The fix for sparsity: similar contexts share statistical strength instead of being
+                    separate table entries. That is <a href="03.neural-nets.html">Handout #3</a>, and the
+                    rest of the course.</td>
+            </tr>
+            </tbody>
+        </table>
+        </div>
+
+
+        <!-- ================================================================ -->
+        <h2 id="s2"><span class="hd-secnum">2</span>What you can do with one</h2>
+
+        <p>
+            Suppose someone hands you a trained language model. You can do exactly two things with it,
+            and everything else is built from them.
+        </p>
+
+        <h3 id="s2-score">2.1 &nbsp;Score, and therefore rank</h3>
+
+        <p>
+            An LM assigns a probability to <em>any</em> string. So you can compare strings, and the
+            probability behaves as a rough measure of how familiar — how fluent, how grammatical, how
+            plausible — the string is:
+        </p>
+
+        <div class="tbl-scroll">
+        <table class="tbl">
+            <thead><tr><th>Higher probability</th><th>Lower probability</th><th>What the gap reflects</th></tr></thead>
+            <tbody>
+            <tr>
+                <td><code>I like Johns Hopkins University</code> &nbsp;($\approx 10^{-5}$)</td>
+                <td><code>like Hopkins I University Johns</code> &nbsp;($\approx 10^{-15}$)</td>
+                <td>word order — syntax</td>
+            </tr>
+            <tr>
+                <td><code>I like Johns Hopkins University</code></td>
+                <td><code>I like John Hopkins University</code></td>
+                <td>a spelling/naming error</td>
+            </tr>
+            <tr>
+                <td><code>JHU is located in Baltimore.</code></td>
+                <td><code>JHU is located in Virginia.</code></td>
+                <td>a fact about the world</td>
+            </tr>
+            </tbody>
+        </table>
+        </div>
+
+        <p>
+            That last row is the one to dwell on. Nothing in the training objective mentions truth, and
+            yet the true sentence is the more probable one — because true sentences are the ones people
+            wrote. This is exactly the mechanism Handout #1 §2.3 described, now visible as a comparison
+            of two numbers. It is also why the same mechanism fails: where the corpus is confidently
+            wrong, the model will be too.
+        </p>
+
+        <p>
+            Ranking by probability is directly useful. Spelling correction, speech recognition and
+            machine translation all generate several candidate strings by other means and then ask a
+            language model which one sounds most like the language. That was the dominant application
+            of LMs for thirty years.
+        </p>
+
+        <h3 id="s2-generate">2.2 &nbsp;Generate, by sampling recursively</h3>
+
+        <p>
+            The second thing is more surprising. A model that only ever predicts <em>one</em> next word
+            can produce arbitrarily long text, by feeding its own output back in as context. Start with
+            a prompt and repeat:
+        </p>
+
+        <pre><code class="language-python">context = "Johns Hopkins is"
+while True:
+    next_word = sample(p(X | context))   # draw from the model's distribution
+    if next_word == "&lt;/s&gt;":
+        break
+    context = context + " " + next_word</code></pre>
+
+        <p>Which might run:</p>
+
+        <div class="callout aside">
+            <span class="callout-label">One trajectory</span>
+            <code>Johns Hopkins is</code> &rarr; <code>located</code> &rarr; <code>at</code> &rarr;
+            <code>the</code> &rarr; <code>state</code> &rarr; <code>of</code> &rarr;
+            <code>Maryland</code> &rarr; <code>&lt;/s&gt;</code>
+            <p style="margin:8px 0 0">
+                Note the last step. The model does not run until we stop it; it <em>predicts</em> that
+                the sequence is over, by assigning high probability to the end-of-sequence token. That
+                is what makes $p_{\text{LM}}$ a distribution over $\Sigma^*$ rather than an infinite
+                stream — and it is the same $\texttt{&lt;/s&gt;}$ that will show up in the counts in §3.
+            </p>
+        </div>
+
+        <p>
+            Everything you have ever seen a chatbot do is this loop. The model is still only answering
+            "what word comes next?"; the essay is an emergent property of asking that question a
+            thousand times in a row.
+        </p>
+
+        <h3 id="s2-why">2.3 &nbsp;Why care</h3>
+
+        <p>
+            Two reasons, and the second is the ambitious one.
+        </p>
+
+        <p>
+            <strong>Language modeling is a subcomponent of an enormous number of tasks.</strong>
+            Summarization, translation, spelling correction, dialogue — each needs to produce or
+            evaluate fluent text, and that is what an LM provides.
+        </p>
+
+        <p>
+            <strong>Language modeling is a proxy for language understanding.</strong> To predict the
+            next word reliably, you must have understood the context — the syntax, the topic, the
+            facts, the intent. There is no shortcut that gets you low loss without that. This is a
+            claim, not a theorem, and it is the bet the entire field has placed. Handout #1 §2.4 argued
+            for it and against it; keep both arguments live.
+        </p>
+
+
+        <!-- ================================================================ -->
+        <h2 id="s3"><span class="hd-secnum">3</span>Estimating by counting</h2>
+
+        <p>
+            Given the Markov assumption, the maximum-likelihood estimate is exactly what you would
+            guess: count, and divide.
+        </p>
+        $$
+        \hat{p}(x_t \mid x_{t-n+1}^{\,t-1})
+        = \frac{C(x_{t-n+1}, \ldots, x_{t-1}, x_t)}{C(x_{t-n+1}, \ldots, x_{t-1})}
+        $$
+        <p>
+            "Of all the times I saw this context, what fraction of the time was the next word
+            <em>this</em>?" There is no optimization, no gradient, no training loop — one pass over the
+            corpus to build a table of counts, and you are done. A trigram model over a 1.7-million-word
+            corpus trains in seconds on a laptop. That simplicity is worth appreciating before we spend
+            the rest of the semester on the alternative.
+        </p>
+
+        <div class="callout warn">
+            <span class="callout-label">Terminology, and an off-by-one worth pinning down</span>
+            An <strong>n-gram</strong> is a chunk of $n$ consecutive words: <code>cat</code> is a
+            unigram, <code>the cat</code> a bigram, <code>the cat sat</code> a trigram,
+            <code>the cat sat on</code> a four-gram. An <strong>n-gram model</strong> is named for the
+            size of that chunk, so it conditions on $n-1$ words: a trigram model predicts the next
+            word from the <em>two</em> before it.
+            <p style="margin:8px 0 0">
+                Shannon's older phrasing counts differently — his "3rd order approximation" conditions
+                on three words, which is a four-gram model. Both conventions are still in use. When you
+                read a number, check whether it names the chunk or the context.
+            </p>
+        </div>
+
+        <h3 id="s3-widget">3.1 &nbsp;Counting, hands on</h3>
+
+        <p>
+            The widget below does exactly this over an 18-sentence corpus, small enough that you can
+            check any probability it reports by hand:
+        </p>
+        <pre><code id="wnt-corpus"></code></pre>
+
+        <div class="widget">
+            <div class="widget-head">
+                Next-token explorer
+                <span class="widget-hint">Type a context, switch orders, and sample from the model.
+                    Watch what happens to the distribution's sharpness — and to whether it exists
+                    at all.</span>
+            </div>
+            <div class="widget-body" id="w-next-token"></div>
+        </div>
+
+        <div class="callout try">
+            <span class="callout-label">Work through these</span>
+            <ol style="margin-bottom:0">
+                <li>
+                    Type <code>the cat</code> and switch between <strong>Unigram</strong>,
+                    <strong>Bigram</strong> and <strong>Trigram</strong>. The unigram distribution is
+                    the same no matter what you type; the trigram is sharp. Higher order means more
+                    context means sharper predictions.
+                </li>
+                <li>
+                    Verify one number by hand — and notice the trap. With <strong>Trigram</strong> and
+                    context <code>the cat</code>, the widget reports
+                    $\hat{p}(\texttt{sat} \mid \texttt{the cat}) = 0.4$, not the $2/3$ you get from
+                    counting <code>the cat sat</code> (twice) against <code>the cat slept</code> (once).
+                    The context <code>the cat</code> occurs <em>five</em> times, because two sentences
+                    <em>end</em> with it — <code>the dog barked at the cat</code> and
+                    <code>the dog chased the cat</code>. In both, the next token is
+                    <code>&lt;/s&gt;</code>, so the count is $2/5$, and
+                    $\hat{p}(\texttt{&lt;/s&gt;} \mid \texttt{the cat}) = 2/5$ as well. As §2.2 said,
+                    <strong>&lt;/s&gt; is a real token</strong> the model must predict.
+                </li>
+                <li>
+                    Type <code>the dog slept</code> with <strong>Trigram</strong> selected. The context
+                    <code>dog slept</code> never occurs, so the model has <em>no estimate</em> — not a
+                    bad one, none. Now switch to <strong>Bigram</strong>: the shorter context
+                    <code>slept</code> <em>has</em> been seen, so an estimate reappears. Shorter
+                    contexts survive where longer ones do not, which is the observation §4.2 builds on.
+                </li>
+                <li>
+                    Watch the comparison table at the bottom. On <code>the student read the book</code>
+                    — every n-gram of which the corpus contains — perplexity falls steeply with order:
+                    $21.0$ (unigram) &rarr; $3.99$ (bigram) &rarr; $1.78$ (trigram). Then try
+                    <code>the dog slept on the mat</code>, built entirely from words the corpus knows
+                    but containing the trigram <code>the dog slept</code>, which it does not: the
+                    unigram still manages $25.2$, and <em>both</em> higher-order models give $\infty$.
+                    That inversion is the whole tension of this session in one table.
+                </li>
+                <li>
+                    <strong>Clear</strong> the context, then press <strong>Generate</strong> a few
+                    times at each order. At unigram you get word salad
+                    (<code>the cat read a ran the about</code>). At trigram you get clean sentences
+                    (<code>the cat slept on the mat</code>) — but look closely: they are corpus
+                    sentences. With only 18 examples a trigram model has essentially memorized them,
+                    so "fluent" here means <em>overfit</em>. That is the same coin as the sparsity in
+                    §3.2, seen from the other side.
+                    <p style="margin:6px 0 0">
+                        Keep the context as <code>the cat</code> instead and generation will often stop
+                        immediately. That is not a bug — $\hat{p}(\texttt{&lt;/s&gt;} \mid
+                        \texttt{the cat}) = 0.4$, so two draws in five end the sentence right there,
+                        exactly as item 2 said they should.
+                    </p>
+                </li>
+            </ol>
+        </div>
+
+        <p>
+            To see what generation looks like when the corpus is large enough that the model is not
+            merely reciting, here is a trigram model trained on 1.7 million words of newswire,
+            sampled freely:
+        </p>
+
+        <div class="callout aside">
+            <span class="callout-label">Trigram output, 1.7M-word corpus</span>
+            <em>"today the price of gold per ton, while production of shoe lasts and shoe industry,
+            the bank intervened just after it considered and rejected an imf demand to rebuild
+            depleted european stocks, sept 30 end primary 76 cts a share."</em>
+        </div>
+
+        <p>
+            <strong>Surprisingly grammatical, and completely incoherent.</strong> Every three-word
+            window is plausible English, because that is precisely what the model was fit to; nothing
+            holds the sentence together across a longer span, because the model cannot see that far.
+            The obvious fix — raise $n$ — makes coherence better and sparsity worse, and that trade-off
+            is a wall, not a dial. §3.2 says why.
+        </p>
+
+        <h3 id="s3-sparsity">3.2 &nbsp;Why this stops working: sparsity</h3>
+
+        <p>
+            The failure of counting is not that it is inaccurate. On contexts it has seen often, the
+            MLE is excellent. The failure is that <strong>most contexts are seen rarely or never</strong>,
+            and the problem gets exponentially worse with $n$.
+        </p>
+
+        <p>
+            Count the parameters. With a vocabulary of $V$ words, an order-$n$ model has $V^{n-1}$
+            possible contexts, each needing a distribution over $V$ words — so $V^n$ numbers. For a
+            modest $V = 50{,}000$:
+        </p>
+
+        <div class="tbl-scroll">
+        <table class="tbl">
+            <thead>
+            <tr><th>Order</th><th>Possible n-grams</th><th>vs. a 10<sup>9</sup>-word corpus</th></tr>
+            </thead>
+            <tbody>
+            <tr><td>Unigram</td><td>$5 \times 10^{4}$</td><td>densely observed; estimates are reliable</td></tr>
+            <tr><td>Bigram</td><td>$2.5 \times 10^{9}$</td><td>already more parameters than tokens</td></tr>
+            <tr><td>Trigram</td><td>$1.25 \times 10^{14}$</td><td>$10^{5}$ times more parameters than data</td></tr>
+            <tr><td>5-gram</td><td>$3 \times 10^{23}$</td><td>hopeless — and this is the order people actually used</td></tr>
+            </tbody>
+        </table>
+        </div>
+
+        <p>
+            So the overwhelming majority of entries in the table are zero, and they are zero because
+            of <em>absence of evidence</em>, not evidence of impossibility. <code>the dog slept</code>
+            is a perfectly good English trigram; our corpus simply never used it. An unsmoothed model
+            declares it impossible.
+        </p>
+
+        <p>
+            Sparsity also degrades the estimates that <em>do</em> exist. In the newswire model above,
+            the context <code>today the</code> yields <code>company</code> and <code>bank</code> at
+            $0.153$ each and <code>price</code> at $0.077$ — probabilities that are multiples of
+            $1/13$, because the context was seen thirteen times. There is no granularity available;
+            the distribution is as coarse as the count is small.
+        </p>
+
+        <div class="callout warn">
+            <span class="callout-label">Why a single zero is catastrophic</span>
+            It is not that one probability is slightly too low. Because the chain rule
+            <em>multiplies</em>, one zero factor makes the probability of the entire sequence zero, and
+            $\log 0 = -\infty$. A model that predicted 499 of 500 words superbly and assigned zero to
+            one of them scores infinitely badly. Type an unseen word into the widget and watch every
+            perplexity go to $\infty$.
+        </div>
+
+
+        <!-- ================================================================ -->
+        <h2 id="s4"><span class="hd-secnum">4</span>Filling the zeros</h2>
+
+        <p>
+            Three families of fix, in increasing order of sophistication. All of them are moving
+            probability mass from the things you saw to the things you did not.
+        </p>
+
+        <h3 id="s4-smoothing">4.1 &nbsp;Smoothing: pretend you saw a bit more</h3>
+
+        <p>
+            Add a constant $k$ to every count before normalizing (add-one smoothing is $k=1$, also
+            called Laplace smoothing):
+        </p>
+        $$
+        \hat{p}_{\text{add-}k}(x_t \mid c) = \frac{C(c, x_t) + k}{C(c) + kV}
+        $$
+        <p>
+            The $kV$ in the denominator is doing the accounting: we added $k$ to each of $V$ possible
+            next words, so the total went up by $kV$. Now nothing is zero.
+        </p>
+
+        <p>
+            It is also a rather bad estimator, and it is worth being clear about why. With $V$ large
+            and most counts zero, the $kV$ term dominates the denominator, so add-one smoothing takes
+            a great deal of mass away from the words you actually observed and spreads it thinly over
+            an enormous number of words you did not. It is the right first idea and the wrong final
+            answer — which is roughly its role in this course too.
+        </p>
+
+        <h3 id="s4-interp">4.2 &nbsp;Interpolation: ask a shorter question too</h3>
+
+        <p>
+            A better instinct than add-$k$: if you have never seen <code>the dog slept</code>, you have
+            probably seen <code>dog slept</code>, and you have certainly seen <code>slept</code>. The
+            shorter the context, the more evidence you have for it — exactly what item 3 of the widget
+            exercise showed. So rather than trusting one order, use them all at once.
+        </p>
+
+        <p>
+            <strong>Interpolation</strong> mixes the orders into a single estimate:
+        </p>
+        $$
+        \hat{p}(x_t \mid x_{t-2}, x_{t-1}) =
+        \lambda_3\, p_3(x_t \mid x_{t-2}, x_{t-1})
+        + \lambda_2\, p_2(x_t \mid x_{t-1})
+        + \lambda_1\, p_1(x_t),
+        \qquad \sum_i \lambda_i = 1.
+        $$
+        <p>
+            The weights $\lambda_i$ are fit on held-out data. Because the $\lambda$'s sum to one and
+            each $p_i$ is a distribution, the mixture is a valid distribution too — and because
+            $\lambda_1 > 0$ and the unigram is non-zero for any word in the vocabulary, no estimate is
+            ever exactly zero. The unseen-context problem is gone, and unlike add-$k$ the mass it moves
+            is small and tuned rather than proportional to $V$.
+        </p>
+
+        <p>
+            There is a second benefit worth noticing: even a <em>well</em>-observed trigram gains from
+            being pulled slightly toward the lower orders, because a ratio built from three
+            observations is noisy. Interpolation shrinks confident-but-thinly-evidenced estimates
+            toward more robust ones — which is the same complaint the check-yourself question about
+            $\hat{p} = 1$ raises in §6.
+        </p>
+
+        <p>
+            The best-known refinement is <strong>Kneser–Ney</strong> smoothing, and its central idea is
+            a genuinely clever one worth carrying with you. When you fall back on a lower order, do not
+            ask "how frequent is this word?" — ask "<em>in how many distinct contexts</em> does this
+            word appear?" The word <code>Francisco</code> is common, but almost exclusively after
+            <code>San</code>. A frequency-based lower-order estimate will happily predict
+            <code>Francisco</code> after anything; a diversity-based one will not. Kneser–Ney remained
+            the best-performing n-gram model for two decades.
+        </p>
+
+        <div class="callout aside">
+            <span class="callout-label">The pattern to notice</span>
+            Every one of these methods is a hand-designed rule for generalizing to unseen contexts.
+            Someone had to <em>decide</em> that a trigram should fall back to a bigram, and by how
+            much. The neural approach in <a href="03.neural-nets.html">Handout #3</a> does not smooth
+            at all — it makes generalization the model's job rather than the modeller's. That is the
+            shift, and it is the reason a two-decade smoothing literature stopped mattering rather
+            abruptly.
+        </div>
+
+
+        <!-- ================================================================ -->
+        <h2 id="s5"><span class="hd-secnum">5</span>Measuring quality</h2>
+
+        <p>
+            We have models. Which is better? For a language model there is a natural answer:
+            <strong>the one that assigns higher probability to text it has not seen.</strong> Train on
+            one set of documents, evaluate on different, unseen ones. Evaluating on the training text
+            measures memorization, not modelling.
+        </p>
+
+        <h3 id="s5-def">5.1 &nbsp;Perplexity, two ways</h3>
+
+        <p>
+            Start from the obvious thing. Take a real sentence $w_1, \ldots, w_n$ from held-out data
+            and look at $\mathbf{P}(w_1, \ldots, w_n)$. A good model gives it high probability. Two
+            problems: the number is inconveniently tiny, and it shrinks with length, so you could not
+            compare across test sets. Fix both — invert it, and take the $n$-th root:
+        </p>
+        $$
+        \text{ppl}(w_1, \ldots, w_n) = \mathbf{P}(w_1, w_2, \ldots, w_n)^{-\frac{1}{n}}
+        $$
+        <p>
+            The negative exponent flips small probabilities into large scores; the $1/n$ normalizes for
+            length. Lower is better. Now expand the joint with the chain rule:
+        </p>
+        $$
+        \text{ppl} = \left(\prod_{t=1}^{n} \mathbf{P}(w_t \mid w_{&lt;t})\right)^{-\frac{1}{n}}
+        = 2^{H}, \qquad
+        H = -\frac{1}{n}\sum_{t=1}^{n} \log_2 \mathbf{P}(w_t \mid w_{&lt;t}).
+        $$
+        <p>
+            These are the same quantity. The first form says <em>inverse probability, length
+            normalized</em>; the second says <em>exponentiated average negative log-probability</em>.
+            The second is what you compute, because it is a sum of logs rather than a product of tiny
+            numbers — Handout #1 §1.2's point about log space, arriving where it matters.
+        </p>
+
+        <div class="callout aside">
+            <span class="callout-label">Three things that are easy to conflate</span>
+            All three appear in this section, and they are not the same object:
+            <ul style="margin-bottom:0">
+                <li><strong>Logits</strong> — the raw, unnormalized scores a network emits, one per
+                    vocabulary item. Any real number, and they do not sum to anything.</li>
+                <li><strong>Probabilities</strong> — logits after softmax. In $[0,1]$, summing to 1.</li>
+                <li><strong>Log-probabilities</strong> — the log of those. Always $\leq 0$, and what we
+                    actually sum in $H$.</li>
+            </ul>
+            <p style="margin:8px 0 0">
+                A log-probability of $-18$ and a logit of $-18$ mean entirely different things. When
+                a paper says "we work in log space to avoid tiny numbers like $10^{-18}$", the
+                quantity it means is the log-probability.
+            </p>
+        </div>
+
+        <div class="callout">
+            <span class="callout-label">Bits and nats</span>
+            $H$ is the <strong>loss</strong>: the thing training minimizes. Its unit depends on the
+            base of the logarithm — base 2 gives <strong>bits</strong>, base $e$ gives
+            <strong>nats</strong>. Perplexity exponentiates with the matching base, $2^H$ or $e^H$.
+            Both are units of information, both are in active use, and mixing them silently is a
+            standard way to produce a number that is wrong by a factor of $\ln 2$.
+        </div>
+
+        <h3 id="s5-branching">5.2 &nbsp;Perplexity is a branching factor</h3>
+
+        <p>
+            The interpretation that makes perplexity intuitive: <strong>it is the effective number of
+            equally likely words the model is choosing among at each step</strong> — its average
+            branching factor. Three cases pin this down. Work each out before reading the answer;
+            they are the fastest way to internalize the metric.
+        </p>
+
+        <div id="s5-zone">
+
+        <div class="ex">
+            <div class="ex-head"><span>A completely confused model</span></div>
+            <div class="ex-body">
+                <p>
+                    The model has no idea what follows any context, so it predicts a uniformly random
+                    word: $\mathbf{P}(w \mid w_{&lt;t}) = 1/V$ for every $w$. What is its perplexity?
+                </p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    $$H = -\frac{1}{n}\sum_{t=1}^{n} \log_2 \frac{1}{V} = \log_2 V
+                    \quad\Longrightarrow\quad \text{ppl} = 2^{\log_2 V} = V.$$
+                    <p>
+                        A uniform model has perplexity exactly $V$. This is the do-nothing baseline, and
+                        it is what makes perplexity readable: a model with $V = 50{,}000$ and perplexity
+                        $100$ has narrowed 50,000 options down to an effective 100.
+                    </p>
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-head"><span>A mildly confused model</span></div>
+            <div class="ex-body">
+                <p>
+                    The model always narrows the continuation down to 5 plausible words and splits its
+                    mass evenly among them, assigning $1/5$ to the word that actually occurs and $0$ to
+                    everything outside the five. Perplexity?
+                </p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    $$H = -\frac{1}{n}\left(\log_2 \tfrac{1}{5} + \cdots + \log_2 \tfrac{1}{5}\right)
+                    = -\log_2 \tfrac{1}{5} = \log_2 5
+                    \quad\Longrightarrow\quad \text{ppl} = 5.$$
+                    <p>
+                        Perplexity 5 means "indecisive among 5 choices" — literally, here. Note that the
+                        answer does not depend on $V$ at all: what matters is how much mass the model
+                        put on the words that actually occurred, not how many words it ruled out.
+                    </p>
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-head"><span>A perfect model</span></div>
+            <div class="ex-body">
+                <p>
+                    The model always knows exactly what comes next: $\mathbf{P}(w_t \mid w_{&lt;t}) = 1$
+                    for the observed word. Perplexity?
+                </p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    $$H = -\frac{1}{n}\sum_t \log_2 1 = 0
+                    \quad\Longrightarrow\quad \text{ppl} = 2^0 = 1.$$
+                    <p>
+                        Branching factor 1 — no choice at all. Together with the first case this brackets
+                        the metric: <strong>empirical perplexity lies between 1 and $V$</strong>, where 1
+                        is clairvoyance and $V$ is knowing nothing.
+                    </p>
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-head"><span>Two true/false claims</span>
+                <span class="ex-src">Quiz 1, sp2025</span></div>
+            <div class="ex-body">
+                <ol class="qlist">
+                    <li>
+                        A bigram language model with vocabulary size $V$ can produce any sentence of
+                        length $n$ with non-zero probability, regardless of how it was trained.
+                        &nbsp;<em>True / False?</em>
+                    </li>
+                    <li>
+                        Given any corpus with vocabulary size $V$, there always exists a language model
+                        for that corpus with perplexity exactly $V$. &nbsp;<em>True / False?</em>
+                    </li>
+                </ol>
+
+                <details class="ans">
+                    <summary>Answers</summary>
+                    <div class="ans-body">
+                        <p>
+                            <strong>1. False</strong> — and this is the whole of §3.2 in one sentence. An
+                            unsmoothed bigram model assigns probability zero to any bigram it never
+                            counted, and one zero factor zeroes the sentence. "Regardless of how it was
+                            trained" is what makes the claim false: it would be true of a
+                            <em>smoothed</em> bigram model, since smoothing leaves no exact zeros. Notice
+                            what the claim gets right, though — nothing about the bigram
+                            <em>architecture</em> forbids any sentence; it is the estimation that does.
+                        </p>
+                        <p>
+                            <strong>2. True</strong>, and you have already built the witness. The uniform
+                            model $p(w \mid \text{any context}) = 1/V$ has perplexity exactly $V$ on
+                            <em>any</em> corpus, as the first exercise above showed — the derivation never
+                            used a single property of the text. So a perplexity-$V$ model always exists,
+                            which is precisely what makes $V$ the meaningful baseline rather than an
+                            arbitrary reference point.
+                        </p>
+                    </div>
+                </details>
+            </div>
+        </div>
+
+        </div>
+
+        <p>
+            The comparison table in the §3 widget computes exactly this, and it is worth being precise
+            about what it shows. On familiar text the trigram wins by a wide margin ($1.78$ against the
+            unigram's $21.0$). On <code>the dog slept on the mat</code> — all known words, one unknown
+            trigram — the ordering <em>reverses</em>: the unigram scores $25.2$ and the higher-order
+            models score $\infty$. A model that hedges everywhere cannot be caught out; a model that is
+            confident and wrong even once is, by this metric, infinitely bad.
+        </p>
+
+        <div class="callout warn">
+            <span class="callout-label">Two different zeros</span>
+            Distinguish them, because they have different remedies.
+            <ul style="margin-bottom:0">
+                <li>
+                    An <strong>unseen n-gram</strong> of known words (<code>the dog slept</code>):
+                    lower orders still have an estimate, so smoothing and interpolation both rescue
+                    you. This is what §4 is about.
+                </li>
+                <li>
+                    An <strong>unseen word</strong> (<code>purred</code>): <em>no</em> order helps —
+                    even the unigram probability is zero, so every model in the table gives $\infty$.
+                    Try it. The remedies here are different in kind: reserve an
+                    <code>&lt;UNK&gt;</code> token for everything rare, or stop modelling whole words
+                    at all and break text into subword pieces so that nothing is ever truly unseen.
+                    Modern models take the second route, which is why tokenization gets its own
+                    treatment later in the course.
+                </li>
+            </ul>
+        </div>
+
+        <h3 id="s5-real">5.3 &nbsp;What the numbers actually look like</h3>
+
+        <p>
+            The canonical demonstration that order helps — trained on 38 million words of the
+            <em>Wall Street Journal</em>, evaluated on a held-out 1.5 million:
+        </p>
+
+        <div class="tbl-scroll">
+        <table class="tbl">
+            <thead><tr><th>Model</th><th>Perplexity</th></tr></thead>
+            <tbody>
+            <tr><td>Unigram</td><td>962</td></tr>
+            <tr><td>Bigram</td><td>170</td></tr>
+            <tr><td>Trigram</td><td>109</td></tr>
+            </tbody>
+        </table>
+        </div>
+
+        <p>
+            Two things to read off this. Each extra word of context buys a large improvement, and the
+            gains are shrinking — $962 \to 170$ is a factor of $5.7$, $170 \to 109$ only $1.6$. That
+            deceleration <em>is</em> the sparsity wall arriving: a four-gram model would help less
+            still, and eventually not at all. Note also that the evaluation is on text held out from
+            the counting, which is the only honest way to do it.
+        </p>
+
+        <p>
+            Perplexity on standard benchmarks has fallen more or less monotonically for thirty years,
+            which is why the field trusts it. An oversimplified but not unfair history of the last
+            decade of AI: <em>lower perplexity turned out to mean more capability</em>, further than
+            anyone expected it to.
+        </p>
+
+        <h3 id="s5-worked">5.4 &nbsp;A bigram model, end to end</h3>
+
+        <p>
+            This is the exercise that has appeared, in some form, on every Quiz 1 for the last three
+            years. It uses only §3's counting and §5.1's definition, and it is entirely doable by hand.
+            Do it by hand.
+        </p>
+
+        <div class="ex">
+            <div class="ex-head"><span>Worked exercise — counts to perplexity</span>
+                <span class="ex-src">Quiz 1, sp2023 / sp2024 / sp2025</span></div>
+            <div class="ex-body">
+                <p>
+                    Vocabulary
+                    $V = \{\texttt{BOS}, \texttt{EOS}, \texttt{The}, \texttt{dog}, \texttt{cat},
+                    \texttt{ran}, \texttt{barked}, \texttt{jumped}, \texttt{Tianjian}\}$, where
+                    <code>BOS</code> and <code>EOS</code> mark the start and end of a sentence. Training
+                    data:
+                </p>
+                <pre><code>BOS who EOS
+BOS The dog ran EOS
+BOS The cat ran EOS
+BOS The dog barked EOS
+BOS Tianjian ran EOS</code></pre>
+                <ol class="qlist">
+                    <li>
+                        Estimate these bigram probabilities:
+                        $P(\texttt{The}\mid\texttt{BOS})$,
+                        $P(\texttt{Tianjian}\mid\texttt{BOS})$,
+                        $P(\texttt{cat}\mid\texttt{The})$,
+                        $P(\texttt{dog}\mid\texttt{The})$,
+                        $P(\texttt{ran}\mid\texttt{dog})$,
+                        $P(\texttt{ran}\mid\texttt{cat})$,
+                        $P(\texttt{EOS}\mid\texttt{ran})$,
+                        $P(\texttt{jumped}\mid\texttt{cat})$,
+                        $P(\texttt{EOS}\mid\texttt{jumped})$.
+                        Where you get $0/0$, or a zero numerator, substitute
+                        $\epsilon = 0.01$.
+                    </li>
+                    <li>
+                        Compute $P(s_1)$ and $P(s_2)$ for
+                        $s_1 = $ <code>BOS The dog ran EOS</code> and
+                        $s_2 = $ <code>BOS The cat jumped EOS</code>. Assume
+                        $P(\texttt{BOS}) = 1$.
+                    </li>
+                    <li>
+                        Compute the perplexity of each, using $\log_2$. Count only the bigrams when
+                        computing sentence length — i.e. ignore <code>BOS</code> in $n$.
+                    </li>
+                    <li>Which sentence has the higher probability, and which the higher perplexity? Why?</li>
+                </ol>
+
+                <details class="ans">
+                    <summary>Answers</summary>
+                    <div class="ans-body">
+                        <p>
+                            <strong>1.</strong> First the unigram counts (context counts):
+                            <code>BOS</code>: 5, <code>The</code>: 3, <code>dog</code>: 2,
+                            <code>cat</code>: 1, <code>ran</code>: 3, <code>Tianjian</code>: 1,
+                            <code>barked</code>: 1, <code>who</code>: 1, <code>jumped</code>: 0.
+                        </p>
+                        <div class="tbl-scroll">
+                        <table class="tbl">
+                            <thead><tr><th>n-gram</th><th>Count ratio</th><th>Probability</th></tr></thead>
+                            <tbody>
+                            <tr><td>$P(\texttt{The}\mid\texttt{BOS})$</td><td>3/5</td><td>0.6</td></tr>
+                            <tr><td>$P(\texttt{Tianjian}\mid\texttt{BOS})$</td><td>1/5</td><td>0.2</td></tr>
+                            <tr><td>$P(\texttt{cat}\mid\texttt{The})$</td><td>1/3</td><td>0.333</td></tr>
+                            <tr><td>$P(\texttt{dog}\mid\texttt{The})$</td><td>2/3</td><td>0.667</td></tr>
+                            <tr><td>$P(\texttt{ran}\mid\texttt{dog})$</td><td>1/2</td><td>0.5</td></tr>
+                            <tr><td>$P(\texttt{ran}\mid\texttt{cat})$</td><td>1/1</td><td>1.0</td></tr>
+                            <tr><td>$P(\texttt{EOS}\mid\texttt{ran})$</td><td>3/3</td><td>1.0</td></tr>
+                            <tr><td>$P(\texttt{jumped}\mid\texttt{cat})$</td><td>0/1</td><td>&rarr; 0.01</td></tr>
+                            <tr><td>$P(\texttt{EOS}\mid\texttt{jumped})$</td><td>0/0</td><td>&rarr; 0.01</td></tr>
+                            </tbody>
+                        </table>
+                        </div>
+                        <p class="w-note">
+                            Note the two different failures in the last two rows.
+                            $P(\texttt{jumped}\mid\texttt{cat}) = 0/1$ is a well-defined zero: we saw
+                            <code>cat</code>, and <code>jumped</code> never followed it.
+                            $P(\texttt{EOS}\mid\texttt{jumped}) = 0/0$ is not even defined: we never saw
+                            <code>jumped</code> at all, so there is no distribution to speak of. This is
+                            §5.2's "two different zeros" showing up in arithmetic — and the $\epsilon$
+                            convention is the crudest possible smoothing, papering over both.
+                        </p>
+
+                        <p><strong>2.</strong> Multiply along the chain rule:</p>
+                        $$
+                        P(s_1) = \tfrac{3}{5}\cdot\tfrac{2}{3}\cdot\tfrac{1}{2}\cdot\tfrac{3}{3}
+                        = 0.2
+                        $$
+                        $$
+                        P(s_2) = \tfrac{3}{5}\cdot\tfrac{1}{3}\cdot 0.01 \cdot 0.01
+                        = 2\times 10^{-5}
+                        $$
+
+                        <p><strong>3.</strong> With $n = 4$ bigrams each:</p>
+                        $$
+                        H(s_1) = -\tfrac{1}{4}\left[\log_2\tfrac{3}{5} + \log_2\tfrac{2}{3}
+                        + \log_2\tfrac{1}{2} + \log_2 1\right] = 0.580
+                        \;\Rightarrow\; \text{ppl}(s_1) = 2^{0.580} = \mathbf{1.50}
+                        $$
+                        $$
+                        H(s_2) = -\tfrac{1}{4}\left[\log_2\tfrac{3}{5} + \log_2\tfrac{1}{3}
+                        + \log_2 0.01 + \log_2 0.01\right] = 3.902
+                        \;\Rightarrow\; \text{ppl}(s_2) = 2^{3.902} = \mathbf{14.95}
+                        $$
+                        <p class="w-note">
+                            Sanity check without a calculator: $\text{ppl} = P^{-1/n}$ from §5.1, so
+                            $\text{ppl}(s_1) = 0.2^{-1/4} \approx 1.50$ and
+                            $\text{ppl}(s_2) = (2\times10^{-5})^{-1/4} \approx 14.95$. The two routes
+                            must agree — if they do not, you have made an arithmetic slip.
+                        </p>
+
+                        <p>
+                            <strong>4.</strong> $s_1$ has the higher probability and $s_2$ the higher
+                            perplexity, and these are the same fact stated twice: perplexity is a
+                            decreasing function of probability. $s_1$ is built entirely from bigrams the
+                            corpus <em>observed</em>, so every factor is large. $s_2$ contains two the
+                            corpus never saw, each contributing $\epsilon = 0.01$, and those two factors
+                            dominate. Perplexity $1.50$ means the model was choosing among about one and
+                            a half options per word; $14.95$ means about fifteen.
+                        </p>
+                    </div>
+                </details>
+            </div>
+        </div>
+
+        <h3 id="s5-limits">5.5 &nbsp;What perplexity does not tell you</h3>
+
+        <p>
+            Perplexity is the field's workhorse and it is genuinely load-bearing. It is also narrower
+            than it looks, in ways that matter for reading papers critically.
+        </p>
+
+        <ul>
+            <li>
+                <strong>It is not comparable across tokenizations or vocabularies.</strong> A model
+                that splits words into subword pieces is predicting more, easier tokens; its
+                per-token perplexity is not commensurable with a word-level model's. Numbers are also
+                incomparable across test sets. A perplexity with no stated corpus <em>and</em>
+                tokenizer is not a claim. (This is the "choice of atomic unit" from §1.1 coming back
+                to bite.)
+            </li>
+            <li>
+                <strong>It rewards hedging.</strong> A model that spreads mass broadly is protected
+                from catastrophic surprises. This is right for a probability estimate and wrong for a
+                system that has to commit to an answer — one reason generation needs its own
+                machinery (Sessions 9–10).
+            </li>
+            <li>
+                <strong>It says nothing about whether the text is true, useful, or safe.</strong>
+                Perplexity measures fit to a distribution. If the training distribution contains
+                confident falsehoods, lower perplexity means predicting those falsehoods better — the
+                technical root of §2.1's <code>Baltimore</code>/<code>Virginia</code> asymmetry
+                cutting the other way.
+            </li>
+            <li>
+                <strong>Correlation with downstream quality is real but loose.</strong> Held-out
+                perplexity reliably tracks capability across large gaps and unreliably across small
+                ones — which is why the rest of the course leans on task benchmarks too.
+            </li>
+        </ul>
+
+        <div class="callout">
+            <span class="callout-label">Where this goes next</span>
+            We now have a target and a way to score it: fit the conditionals
+            $p_\theta(x_t \mid x_{&lt;t})$, and measure the fit with perplexity. What we do not have is
+            a way to build $f_\theta$ that generalizes — every fix in §4 was a hand-designed rule.
+            <a href="03.neural-nets.html">Handout #3</a> reframes the whole problem as function
+            fitting and introduces the machinery that makes generalization the model's job.
+        </div>
+
+
+        <!-- ================================================================ -->
+        <h2 id="s6"><span class="hd-secnum">6</span>Check yourself</h2>
+
+        <p>
+            <button class="w-btn" type="button" data-toggle-answers="#s6-zone">Show all answers</button>
+        </p>
+
+        <div id="s6-zone">
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q1.</strong> The chain rule is exact. The Markov assumption is not. If you
+                    had unlimited data and unlimited storage, would a trigram model be a perfect
+                    language model?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    No. Unlimited data removes the <em>sparsity</em> problem — every trigram context
+                    would be densely observed and its estimate accurate. It does not remove the
+                    Markov assumption itself, which is a claim about the language: that the next word
+                    is conditionally independent of everything before the previous two, given those
+                    two. That claim is false about English, and no amount of data makes it true. The
+                    <code>computer … crashed</code> sentence in §1.3 is a counterexample you can hold
+                    in your head. Separating "we lack data" from "our model is wrong" is a habit worth
+                    keeping.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q2.</strong> Using the corpus in §3.1, compute
+                    $\hat{p}(\texttt{on} \mid \texttt{cat sat})$ and
+                    $\hat{p}(\texttt{the} \mid \texttt{sat on})$ as trigram MLEs, by hand.</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    <p>
+                        <code>cat sat</code> occurs twice (<code>the cat sat on the mat</code>,
+                        <code>the cat sat on the floor</code>), and in both the next word is
+                        <code>on</code>. So $\hat{p}(\texttt{on} \mid \texttt{cat sat}) = 2/2 = 1$.
+                    </p>
+                    <p>
+                        <code>sat on</code> occurs three times (twice after <code>cat</code>, once in
+                        <code>the dog sat on the rug</code>), and every time the next word is
+                        <code>the</code>. So $\hat{p}(\texttt{the} \mid \texttt{sat on}) = 3/3 = 1$.
+                    </p>
+                    <p>
+                        Both are exactly 1, which should bother you: the model is certain on the
+                        evidence of two or three observations. Maximum likelihood is confidently wrong
+                        on small counts, and that — not just the zeros — is what smoothing addresses.
+                    </p>
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q3.</strong> A model has vocabulary $V = 10{,}000$ and perplexity $80$ on a
+                    test set. Roughly what has it learned, and what is its cross-entropy loss in bits?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    <p>
+                        Perplexity $80$ against a uniform baseline of $V = 10{,}000$ means the model has
+                        narrowed ten thousand options down to an effective branching factor of eighty —
+                        it has captured most, but nowhere near all, of the structure.
+                    </p>
+                    <p>
+                        Since $\text{ppl} = 2^H$, the loss is $H = \log_2 80 \approx 6.32$ bits per
+                        word. (In nats, $\ln 80 \approx 4.38$ — the same model, a different unit. Always
+                        check the base.)
+                    </p>
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q4.</strong> §5.1 calls $H$ a cross-entropy. But cross-entropy is
+                    $\text{CE}(q, p) = -\sum_x q(x) \log p(x)$, an expectation under the true
+                    distribution $q$ — and we never have $q$. In what sense is $H$ a cross-entropy?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    <p>
+                        In the sense of a Monte Carlo estimate. We cannot evaluate
+                        $-\mathbb{E}_{x \sim q}[\log p_\theta(x)]$ because $q$ — the true distribution of
+                        language — is unknown. But the held-out test set <em>is</em> a sample drawn from
+                        $q$. So replace the expectation by the average over that sample:
+                    </p>
+                    $$
+                    -\mathbb{E}_{x \sim q}\bigl[\log p_\theta(x)\bigr]
+                    \;\approx\; -\frac{1}{n}\sum_{t=1}^{n} \log p_\theta(w_t \mid w_{&lt;t}) \;=\; H,
+                    $$
+                    <p>
+                        and by the law of large numbers this converges to the true cross-entropy as
+                        $n \to \infty$. So $H$ is an <em>empirical estimate</em> of the cross-entropy
+                        between the model and language itself. Two consequences: your test set must be a
+                        fair sample of the distribution you care about, and it must be large enough for
+                        the average to have converged — which is why perplexity on a few hundred tokens
+                        is not worth reporting.
+                    </p>
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q5.</strong> Would you expect a longer sentence to have higher perplexity?
+                    Higher probability?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    <p>
+                        <strong>Probability: lower, always.</strong> The joint is a product of factors
+                        each below 1, so appending a word can only shrink it. This is exactly why raw
+                        probability is useless for comparing texts, and why perplexity normalizes by $n$.
+                    </p>
+                    <p>
+                        <strong>Perplexity: typically lower, i.e. longer is easier.</strong> Perplexity
+                        is already length-normalized, so length as such does not push it either way. But
+                        the <em>early</em> tokens are the hard ones: with little or no context the model
+                        is close to uniform and its predictions are poor. As context accumulates,
+                        predictions sharpen. A long sentence averages those cheap later tokens against
+                        the expensive first few, so the mean improves. A very short sentence is nearly
+                        all first-few.
+                    </p>
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q6.</strong> Model A has perplexity 100 on a test set. Model B has
+                    perplexity 20 on a different test set. Which is the better language model?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    Unanswerable as stated. Perplexity depends on the test distribution — a model
+                    evaluated on formulaic newswire will look far better than the same model on
+                    conversational text — and on the tokenization and vocabulary, since these change
+                    both what counts as a "word" and the baseline $V$. Comparison requires the same
+                    corpus and the same tokenizer, which is why papers must report both, and why you
+                    should be suspicious when they do not.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q7.</strong> §5.3's WSJ numbers go $962 \to 170 \to 109$ as order increases.
+                    Extrapolate: what would you predict for a four-gram model, and why should you not
+                    trust the extrapolation?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    The improvements are decelerating sharply — a factor of $5.7$, then $1.6$ — so a
+                    four-gram might reach perhaps $95$–$105$, and a five-gram less again. You should
+                    not trust it because the mechanism that produces the deceleration is sparsity, and
+                    sparsity worsens <em>exponentially</em> in the order: at some point the additional
+                    context is so rarely observed that the higher-order estimates are noise, and
+                    measured perplexity gets <em>worse</em>. Where that turn happens depends on corpus
+                    size, not on the trend line. This is the same "more of the same input stops paying"
+                    pattern you will meet again in scaling laws.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q8.</strong> In the §3.1 widget, <code>the dog slept on the mat</code> gives
+                    the unigram model a perplexity of $25.2$ and both higher-order models $\infty$.
+                    Does that make the unigram better? And why does <code>the cat purred</code> behave
+                    differently?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    <p>
+                        No. It shows that <em>unsmoothed</em> perplexity is determined entirely by its
+                        single worst prediction, since one zero factor makes the log $-\infty$ no matter
+                        how good the other five predictions were. The trigram is the better model of
+                        every context it has seen and unusable on the one it has not; the unigram is
+                        mediocre everywhere and therefore never catastrophic. The conclusion is not
+                        "prefer unigrams" but "never evaluate an unsmoothed model" — smoothing is a
+                        precondition for <em>measurement</em>, not only for performance.
+                    </p>
+                    <p>
+                        <code>the cat purred</code> is a different failure. There the offending token is
+                        an unknown <em>word</em>, so its probability is zero at every order — the
+                        unigram cannot rescue it either, so every row gives $\infty$. Interpolation
+                        addresses unseen <em>contexts</em>; it does nothing for unseen
+                        <em>vocabulary</em>, because there is no order low enough to have seen the word.
+                        That needs <code>&lt;UNK&gt;</code> handling or subword tokenization instead.
+                    </p>
+                </div></details>
+            </div>
+        </div>
+
+        </div><!-- /#s6-zone -->
+
+
+        <!-- ================================================================ -->
+        <h2 id="s7"><span class="hd-secnum">7</span>Optional further reading</h2>
+
+        <p>
+            Strictly optional — nothing here is assumed in class or on a quiz.
+        </p>
+
+        <ul>
+            <li>
+                <a href="https://web.stanford.edu/~jurafsky/slp3/">Jurafsky &amp; Martin,
+                <em>Speech and Language Processing</em></a> (3rd ed. draft),
+                <strong>Ch. 3 "N-gram Language Models"</strong> — the canonical treatment of this
+                session, and the closest companion to this handout. If you read one thing here, read
+                §3.1–3.5 (counting, smoothing) and §3.7 (perplexity).
+            </li>
+            <li>
+                Shannon, <em>Prediction and Entropy of Printed English</em> (1951) — the origin of
+                measuring a language model by how well it predicts, and of the $k$-th order
+                approximations in §1.4. Short, and worth reading once in your life.
+            </li>
+            <li>
+                Chen &amp; Goodman, <em>An Empirical Study of Smoothing Techniques for Language
+                Modeling</em> (1996/1999) — the definitive comparison. Skim it for the shape of the
+                result: this is what the field looked like when generalization was the modeller's job.
+            </li>
+            <li>
+                Bengio, Ducharme, Vincent &amp; Jauvin, <em>A Neural Probabilistic Language Model</em>
+                (2003) — argued for the first time, and the subject of
+                <a href="03.neural-nets.html">Handout #3</a>. The clearest single statement of
+                why distributed representations solve sparsity.
+            </li>
+        </ul>
+
+        <div class="hd-footer">
+            <p>
+                <strong>Next session.</strong> #3, Tue Sept 8 — Neural nets: definitions, history,
+                and the algebra and optimization behind them. See
+                <a href="03.neural-nets.html">Handout #3</a>, which picks up exactly where §5 stops.
+                <em>Quiz #1 is that session</em>, covering everything up to this point.
+            </p>
+            <p>
+                Found an error, or a passage that doesn't land? Post on
+                <a href="https://piazza.com/jhu/fall2026/cs601471671">Piazza</a> — corrections to these
+                handouts are welcome and useful.
+            </p>
+        </div>
+
+    </main>
+</div>
+
+<script defer src="vendor/katex/katex.min.js"></script>
+<script defer src="vendor/katex/auto-render.min.js"></script>
+<script defer src="vendor/highlight/highlight.min.js"></script>
+<script defer src="handout.js"></script>
+<script defer src="widgets/next-token.js"></script>
+</body>
+</html>

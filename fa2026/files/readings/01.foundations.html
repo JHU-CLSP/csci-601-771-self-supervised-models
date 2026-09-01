@@ -1,0 +1,1557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Handout #1: Foundations &amp; Prerequisites — CS 601.471/671</title>
+    <meta name="description"
+          content="Session 1 reading handout: the math, algorithms and PyTorch background this course assumes, plus what self-supervision actually means.">
+
+    <link rel="shortcut icon" href="../favicon.ico">
+    <link rel="stylesheet" href="../fonts.css">
+    <link rel="stylesheet" href="vendor/katex/katex.min.css">
+    <link rel="stylesheet" href="vendor/highlight/github.min.css">
+    <link rel="stylesheet" href="handout.css">
+</head>
+
+<body class="handout" data-handout="01.foundations">
+
+<header class="hd-mast">
+    <div class="hd-wrap" style="display:block">
+        <div class="hd-course">CS 601.471/671 &nbsp;·&nbsp; NLP: Self-supervised Models &nbsp;·&nbsp; Fall 2026</div>
+        <h1>Handout #1 — Foundations &amp; Prerequisites</h1>
+        <p class="hd-sub">
+            Session 1 (Tue, Sept 1) &nbsp;·&nbsp;
+            <a href="../slides/01.intro.pdf">Slides: Course Overview</a> &nbsp;·&nbsp;
+            <a href="../../index.html">Course page</a>
+        </p>
+    </div>
+</header>
+
+<div class="hd-wrap">
+
+    <!-- TOC is populated by handout.js from the h2/h3 ids below -->
+    <nav class="hd-toc" aria-label="Contents">
+        <div class="hd-toc-title">On this page</div>
+    </nav>
+
+    <main class="hd-body">
+
+        <p class="lead">
+            This handout has two jobs. The first is to let you find out — honestly, and in private —
+            whether you have the background this course assumes. The second is to take the ideas
+            Session 1 could only put on a slide and actually work through them.
+        </p>
+
+        <div class="hd-glance">
+            <dl>
+                <dt>Assigned papers</dt>
+                <dd>None. <strong>This handout is the reading for Session 1.</strong></dd>
+
+                <dt>Time</dt>
+                <dd>45–75 minutes, depending on how much of §1 you already know cold.</dd>
+
+                <dt>By the end you should be able to</dt>
+                <dd>
+                    <ul style="margin-bottom:0">
+                        <li>compute inner products, matrix–vector products and quadratic forms, and
+                            say what each costs;</li>
+                        <li>state the probability chain rule and use it to factor a joint distribution;</li>
+                        <li>take gradients of the handful of expressions that keep reappearing in this course;</li>
+                        <li>explain what makes a learning problem <em>self-supervised</em>, and write
+                            down the objective;</li>
+                        <li>use the words <em>self-supervised</em>, <em>pretrained</em>, <em>foundation
+                            model</em> and <em>LLM</em> without hand-waving.</li>
+                    </ul>
+                </dd>
+
+                <dt>Where §1 comes from</dt>
+                <dd>
+                    In previous years these exercises were <em>Homework 1: Background Review</em>, and they
+                    were graded. This year the course has no graded homework — with current generative
+                    models, a take-home problem set no longer measures anything about you. So the
+                    problems are still here, the answers ship with them, and nobody is watching.
+                    The catch is that quizzes happen <em>in class, on paper</em>, and they assume this
+                    material. Working through §1 now is entirely in your own interest.
+                </dd>
+            </dl>
+        </div>
+
+        <div class="callout warn">
+            <span class="callout-label">A calibration note, repeated from the old homework</span>
+            You will each have different strengths, so don't worry if some parts of §1 are a struggle.
+            But if §1 is <em>uniformly</em> hard — if most items are unfamiliar rather than merely
+            rusty — treat that as an early signal that you may not be ready for this course
+            <em>right now</em>. That is useful information in week one, and much less painful than
+            discovering it in week eight. The
+            <a href="../../index.html#intro">prerequisites section of the course page</a> lists the
+            courses that build this background.
+        </div>
+
+
+        <!-- ================================================================ -->
+        <h2 id="s1"><span class="hd-secnum">1</span>Prerequisite self-check</h2>
+
+        <p>
+            Five areas. Each opens with a short recap of <em>why this course needs it</em> — which the
+            old homework did not include, because a lecture came before it — and then the problems,
+            with answers you reveal one at a time. Try each before you look.
+        </p>
+
+        <p>
+            <button class="w-btn" type="button" data-toggle-answers="#s1-zone">Show all answers</button>
+        </p>
+
+        <div id="s1-zone">
+
+        <h3 id="s1-la">1.1 &nbsp;Linear algebra</h3>
+
+        <p>
+            Essentially everything in this course is a matrix multiplication with a nonlinearity
+            somewhere. A transformer layer is a stack of them; attention is a matrix of inner products;
+            a "hidden state" is a vector; "embedding dimension" is that vector's length. If matrix
+            shapes are not automatic for you, the architecture sections later in the semester will feel
+            like notation rather than mechanism.
+        </p>
+
+        <p>
+            One habit worth forming now: <strong>read every expression as shapes first</strong>. Model
+            activations in this course almost always have shape
+            <code>(batch × sequence × dim)</code>, and the single most common bug in student code —
+            in any year, at any level — is a silently broadcast dimension. NumPy and PyTorch will
+            happily add a <code>(32, 1, 768)</code> to a <code>(32, 128, 768)</code> and give you
+            something that trains badly instead of crashing.
+        </p>
+
+        <div class="ex">
+            <div class="ex-head"><span>Exercise 1.1a — basic operations</span>
+                <span class="ex-src">HW1 §1.1</span></div>
+            <div class="ex-body">
+                <p>Let</p>
+                $$
+                \alpha = 2,\quad
+                x = \begin{bmatrix}0\\1\\2\end{bmatrix},\quad
+                y = \begin{bmatrix}3\\2\\4\end{bmatrix},\quad
+                z = \begin{bmatrix}1\\2\\-1\end{bmatrix},\quad
+                A = \begin{bmatrix}3&2&2\\1&3&1\\1&1&3\end{bmatrix}.
+                $$
+                <p>Write <span>$x_i$</span> for element <span>$i$</span> of <span>$x$</span>. Evaluate:</p>
+                <ol class="qlist">
+                    <li>$\sum_{i=1}^n x_i y_i$ &nbsp;(inner product)</li>
+                    <li>$\sum_{i=1}^n x_i z_i$ &nbsp;(inner product of orthogonal vectors)</li>
+                    <li>$\alpha(x + y)$</li>
+                    <li>$\lVert x \rVert$ &nbsp;(Euclidean norm)</li>
+                    <li>$x^\top$</li>
+                    <li>$Ax$ &nbsp;(matrix–vector product)</li>
+                    <li>$x^\top A x$ &nbsp;(quadratic form)</li>
+                </ol>
+
+                <details class="ans">
+                    <summary>Answers</summary>
+                    <div class="ans-body">
+                        <ol class="qlist">
+                            <li>$0\cdot 3 + 1\cdot 2 + 2\cdot 4 = \mathbf{10}$</li>
+                            <li>$0\cdot 1 + 1\cdot 2 + 2\cdot(-1) = \mathbf{0}$. The two vectors are
+                                orthogonal, which is exactly what a zero inner product means — and it is
+                                why we will use the dot product as a similarity score.</li>
+                            <li>$2\begin{bmatrix}3\\3\\6\end{bmatrix} = \begin{bmatrix}\mathbf{6}\\\mathbf{6}\\\mathbf{12}\end{bmatrix}$</li>
+                            <li>$\sqrt{0^2+1^2+2^2} = \sqrt{5} \approx 2.236$</li>
+                            <li>$\begin{bmatrix}0&1&2\end{bmatrix}$ — a row vector. The transpose does not
+                                change the data, only which axis it lies along; that distinction is what
+                                makes $x^\top y$ a scalar and $x y^\top$ a matrix.</li>
+                            <li>$Ax = \begin{bmatrix}3\cdot0+2\cdot1+2\cdot2\\1\cdot0+3\cdot1+1\cdot2\\1\cdot0+1\cdot1+3\cdot2\end{bmatrix}
+                                = \begin{bmatrix}\mathbf{6}\\\mathbf{5}\\\mathbf{7}\end{bmatrix}$</li>
+                            <li>$x^\top(Ax) = \begin{bmatrix}0&1&2\end{bmatrix}\begin{bmatrix}6\\5\\7\end{bmatrix}
+                                = 0 + 5 + 14 = \mathbf{19}$</li>
+                        </ol>
+                    </div>
+                </details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-head"><span>Exercise 1.1b — which rules actually hold?</span>
+                <span class="ex-src">HW1 §1.2</span></div>
+            <div class="ex-body">
+                <p>
+                    Let $\{x, y, z\}$ be $n \times 1$ column vectors, $\{A, B, C\}$ be $n \times n$
+                    real matrices, and $I$ the identity. True or false <em>in general</em>?
+                </p>
+                <ol class="qlist">
+                    <li>$x^\top y = \sum_{i=1}^n x_i y_i$</li>
+                    <li>$x^\top x = \lVert x \rVert^2$</li>
+                    <li>$x^\top x = x x^\top$</li>
+                    <li>$(x-y)^\top(y-x) = \lVert x \rVert^2 - 2x^\top y + \lVert y \rVert^2$</li>
+                    <li>$AB = BA$</li>
+                    <li>$A(B + C) = AB + AC$</li>
+                    <li>$(AB)^\top = B^\top A^\top$</li>
+                    <li>$x^\top A y = y^\top A^\top x$</li>
+                    <li>$A^\top A = I$ if the columns of $A$ are orthonormal</li>
+                </ol>
+
+                <details class="ans">
+                    <summary>Answers</summary>
+                    <div class="ans-body">
+                        <ol class="qlist">
+                            <li><span class="inline-ans">True</span> — this is the definition.</li>
+                            <li><span class="inline-ans">True</span> — and the reason $\lVert\cdot\rVert^2$
+                                is so much more pleasant to differentiate than $\lVert\cdot\rVert$.</li>
+                            <li><span class="inline-ans">False</span>, and not even the same type:
+                                the left side is a $1\times1$ scalar, the right side is an
+                                $n \times n$ matrix (the outer product). Shape-checking catches this
+                                immediately.</li>
+                            <li><span class="inline-ans">False</span>. Note
+                                $(x-y)^\top(y-x) = -(x-y)^\top(x-y) = -\lVert x-y\rVert^2$, so the right
+                                side is off by a sign: the correct identity is
+                                $\lVert x-y \rVert^2 = \lVert x \rVert^2 - 2x^\top y + \lVert y \rVert^2$.</li>
+                            <li><span class="inline-ans">False</span> — matrix multiplication does not
+                                commute. This is why the <em>order</em> of layers matters.</li>
+                            <li><span class="inline-ans">True</span> — distributivity holds.</li>
+                            <li><span class="inline-ans">True</span> — the transpose reverses the order.
+                                You will use this constantly when deriving backward passes.</li>
+                            <li><span class="inline-ans">True</span>. Both sides are the same scalar:
+                                transposing a $1\times1$ matrix leaves it alone, and
+                                $(x^\top A y)^\top = y^\top A^\top x$.</li>
+                            <li><span class="inline-ans">True</span> — entry $(i,j)$ of $A^\top A$ is the
+                                inner product of columns $i$ and $j$, which is $1$ when $i=j$ and $0$
+                                otherwise precisely when the columns are orthonormal.</li>
+                        </ol>
+                    </div>
+                </details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-head"><span>Exercise 1.1c — invertibility and diagonalization</span>
+                <span class="ex-src">HW1 §1.3</span></div>
+            <div class="ex-body">
+                <p>Let $B = \begin{bmatrix}1&-1&0\\-1&2&-1\\0&-1&1\end{bmatrix}$.</p>
+                <ul class="qlist">
+                    <li>Is $B$ invertible? If so, find $B^{-1}$.</li>
+                    <li>Is $B$ diagonalizable? If so, give a diagonalization.</li>
+                </ul>
+
+                <details class="ans">
+                    <summary>Answers</summary>
+                    <div class="ans-body">
+                        <p>
+                            <strong>Not invertible.</strong> $\det(B) = 0$ — and you can see why without
+                            computing it: the three rows sum to the zero vector, so they are linearly
+                            dependent, and $B\mathbf{1} = 0$.
+                        </p>
+                        <p>
+                            <strong>Diagonalizable anyway.</strong> Singularity and diagonalizability are
+                            independent properties: the first asks whether an eigenvalue is $0$, the second
+                            whether there are enough independent eigenvectors. The eigenvalues are
+                            $\lambda_1 = 3,\ \lambda_2 = 1,\ \lambda_3 = 0$, with eigenvectors
+                        </p>
+                        $$
+                        v_1 = \begin{bmatrix}1\\-2\\1\end{bmatrix},\quad
+                        v_2 = \begin{bmatrix}1\\0\\-1\end{bmatrix},\quad
+                        v_3 = \begin{bmatrix}1\\1\\1\end{bmatrix}.
+                        $$
+                        <p>
+                            Three distinct eigenvalues force three independent eigenvectors, so with
+                            $P = \begin{bmatrix}v_1 & v_2 & v_3\end{bmatrix}$ we get
+                            $P^{-1} B P = D = \operatorname{diag}(3, 1, 0)$.
+                        </p>
+                        <p class="w-note">
+                            ($B$ is symmetric, so the spectral theorem guaranteed a real orthogonal
+                            diagonalization before we computed anything — the eigenvectors above are
+                            mutually orthogonal.)
+                        </p>
+                    </div>
+                </details>
+            </div>
+        </div>
+
+        <label class="hd-check" data-key="la">
+            <input type="checkbox"> I'm comfortable with the linear algebra.
+        </label>
+
+
+        <h3 id="s1-prob">1.2 &nbsp;Probability</h3>
+
+        <p>
+            This course is, at bottom, about one probability distribution: a distribution over
+            sequences of text. Everything else — architecture, training, decoding, evaluation — is
+            machinery for representing it, fitting it, or sampling from it. So probability is not a
+            prerequisite you use once and set aside.
+        </p>
+
+        <p>Four ideas do most of the work, and only one of them appeared in the old homework.</p>
+
+        <p>
+            <strong>Joint, conditional, marginal.</strong> $p(a, b)$ is the probability that both
+            happen; $p(a \mid b) = p(a,b)/p(b)$ is the probability of $a$ once you know $b$; and
+            $p(a) = \sum_b p(a, b)$ marginalizes $b$ away. "Predict the next word given the previous
+            ones" is a conditional, and that is the only reason any of this is tractable.
+        </p>
+
+        <p>
+            <strong>The chain rule.</strong> Any joint distribution factors into a product of
+            conditionals, with no assumptions whatsoever:
+        </p>
+        $$
+        p(x_1, x_2, \ldots, x_T) \;=\; \prod_{t=1}^{T} p(x_t \mid x_1, \ldots, x_{t-1})
+        \;=\; \prod_{t=1}^{T} p(x_t \mid x_{&lt;t}).
+        $$
+        <p>
+            This is the single most important equation in the course. §2 is essentially a discussion of
+            its consequences, so make sure you can derive it (apply
+            $p(a,b) = p(a \mid b)\,p(b)$ repeatedly) rather than just recognize it.
+        </p>
+
+        <p>
+            <strong>Categorical distributions.</strong> A distribution over a finite vocabulary of size
+            $V$ is a vector of $V$ non-negative numbers summing to $1$. A neural network produces
+            unnormalized <em>logits</em> $s \in \mathbb{R}^V$, and softmax turns them into such a
+            vector: $p_i = e^{s_i} / \sum_j e^{s_j}$. Note what softmax is invariant to — adding a
+            constant to every logit changes nothing — and that it can never output an exact zero.
+        </p>
+
+        <p>
+            <strong>Why log space.</strong> Multiply a few hundred numbers each around $10^{-4}$ and a
+             64-bit float underflows to exactly $0$. Sequences are long, so we always work with
+            $\log p$: products become sums, and the numbers stay in a sane range. This is not a
+            numerical footnote — it is why the loss you will write is a <em>sum of log-probabilities</em>
+            rather than a product of probabilities.
+        </p>
+
+        <div class="ex">
+            <div class="ex-head"><span>Exercise 1.2a — basic probability</span>
+                <span class="ex-src">HW1 §2.1</span></div>
+            <div class="ex-body">
+                <ol class="qlist">
+                    <li>
+                        You are offered a game. Your opponent rolls two ordinary 6-sided dice. If the
+                        difference between the rolls is at least 3, you win \$15. If you roll doubles,
+                        you win \$5. Otherwise nothing. What is a fair price for one ticket?
+                    </li>
+                    <li>
+                        Events $A$ and $B$ are mutually exclusive, so $P(A, B) = 0$. If $P(A) = 0.4$ and
+                        $P(A \cup B) = 0.95$, what is $P(B)$?
+                    </li>
+                    <li>
+                        Same numbers, but now assume $A$ and $B$ are <em>independent</em> instead of
+                        mutually exclusive. What is $P(B)$?
+                    </li>
+                </ol>
+
+                <details class="ans">
+                    <summary>Answers</summary>
+                    <div class="ans-body">
+                        <p>
+                            <strong>1.</strong> Count outcomes over the 36 equally likely pairs. Difference
+                            $\geq 3$: the pairs $(1,4),(1,5),(1,6),(2,5),(2,6),(3,6)$ and their six
+                            mirrors, so $12$ outcomes. Doubles: $6$ outcomes. These are disjoint, so
+                        </p>
+                        $$
+                        \mathbb{E}[X] = \tfrac{12}{36}\cdot 15 + \tfrac{6}{36}\cdot 5
+                        = 5 + \tfrac{5}{6} = \tfrac{35}{6} \approx \mathbf{\$5.83}.
+                        $$
+                        <p>
+                            A fair price is the expected payout: it is the price at which the game has zero
+                            expected value to either side.
+                        </p>
+                        <p>
+                            <strong>2.</strong> Inclusion–exclusion:
+                            $P(A \cup B) = P(A) + P(B) - P(A,B)$, so
+                            $0.95 = 0.4 + P(B) - 0 \Rightarrow P(B) = \mathbf{0.55}$.
+                        </p>
+                        <p>
+                            <strong>3.</strong> Independence means $P(A,B) = P(A)P(B) = 0.4\,P(B)$, so
+                        </p>
+                        $$
+                        0.95 = 0.4 + P(B) - 0.4P(B) = 0.4 + 0.6\,P(B)
+                        \;\Longrightarrow\; P(B) = \frac{0.55}{0.6} = \frac{11}{12} \approx \mathbf{0.9167}.
+                        $$
+                        <p class="w-note">
+                            Worth pausing on: the same two marginals are consistent with very different
+                            $P(B)$ depending on the dependence structure you assume. "Independent" is a
+                            modelling assumption, not a default.
+                        </p>
+                    </div>
+                </details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-head"><span>Exercise 1.2b — expectation and variance</span>
+                <span class="ex-src">HW1 §2.2</span></div>
+            <div class="ex-body">
+                <p>
+                    Two coins: $C_1$ comes up heads with probability $0.3$, $C_2$ with probability $0.9$.
+                    Repeat the following three times: choose a coin uniformly at random, then flip it
+                    once. Let $X$ be the total number of heads.
+                </p>
+                <ol class="qlist">
+                    <li>What is $\mathbb{E}[X]$?</li>
+                    <li>What is $\operatorname{Var}[X]$?</li>
+                    <li>You earn $Y = \dfrac{1}{2 + X}$ dollars. What is $\mathbb{E}[Y]$?</li>
+                </ol>
+
+                <details class="ans">
+                    <summary>Answers</summary>
+                    <div class="ans-body">
+                        <p>
+                            First, collapse the two-stage experiment. Each trial independently produces a
+                            head with probability
+                            $p = 0.5(0.3) + 0.5(0.9) = 0.6$, so $X \sim \text{Binomial}(3, 0.6)$. The coin
+                            choice is re-randomized every trial, which is what keeps the trials
+                            independent — if you picked one coin <em>once</em> and flipped it three times,
+                            the trials would be correlated and the variance would be larger.
+                        </p>
+                        <p><strong>1.</strong> $\mathbb{E}[X] = np = 3(0.6) = \mathbf{1.8}$.</p>
+                        <p>
+                            <strong>2.</strong> $\operatorname{Var}[X] = np(1-p) = 3(0.6)(0.4) = \mathbf{0.72}$.
+                            Via the definition, as a check:
+                            $\mathbb{E}[X^2] = \sum_k \binom{3}{k}p^k(1-p)^{3-k}k^2 = 3.96$, and
+                            $3.96 - 1.8^2 = 3.96 - 3.24 = 0.72$. ✓
+                        </p>
+                        <p><strong>3.</strong> $Y$ is a nonlinear function of $X$, so you must average
+                            over the distribution — $\mathbb{E}[1/(2+X)] \neq 1/(2 + \mathbb{E}[X])$. With
+                            $P(X=k) = \binom{3}{k}(0.6)^k(0.4)^{3-k}$:</p>
+                        <div class="tbl-scroll">
+                        <table class="tbl">
+                            <thead><tr><th>$k$</th><th>$P(X=k)$</th><th>$1/(2+k)$</th><th>product</th></tr></thead>
+                            <tbody>
+                            <tr><td>0</td><td>$0.4^3 = 0.064$</td><td>$1/2$</td><td>$0.0320$</td></tr>
+                            <tr><td>1</td><td>$3(0.6)(0.4)^2 = 0.288$</td><td>$1/3$</td><td>$0.0960$</td></tr>
+                            <tr><td>2</td><td>$3(0.6)^2(0.4) = 0.432$</td><td>$1/4$</td><td>$0.1080$</td></tr>
+                            <tr><td>3</td><td>$0.6^3 = 0.216$</td><td>$1/5$</td><td>$0.0432$</td></tr>
+                            </tbody>
+                        </table>
+                        </div>
+                        $$
+                        \mathbb{E}[Y] = 0.0320 + 0.0960 + 0.1080 + 0.0432
+                        = \frac{349}{1250} = \mathbf{0.2792}.
+                        $$
+                        <p class="w-note">
+                            (For comparison, $1/(2 + \mathbb{E}[X]) = 1/3.8 \approx 0.2632$ — close, but
+                            not equal. Jensen's inequality tells you which way the gap must go, since
+                            $1/(2+x)$ is convex.)
+                        </p>
+                        <div class="callout warn" style="margin-bottom:0">
+                            <span class="callout-label">Erratum vs. the old homework PDF</span>
+                            The distributed solutions gave $\mathbf{0.355}$ here. That line dropped the
+                            $k = 0$ term and mis-multiplied the rest; $0.2792$ is correct. Its
+                            variance line was also garbled ($6.552 - 1.8^2$), though the final $0.72$ was
+                            right. If you worked from the old PDF and disagreed with it, you were right.
+                        </div>
+                    </div>
+                </details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-head"><span>Exercise 1.2c — a variance paradox?</span>
+                <span class="ex-src">HW1 §2.3</span></div>
+            <div class="ex-body">
+                <p>
+                    For i.i.d. random variables $X_1, \ldots, X_n$ with distribution $F$ and variance
+                    $\sigma^2$, we know $\operatorname{Var}[X_1 + \cdots + X_n] = n\sigma^2$. But if
+                    $X \sim F$, then $\operatorname{Var}[X + X] = \operatorname{Var}[2X] = 4\sigma^2$.
+                    With $n = 2$ these disagree. Is there a contradiction? Explain.
+                </p>
+
+                <details class="ans">
+                    <summary>Answer</summary>
+                    <div class="ans-body">
+                        <p>
+                            <strong>No.</strong> The identity $\operatorname{Var}[\sum X_i] = \sum
+                            \operatorname{Var}[X_i]$ requires the summands to be uncorrelated. In general
+                        </p>
+                        $$
+                        \operatorname{Var}[X_1 + X_2]
+                        = \operatorname{Var}[X_1] + \operatorname{Var}[X_2] + 2\operatorname{Cov}[X_1, X_2].
+                        $$
+                        <p>
+                            For two independent draws the covariance is $0$ and you get $2\sigma^2$. But
+                            $X + X$ is not two draws — it is <em>one</em> draw used twice, so
+                            $\operatorname{Cov}[X, X] = \operatorname{Var}[X] = \sigma^2$ and the formula
+                            gives $\sigma^2 + \sigma^2 + 2\sigma^2 = 4\sigma^2$. Consistent. A random
+                            variable is emphatically not independent of itself.
+                        </p>
+                        <p class="w-note">
+                            This distinction is not a trick question. "Are these two samples independent?"
+                            is exactly the question behind duplicated training data, contaminated
+                            evaluation sets, and why averaging $k$ samples from one model reduces variance
+                            far less than you would hope.
+                        </p>
+                    </div>
+                </details>
+            </div>
+        </div>
+
+        <label class="hd-check" data-key="prob">
+            <input type="checkbox"> I'm comfortable with the probability.
+        </label>
+
+
+        <h3 id="s1-calc">1.3 &nbsp;Calculus</h3>
+
+        <p>
+            Training a model means computing $\nabla_\theta \mathcal{L}$ and stepping downhill.
+            PyTorch computes the gradient for you, but "autograd handles it" is not the same as
+            understanding it: you need derivatives to read a paper's loss function, to recognize a
+            vanishing or exploding gradient, and to know why some architectural choices train and
+            others do not.
+        </p>
+
+        <p>
+            The one mechanism to have at your fingertips is the <strong>chain rule</strong>: if
+            $z = f(g(x))$ then $\frac{dz}{dx} = f'(g(x))\, g'(x)$. Backpropagation is nothing more
+            than this rule applied to a composition of many functions, evaluated right-to-left so
+            that each intermediate is reused instead of recomputed. When you call
+            <code>loss.backward()</code>, PyTorch walks the graph it recorded during the forward pass
+            and accumulates $\partial \mathcal{L} / \partial \theta$ into <code>.grad</code> for every
+            leaf tensor with <code>requires_grad=True</code>. Nothing more mysterious than that.
+        </p>
+
+        <div class="ex">
+            <div class="ex-head"><span>Exercise 1.3a — one-variable derivatives</span>
+                <span class="ex-src">HW1 §3.1</span></div>
+            <div class="ex-body">
+                <ol class="qlist">
+                    <li>$f(x) = 4x^2 - 3x + 1$</li>
+                    <li>$f(x) = x(1 - x)$</li>
+                    <li>
+                        Let $p(x) = \dfrac{1}{1 + e^{-x}}$ for $x \in \mathbb{R}$. Differentiate
+                        $f(x) = x - \log p(x)$ and simplify the result in terms of $p$.
+                    </li>
+                </ol>
+                <p class="w-note">
+                    Throughout this course $\log$ means the natural logarithm. It may help to note that
+                    $p(x) = 1 - p(-x)$.
+                </p>
+
+                <details class="ans">
+                    <summary>Answers</summary>
+                    <div class="ans-body">
+                        <p><strong>1.</strong> $f'(x) = 8x - 3$.</p>
+                        <p><strong>2.</strong> $f(x) = x - x^2$, so $f'(x) = 1 - 2x$.</p>
+                        <p>
+                            <strong>3.</strong> The sigmoid satisfies $p'(x) = p(x)\bigl(1 - p(x)\bigr)$
+                            — worth memorizing. Then
+                        </p>
+                        $$
+                        f'(x) = 1 - \frac{p'(x)}{p(x)} = 1 - \bigl(1 - p(x)\bigr) = \mathbf{p(x)}.
+                        $$
+                        <div class="callout aside" style="margin-bottom:0">
+                            <span class="callout-label">Why this exercise is here</span>
+                            That $f$ is not arbitrary. $-\log p(x)$ is the logistic loss when the true
+                            label is $1$, and $x - \log p(x) = -\log p(-x)$ is the loss when the label is
+                            $0$. So you have just derived a gradient of the form
+                            <em>(predicted probability) − (true label)</em> — the same shape you will meet
+                            again as the gradient of softmax cross-entropy, where it becomes
+                            $\hat{p} - y$ over the whole vocabulary. Remembering that one fact will
+                            demystify a lot of later derivations.
+                        </div>
+                    </div>
+                </details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-head"><span>Exercise 1.3b — gradients</span>
+                <span class="ex-src">HW1 §3.2</span></div>
+            <div class="ex-body">
+                <p>Compute $\nabla f(\mathbf{x})$ for each:</p>
+                <ol class="qlist">
+                    <li>$f(\mathbf{x}) = x_1^2 + e^{x_2}$, &nbsp;$\mathbf{x} \in \mathbb{R}^2$</li>
+                    <li>$f(\mathbf{x}) = e^{x_1 + x_2 x_3}$, &nbsp;$\mathbf{x} \in \mathbb{R}^3$</li>
+                    <li>$f(\mathbf{x}) = a^\top \mathbf{x}$, &nbsp;$\mathbf{x}, a \in \mathbb{R}^2$</li>
+                    <li>$f(\mathbf{x}) = \mathbf{x}^\top A \mathbf{x}$ with
+                        $A = \begin{bmatrix}2 & -1\\-1 & 1\end{bmatrix}$</li>
+                    <li>$f(\mathbf{x}) = \tfrac{1}{2}\lVert \mathbf{x} \rVert^2$,
+                        &nbsp;$\mathbf{x} \in \mathbb{R}^d$</li>
+                </ol>
+                <p class="w-note">Hint: for 4 and 5, write the expression out as a summation first.</p>
+
+                <details class="ans">
+                    <summary>Answers</summary>
+                    <div class="ans-body">
+                        <ol class="qlist">
+                            <li>$\begin{bmatrix}2x_1 & e^{x_2}\end{bmatrix}$</li>
+                            <li>$e^{x_1 + x_2x_3}\begin{bmatrix}1 & x_3 & x_2\end{bmatrix}$ — one chain
+                                rule, three partial derivatives of the exponent.</li>
+                            <li>$a^\top$. Linear functions have constant gradients; this is the vector
+                                version of $\frac{d}{dx}(ax) = a$.</li>
+                            <li>
+                                In general $\nabla \mathbf{x}^\top A \mathbf{x} =
+                                \mathbf{x}^\top (A + A^\top)$. Here $A$ is symmetric, so this is
+                                $2\mathbf{x}^\top A = \begin{bmatrix}4x_1 - 2x_2 & -2x_1 + 2x_2\end{bmatrix}$.
+                            </li>
+                            <li>$\mathbf{x}^\top$. This is why the $\tfrac{1}{2}$ is conventionally there
+                                — it cancels the $2$ — and why $L_2$ regularization contributes a term
+                                proportional to the weights themselves ("weight decay").</li>
+                        </ol>
+                        <p class="w-note">
+                            (Whether a gradient is a row or a column vector is a convention. Pick one and
+                            be consistent; the shapes will tell you if you have slipped.)
+                        </p>
+                    </div>
+                </details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-head"><span>Exercise 1.3c — prove the sigmoid identity</span>
+                <span class="ex-src">Quiz 1, sp2025</span></div>
+            <div class="ex-body">
+                <p>
+                    Exercise 1.3a used the fact that $\sigma'(z) = \sigma(z)\bigl(1-\sigma(z)\bigr)$
+                    without proving it. Prove it, for $\sigma(z) = 1/(1+e^{-z})$.
+                </p>
+
+                <details class="ans">
+                    <summary>Answer</summary>
+                    <div class="ans-body">
+                        <p>Write $\sigma(z) = (1 + e^{-z})^{-1}$ and apply the chain rule:</p>
+                        $$
+                        \frac{d\sigma}{dz} = -(1+e^{-z})^{-2}\cdot(-e^{-z})
+                        = \frac{e^{-z}}{(1+e^{-z})^{2}}.
+                        $$
+                        <p>
+                            Now rewrite $e^{-z}$ in terms of $\sigma$. From
+                            $\sigma = 1/(1+e^{-z})$ we get $1 + e^{-z} = 1/\sigma$, so
+                            $e^{-z} = \dfrac{1-\sigma}{\sigma}$. Substituting:
+                        </p>
+                        $$
+                        \frac{d\sigma}{dz}
+                        = \frac{(1-\sigma)/\sigma}{(1/\sigma)^{2}}
+                        = \frac{1-\sigma}{\sigma}\cdot\sigma^{2}
+                        = \sigma(z)\bigl(1-\sigma(z)\bigr).
+                        $$
+                        <p class="w-note">
+                            The trick worth keeping is the second step: expressing the derivative in terms
+                            of the function's own output. It is why a sigmoid layer's backward pass needs
+                            only the value it already computed going forward, and the same trick works for
+                            $\tanh$ and for softmax.
+                        </p>
+                    </div>
+                </details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-head"><span>Exercise 1.3d — Jacobians</span>
+                <span class="ex-src">Quiz 1, sp2024 &amp; sp2025</span></div>
+            <div class="ex-body">
+                <p>
+                    A gradient is what you get when a function returns one number. When it returns a
+                    <em>vector</em>, the derivative is a matrix: the <strong>Jacobian</strong>
+                    $J_{ij} = \partial f_i / \partial x_j$ — row $i$ is the gradient of output $i$.
+                    Every layer of a neural network is such a function, so this is the object
+                    backpropagation actually multiplies.
+                </p>
+                <ol class="qlist">
+                    <li>
+                        Compute the Jacobian of
+                        $f(x,y,z) = \bigl[\,x^2 + y,\; xy,\; z^2/y\,\bigr]$, then evaluate it at
+                        $(x,y,z) = (1, \tfrac12, -1)$.
+                    </li>
+                    <li>
+                        Let $\sigma$ be applied element-wise to a vector,
+                        $\sigma(z) = [\sigma(z_1), \ldots, \sigma(z_d)]$. What does its Jacobian look
+                        like, and why does that shape matter computationally?
+                    </li>
+                </ol>
+
+                <details class="ans">
+                    <summary>Answers</summary>
+                    <div class="ans-body">
+                        <p><strong>1.</strong> Differentiate each component with respect to each variable:</p>
+                        $$
+                        J_f(x,y,z) = \begin{bmatrix}
+                        2x & 1 & 0 \\
+                        y & x & 0 \\
+                        0 & -z^2/y^2 & 2z/y
+                        \end{bmatrix},
+                        \qquad
+                        J_f\!\left(1, \tfrac12, -1\right) = \begin{bmatrix}
+                        2 & 1 & 0 \\
+                        \tfrac12 & 1 & 0 \\
+                        0 & -4 & -4
+                        \end{bmatrix}.
+                        $$
+                        <p>
+                            Check the two entries that are easy to get wrong: at $y = \tfrac12$,
+                            $-z^2/y^2 = -1/\tfrac14 = -4$, and $2z/y = -2/\tfrac12 = -4$.
+                        </p>
+                        <p>
+                            <strong>2.</strong> <strong>Diagonal</strong>, with
+                            $\sigma(z_i)\bigl(1-\sigma(z_i)\bigr)$ down the diagonal and zeros
+                            everywhere else — because output $i$ depends on input $i$ alone.
+                        </p>
+                        <p>
+                            That matters enormously. A general $d \times d$ Jacobian costs $O(d^2)$ to
+                            store and $O(d^2)$ to multiply by (Handout §1.4). A diagonal one is $d$
+                            numbers, and multiplying by it is an element-wise product — $O(d)$. So an
+                            element-wise activation is essentially free in the backward pass too, which
+                            is a large part of why networks are built from element-wise nonlinearities
+                            rather than something that mixes coordinates.
+                        </p>
+                        <p class="w-note">
+                            Softmax is the exception: it normalizes across coordinates, so its Jacobian is
+                            <em>not</em> diagonal.
+                        </p>
+                    </div>
+                </details>
+            </div>
+        </div>
+
+        <label class="hd-check" data-key="calc">
+            <input type="checkbox"> I'm comfortable with the calculus.
+        </label>
+
+
+        <h3 id="s1-algo">1.4 &nbsp;Algorithms and asymptotic cost</h3>
+
+        <p>
+            Complexity is not an academic exercise in this course — it is the reason the field looks
+            the way it does. Attention costs $O(T^2 d)$ in sequence length $T$; that single fact drives
+            context-length limits, the entire efficient-attention literature, and much of the hardware
+            discussion later in the semester. If you can count the cost of a matrix multiplication, you
+            can read those papers.
+        </p>
+
+        <div class="ex">
+            <div class="ex-head"><span>Exercise 1.4 — big-O</span>
+                <span class="ex-src">HW1 §4</span></div>
+            <div class="ex-body">
+                <ol class="qlist">
+                    <li>Merge sort on a list of $n$ numbers.</li>
+                    <li>Finding the third-largest element of an unsorted list of $n$ numbers.</li>
+                    <li>Finding the smallest element greater than $0$ in a <em>sorted</em> list of $n$ numbers.</li>
+                    <li>Looking up the value for a key in a hash table with $n$ scalar entries.</li>
+                    <li>Computing $A\mathbf{x}$ where $A$ is $n \times d$ and $\mathbf{x}$ is $d \times 1$.</li>
+                    <li>Computing $\mathbf{x}^\top A \mathbf{x}$ where $A$ is $d \times d$.</li>
+                    <li>Computing $AB$ where $A$ is $m \times n$ and $B$ is $n \times d$.</li>
+                </ol>
+
+                <details class="ans">
+                    <summary>Answers</summary>
+                    <div class="ans-body">
+                        <ol class="qlist">
+                            <li>$O(n \log n)$ — $\log n$ levels of merging, $O(n)$ work per level.</li>
+                            <li>$O(n)$. A single pass keeping the top three; no sort needed. (In general,
+                                the $k$-th largest is $O(n)$ for fixed $k$.)</li>
+                            <li>$O(\log n)$ by binary search.</li>
+                            <li>$O(1)$ on average, $O(n)$ worst case when every key collides.</li>
+                            <li>$O(nd)$ — $n$ output entries, each a $d$-term inner product.</li>
+                            <li>$O(d^2)$ — dominated by the $A\mathbf{x}$ product; the final inner product
+                                is only $O(d)$.</li>
+                            <li>$O(mnd)$ — $md$ output entries, each an $n$-term inner product.</li>
+                        </ol>
+                        <div class="callout aside" style="margin-bottom:0">
+                            <span class="callout-label">Carry this forward</span>
+                            Items 5–7 are the entire cost model for a neural network. A linear layer
+                            mapping $d_{\text{in}} \to d_{\text{out}}$ over a batch of $B$ sequences of
+                            length $T$ costs $O(B\,T\,d_{\text{in}}\,d_{\text{out}})$. Self-attention
+                            additionally forms a $T \times T$ matrix of inner products, hence
+                            $O(T^2 d)$ — quadratic in sequence length. When you later read that some
+                            method is "linear attention", that is the exponent it is talking about.
+                        </div>
+                    </div>
+                </details>
+            </div>
+        </div>
+
+        <label class="hd-check" data-key="algo">
+            <input type="checkbox"> I'm comfortable with the complexity analysis.
+        </label>
+
+
+        <h3 id="s1-pytorch">1.5 &nbsp;Python and PyTorch</h3>
+
+        <p>
+            All code in this course is Python with PyTorch. If you know another language well you can
+            pick up Python quickly; PyTorch itself is a smaller surface than it looks, because a model
+            is just a Python class and a tensor is just an array that remembers what was done to it.
+        </p>
+
+        <p>
+            Below is the minimum you should be able to read without looking anything up. Run it — a
+            CPU-only install is enough for every line here.
+        </p>
+
+        <h4>Tensors: shape, dtype, device</h4>
+        <pre><code class="language-python">import torch
+
+x = torch.tensor([[1.0, 2.0, 3.0],
+                  [4.0, 5.0, 6.0]])          # from a nested list
+print(x.shape, x.dtype, x.device)            # torch.Size([2, 3]) torch.float32 cpu
+
+torch.zeros(2, 3); torch.ones(2, 3)          # filled
+torch.randn(2, 3)                            # standard normal
+torch.arange(6).reshape(2, 3)                # 0..5, viewed as 2x3
+
+# Shape manipulation you will use constantly:
+x.T                       # (3, 2)  transpose
+x.reshape(3, 2)           # same data, new shape
+x.unsqueeze(0).shape      # (1, 2, 3)  add an axis -- e.g. a batch dimension
+x.squeeze(0).shape        # remove size-1 axes
+</code></pre>
+
+        <h4>Element-wise ops, matmul, and broadcasting</h4>
+        <pre><code class="language-python">a = torch.tensor([1.0, 2.0, 3.0])
+b = torch.tensor([10.0, 20.0, 30.0])
+
+a + b                     # element-wise; same as torch.add(a, b)
+a * b                     # element-wise product -- NOT a matrix product
+a @ b                     # inner product -> tensor(140.)
+
+W = torch.randn(4, 3)     # a linear layer's weights
+W @ a                     # (4,) -- the matrix-vector product from Exercise 1.1a
+
+# Broadcasting: a size-1 (or missing) axis is stretched to match.
+h = torch.randn(32, 128, 3)      # (batch, sequence, dim)
+h + a                            # a is (3,) -> broadcast over batch and sequence: fine
+# h + torch.randn(128)           # RuntimeError -- shapes 3 and 128 are incompatible
+
+# The dangerous case: this does NOT error, and is almost never what you meant.
+bad = h + torch.randn(32, 1, 3)  # silently added the same vector to every position
+</code></pre>
+
+        <h4>Softmax and cross-entropy</h4>
+        <pre><code class="language-python">import torch.nn.functional as F
+
+logits = torch.tensor([2.0, 1.0, 0.1])       # unnormalized scores over a 3-word vocabulary
+p = F.softmax(logits, dim=-1)                # tensor([0.6590, 0.2424, 0.0986]) -- sums to 1
+print(p.sum())                               # tensor(1.)
+
+# Softmax is shift-invariant: adding a constant to every logit changes nothing.
+torch.allclose(F.softmax(logits + 100, dim=-1), p)     # True
+
+# Prefer log_softmax over log(softmax(.)) -- it is the numerically stable version.
+logp = F.log_softmax(logits, dim=-1)
+
+# Cross-entropy = negative log-probability of the correct class.
+target = torch.tensor([0])                   # the true next word is index 0
+loss = F.cross_entropy(logits.unsqueeze(0), target)
+print(loss, -logp[0])                        # the same number: 0.4170
+</code></pre>
+
+        <div class="callout">
+            <span class="callout-label">The one identity to internalize</span>
+            <code>F.cross_entropy(logits, target)</code> <em>is</em> $-\log p(\text{target})$, with the
+            softmax folded in. So minimizing cross-entropy over a corpus is maximizing
+            $\sum_t \log p(x_t \mid x_{&lt;t})$ — the log of the chain-rule product from §1.2. The loss
+            function and the probability model are the same object seen from two sides. §2 makes this
+            explicit.
+        </div>
+
+        <h4>Autograd</h4>
+        <pre><code class="language-python">x = torch.tensor([3.0], requires_grad=True)
+
+y = 4 * x**2 - 3 * x + 1        # Exercise 1.3a.1
+y.backward()                    # walk the recorded graph, accumulate d y / d x
+print(x.grad)                   # tensor([21.]) -- because 8(3) - 3 = 21
+
+# .grad ACCUMULATES. Forgetting to reset it is a classic silent bug:
+x.grad.zero_()                  # in a training loop: optimizer.zero_grad()
+</code></pre>
+
+        <div class="ex">
+            <div class="ex-head"><span>Exercise 1.5a — softmax, and what it ignores</span>
+                <span class="ex-src">Quiz 1, sp2025</span></div>
+            <div class="ex-body">
+                <ol class="qlist">
+                    <li>Compute $\operatorname{softmax}([2, 1, 0])$. No need to simplify.</li>
+                    <li>
+                        Now compute $\operatorname{softmax}([10002, 10001, 10000])$. How does it compare
+                        to the previous answer, and why?
+                    </li>
+                    <li>Let $X' = \operatorname{softmax}(X)$ for a vector $X$ of length $n$. What is
+                        $\sum_{x' \in X'} x'$?</li>
+                </ol>
+
+                <details class="ans">
+                    <summary>Answers</summary>
+                    <div class="ans-body">
+                        <p><strong>1.</strong> Dividing through by $e^0 = 1$:</p>
+                        $$
+                        \left[\frac{e^2}{1 + e^1 + e^2},\;
+                                \frac{e^1}{1 + e^1 + e^2},\;
+                                \frac{1}{1 + e^1 + e^2}\right]
+                        \approx [0.665,\; 0.245,\; 0.090].
+                        $$
+                        <p>
+                            <strong>2.</strong> <strong>Identical.</strong> Softmax is
+                            <em>shift-invariant</em>: adding a constant $c$ to every logit multiplies
+                            numerator and denominator by $e^{c}$, which cancels. Since
+                            $[10002, 10001, 10000] = [2,1,0] + 10000$, the outputs match exactly.
+                        </p>
+                        <p>
+                            This is not a curiosity — it is a numerical necessity. $e^{10002}$ overflows a
+                            64-bit float, so every real implementation subtracts $\max_i z_i$ from the
+                            logits first, which changes nothing mathematically and everything
+                            practically. It also means <strong>logits are only meaningful up to an
+                            additive constant</strong>: a model that outputs $[2,1,0]$ and one that
+                            outputs $[10002,10001,10000]$ are the same model.
+                        </p>
+                        <p>
+                            <strong>3.</strong> Exactly $1$, by construction — the denominator is the sum
+                            of the numerators. Softmax always returns a valid distribution, which is why
+                            an output that is negative or exceeds 1 means the softmax is missing, not
+                            broken.
+                        </p>
+                    </div>
+                </details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-head"><span>Exercise 1.5b — cross-entropy at the start of training</span>
+                <span class="ex-src">Quiz 1, sp2024 &amp; sp2025</span></div>
+            <div class="ex-body">
+                <p>
+                    You evaluate a classifier on 20 instances. It assigns equal probability to each of 10
+                    classes on every instance. What is the cross-entropy loss, averaged over the
+                    instances?
+                </p>
+                <p class="w-note">
+                    Choose from: $-\log(10)$, $-\log(20)$, $-0.1\log(10)$, $-0.2\log(10)$,
+                    $-\log(0.1)$, $-\log(0.2)$, $-10\log(0.1)$, $-20\log(0.1)$.
+                </p>
+
+                <details class="ans">
+                    <summary>Answer</summary>
+                    <div class="ans-body">
+                        <p>
+                            $\mathbf{-\log(0.1)} \approx 2.303$ nats.
+                        </p>
+                        <p>
+                            Cross-entropy on one example is $-\log p(\text{correct class})$ — see the
+                            identity above. Ten classes at equal probability means $p = 0.1$ for whichever
+                            class is correct, so each instance contributes $-\log(0.1)$. The question asks
+                            for the <strong>average</strong>, and the average of 20 identical numbers is
+                            that number. $-20\log(0.1)$ is the <em>sum</em>, and it is the trap: read
+                            whether a loss is summed or averaged before you compare it to anything.
+                        </p>
+                        <p>
+                            Worth memorizing as a sanity check: an untrained classifier over $V$ classes
+                            starts at a loss of about $\log V$. If your training run begins somewhere
+                            else, something is wrong before the first gradient step — with $V = 50{,}000$
+                            you should see roughly $\log(50000) \approx 10.8$ nats. This is the same fact
+                            that will reappear in Handout #2 as "a uniform model has perplexity $V$".
+                        </p>
+                    </div>
+                </details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-head"><span>Exercise 1.5c — reading a training loop</span>
+                <span class="ex-src">Quiz 1, sp2024 &amp; sp2025</span></div>
+            <div class="ex-body">
+                <pre><code class="language-python">class FeedforwardNN(nn.Module):
+    def __init__(self, input_size):
+        super().__init__()
+        self.hidden = nn.Linear(input_size, 5, bias=False)
+        self.output = nn.Linear(5, 2, bias=False)
+
+    def forward(self, x):
+        x = F.relu(self.hidden(x))
+        return self.output(x)</code></pre>
+                <ol class="qlist">
+                    <li>With <code>input_size = 3</code>, how many trainable parameters does this network
+                        have?</li>
+                    <li>If <code>x</code> has shape <code>(4, 3)</code>, what shape does
+                        <code>forward</code> return? What shape is the resulting cross-entropy loss?</li>
+                    <li>
+                        A training loop calls three of <code>loss.backward()</code>,
+                        <code>optimizer.step()</code> and <code>optimizer.zero_grad()</code> each
+                        iteration. What is the correct order, and what breaks if you omit
+                        <code>zero_grad</code>?
+                    </li>
+                </ol>
+
+                <details class="ans">
+                    <summary>Answers</summary>
+                    <div class="ans-body">
+                        <p>
+                            <strong>1. 25.</strong> The first layer's weight is $5 \times 3 = 15$ numbers,
+                            the second's is $2 \times 5 = 10$, and <code>bias=False</code> means no bias
+                            vectors. ReLU has no parameters.
+                        </p>
+                        <p>
+                            <strong>2.</strong> <code>(4, 2)</code> — <code>nn.Linear</code> maps the last
+                            dimension and leaves the leading ones alone, so a batch of 4 gives 4 rows of 2
+                            logits. The loss is a <strong>scalar</strong>: <code>cross_entropy</code>
+                            reduces over the batch by default (<code>reduction="mean"</code>).
+                        </p>
+                        <p>
+                            <strong>3.</strong>
+                            <code>zero_grad()</code> &rarr; <code>backward()</code> &rarr;
+                            <code>step()</code>. (Equivalently, clearing at the end of the previous
+                            iteration.) The one ordering that is definitely wrong is
+                            <code>step()</code> before <code>backward()</code> — you would be applying
+                            last iteration's gradients.
+                        </p>
+                        <p>
+                            Omitting <code>zero_grad</code> does not crash. PyTorch <em>accumulates</em>
+                            into <code>.grad</code>, so each step would use the sum of every gradient seen
+                            so far: the effective step size grows without bound and training diverges for
+                            no visible reason. This is the silent-failure mode flagged in the autograd
+                            snippet above, and it is worth recognizing from the symptom alone.
+                        </p>
+                    </div>
+                </details>
+            </div>
+        </div>
+
+        <div class="callout aside">
+            <span class="callout-label">Not in this handout</span>
+            The old Homework 1 continued into word embeddings, one-hot vs. distributional
+            representations, <code>Dataset</code>/<code>DataLoader</code>, <code>nn.Module</code>, and
+            training a sentiment classifier on IMDB. That is a genuine lecture's worth of material and
+            it belongs with the sessions that cover it, not in a background review — expect it in a
+            later handout. For now, tensors, matmul, softmax, cross-entropy and
+            <code>.backward()</code> are enough.
+        </div>
+
+        <label class="hd-check" data-key="pytorch">
+            <input type="checkbox"> I'm comfortable with the Python/PyTorch basics.
+        </label>
+
+        </div><!-- /#s1-zone -->
+
+
+        <!-- ================================================================ -->
+        <h2 id="s2"><span class="hd-secnum">2</span>What "self-supervised" actually means</h2>
+
+        <p>
+            The slides assert that self-supervised models "are predictive models of the world, learned
+            from cheaply available unlabeled data." That sentence is doing a lot of work. Here is what
+            is underneath it.
+        </p>
+
+        <h3 id="s2-labels">2.1 &nbsp;The label problem, and the trick that dissolves it</h3>
+
+        <p>
+            Ordinary supervised learning needs pairs $(x, y)$: a review and its sentiment, an image and
+            its class, a sentence and its translation. Humans produce $y$, which makes it the scarce
+            ingredient. Annotated datasets top out in the millions of examples, cost real money, and
+            only ever teach the one task you annotated for.
+        </p>
+
+        <p>
+            Self-supervision sidesteps this entirely: <strong>construct $y$ from $x$ itself.</strong>
+            Take a sentence, hide part of it, and ask the model to reproduce the hidden part. Nobody
+            annotated anything, so every sentence ever written is training data — and, as the widget
+            below makes concrete, one sentence yields not one example but one per position.
+        </p>
+
+        <div class="widget">
+            <div class="widget-head">
+                Objective constructor
+                <span class="widget-hint">Type any sentence and toggle the objective. Count the
+                    supervised examples that appear out of unlabeled text.</span>
+            </div>
+            <div class="widget-body" id="w-ssl-objective"></div>
+        </div>
+
+        <p>
+            Both objectives in that widget manufacture labels from raw text, but they are not
+            interchangeable. The causal one defines a probability distribution over sequences, which
+            means you can <em>generate</em> from it. The masked one sees both sides of each blank,
+            which tends to produce better representations for classification but leaves you with no
+            coherent way to sample text. That difference is why the generative branch is the one that
+            grew into the models you use daily, and we will return to it in Sessions 12–13.
+        </p>
+
+        <h3 id="s2-objective">2.2 &nbsp;Writing down the objective</h3>
+
+        <p>
+            Take the causal case. We want to model $p(x_1, \ldots, x_T)$, a distribution over entire
+            documents — an object of astronomical size, since there are $V^T$ possible documents. The
+            chain rule from §1.2 rescues us:
+        </p>
+        $$
+        p(x_1, \ldots, x_T) = \prod_{t=1}^{T} p(x_t \mid x_{&lt;t}).
+        $$
+        <p>
+            No approximation has been made. But the right-hand side is something we can actually build:
+            each factor is a distribution over one vocabulary of size $V$, so a single network
+            $f_\theta$ that maps a prefix to $V$ logits, applied at every position, defines the whole
+            joint. Fitting it by maximum likelihood over a corpus $\mathcal{D}$ means maximizing
+        </p>
+        $$
+        \sum_{x \in \mathcal{D}} \sum_{t=1}^{T} \log p_\theta(x_t \mid x_{&lt;t}),
+        $$
+        <p>
+            which — by the identity at the end of §1.5 — is exactly minimizing average cross-entropy.
+            Three prerequisites from §1 have now collapsed into one line: the chain rule gave us the
+            factorization, log space made the product a sum, and cross-entropy is the sum's negation.
+        </p>
+
+        <div class="callout aside">
+            <span class="callout-label">Where this goes next</span>
+            That one line is the whole of Session 2's agenda. How do you <em>estimate</em> each factor
+            $p_\theta(x_t \mid x_{&lt;t})$ — by counting, or by learning? How do you <em>measure</em> whether
+            the result is any good? And what happens when a factor comes out as exactly zero?
+            <a href="02.language-modeling.html">Handout #2</a> takes all three questions up, starting
+            from the simplest possible answer: count.
+        </div>
+
+        <h3 id="s2-world">2.3 &nbsp;Why prediction turns into knowledge</h3>
+
+        <p>
+            Here is the claim that should still feel surprising: an objective as narrow as
+            "predict the next word" produces systems that write working code and prove theorems.
+            Why should it?
+        </p>
+
+        <p>
+            Because for many sequences, the only way to reduce the loss is to model the process that
+            generated them. Consider the last token of each of these:
+        </p>
+
+        <div class="tbl-scroll">
+        <table class="tbl">
+            <thead><tr><th>To predict…</th><th>the model has to have learned…</th></tr></thead>
+            <tbody>
+            <tr><td><code>The capital of Australia is ___</code></td><td>a fact about the world</td></tr>
+            <tr><td><code>The keys to the cabinet ___ missing</code></td><td>syntax — agreement across an intervening noun</td></tr>
+            <tr><td><code>&gt;&gt;&gt; 17 * 23 = ___</code></td><td>arithmetic, or a very large lookup table</td></tr>
+            <tr><td><code>for i in range(n):\n    total ___</code></td><td>the syntax and idiom of Python</td></tr>
+            <tr><td><code>She lied, so he no longer ___ her</code></td><td>something about people and consequences</td></tr>
+            </tbody>
+        </table>
+        </div>
+
+        <p>
+            None of these were trained for. They fall out of one objective applied to text that
+            happens to encode facts, syntax, arithmetic, code and social reasoning. This is the sense
+            in which the slides call these "predictive models of the world": the world left its
+            fingerprints on the text, and pressure to predict the text becomes pressure to reconstruct
+            the fingerprints.
+        </p>
+
+        <p>
+            The argument has a limit, and holding both halves at once is the right posture for this
+            course. Reducing prediction loss is <em>correlated</em> with acquiring knowledge, not
+            identical to it. A model can also reduce loss by memorizing surface statistics that happen
+            to work, which is a good first explanation for the failures on slide 6 — confident
+            hallucination, lost constraints, brittleness under small distribution shifts. Capable and
+            brittle are not in tension; they are two consequences of the same objective.
+        </p>
+
+
+        <!-- ================================================================ -->
+        <h2 id="s3"><span class="hd-secnum">3</span>Why natural language</h2>
+
+        <p>
+            Self-supervision is not specific to text. The slides show the image version: mask out
+            patches of a photograph and predict them, and generative image models follow. So why is
+            most of this course about language?
+        </p>
+
+        <p>
+            Not because language is easier — it is not. Three reasons, in increasing order of
+            interest.
+        </p>
+
+        <p>
+            <strong>It is available.</strong> The web is an enormous, cheap, already-digitized archive
+            of text. This is the mundane reason, and historically the decisive one.
+        </p>
+
+        <p>
+            <strong>It is how we specify tasks.</strong> Because instructions, questions and answers
+            are all text, a model of text can be pointed at a new task by describing it, with no new
+            output layer and no retraining. The interface and the training data are the same medium.
+            Nothing analogous is true of pixels.
+        </p>
+
+        <p>
+            <strong>It is already a compression of the world.</strong> This is the argument worth
+            sitting with. Natural language is our species' accumulated attempt to encode everything we
+            know about the world as efficiently as we can transmit it. A sentence is not raw sensor
+            data; it is the output of a human deciding what mattered enough to say. So text is
+            <em>pre-abstracted</em> — the hard perceptual work of deciding which features are
+            significant has already been done, by people, over millennia.
+        </p>
+
+        <p>
+            That is why predicting text is a shortcut to world knowledge in a way that predicting
+            pixels is not. Predict the missing patch of a photograph and you learn about edges,
+            textures and lighting. Predict the missing word of a sentence and you are forced to learn
+            whatever the writer was thinking about.
+        </p>
+
+
+        <!-- ================================================================ -->
+        <h2 id="s4"><span class="hd-secnum">4</span>How we got here</h2>
+
+        <p>
+            The slides pose a question worth taking seriously: neural networks are old — the
+            perceptron dates to 1958, backpropagation to the 1980s, and the core architecture of a
+            transformer is a stack of matrix multiplications that any of those researchers would have
+            recognized. So why did almost everything happen in the last fifteen years?
+        </p>
+
+        <p>Three forces, and the honest answer is that the algorithms were the smallest of them.</p>
+
+        <div class="tbl-scroll">
+        <table class="tbl">
+            <thead><tr><th>Force</th><th>What changed</th><th>Why it mattered</th></tr></thead>
+            <tbody>
+            <tr>
+                <td><strong>Data</strong></td>
+                <td>The web turned human text into a corpus by accident.</td>
+                <td>Self-supervision can only exploit scale if the scale exists. The objective was
+                    available in 1990; the trillion tokens were not.</td>
+            </tr>
+            <tr>
+                <td><strong>Compute</strong></td>
+                <td>GPUs made the one operation these models need — dense matrix multiplication —
+                    fast and, per FLOP, steadily cheaper.</td>
+                <td>Training runs that would have taken centuries became weeks. Note from §1.4 that
+                    the bottleneck is a single, extremely parallel primitive; the hardware got to
+                    specialize.</td>
+            </tr>
+            <tr>
+                <td><strong>Algorithms</strong></td>
+                <td>Better optimizers, normalization, initialization, and above all architectures
+                    that parallelize across a sequence instead of stepping through it.</td>
+                <td>Mostly these unlocked the other two. The transformer's decisive property is not
+                    that it models language better in principle — it is that it uses a GPU well.</td>
+            </tr>
+            </tbody>
+        </table>
+        </div>
+
+        <p>
+            The framing to take from this: progress has come less from new ideas about intelligence
+            than from removing the constraints that stopped old ideas from being tried at scale. It is
+            also the reason a course on this material has to spend real time on efficiency and systems
+            — those are not implementation details downstream of the science, they are frequently the
+            thing that decides what is scientifically possible.
+        </p>
+
+
+        <!-- ================================================================ -->
+        <h2 id="s5"><span class="hd-secnum">5</span>Terminology, used precisely</h2>
+
+        <p>
+            Five terms get used interchangeably in press coverage and often in papers. They are not
+            synonyms, and being sloppy with them makes it hard to say what a given piece of work
+            actually claims. Each picks out a different <em>kind</em> of property.
+        </p>
+
+        <div class="tbl-scroll">
+        <table class="tbl">
+            <thead>
+            <tr><th>Term</th><th>What it describes</th><th>What it does <em>not</em> tell you</th></tr>
+            </thead>
+            <tbody>
+            <tr>
+                <td><strong>Self-supervised model</strong></td>
+                <td>The <em>training signal</em>: labels were derived from the data, not from
+                    annotators.</td>
+                <td>Nothing about size, architecture, modality, or what it is used for.</td>
+            </tr>
+            <tr>
+                <td><strong>Pretrained model</strong></td>
+                <td>The <em>workflow</em>: this training is a first stage, and something else —
+                    fine-tuning, alignment, adaptation — comes after.</td>
+                <td>Whether the first stage was self-supervised at all (ImageNet pretraining was
+                    fully supervised).</td>
+            </tr>
+            <tr>
+                <td><strong>Foundation model</strong></td>
+                <td>The <em>role</em>: one model that many downstream applications build on, rather
+                    than one model per task.</td>
+                <td>Anything technical. It is a claim about an ecosystem, not an architecture — and
+                    it is aspirational until the ecosystem exists.</td>
+            </tr>
+            <tr>
+                <td><strong>Large language model</strong></td>
+                <td>The <em>modality and scale</em>: text, and a lot of parameters.</td>
+                <td>Where "large" begins — the threshold has moved by three orders of magnitude in
+                    a decade and will move again.</td>
+            </tr>
+            <tr>
+                <td><strong>Generative model</strong></td>
+                <td>The <em>capability</em>: it defines a distribution you can sample from.</td>
+                <td>How it was trained. A masked language model is self-supervised and pretrained
+                    but not usefully generative.</td>
+            </tr>
+            </tbody>
+        </table>
+        </div>
+
+        <p>
+            So the categories cross-cut, and the entities we care about tend to satisfy several at
+            once. Meanwhile self-supervision itself sits inside a nesting of older ideas:
+        </p>
+
+        <figure>
+            <svg viewBox="0 0 640 300" width="100%" role="img"
+                 aria-label="Nested regions: machine learning contains deep learning, which contains self-supervised learning, which contains large language models.">
+                <rect x="8" y="8" width="624" height="284" rx="12"
+                      fill="#f4f7fb" stroke="#c3ccd8" stroke-width="1.5"/>
+                <text x="26" y="34" font-family="roboto, sans-serif" font-size="15"
+                      font-weight="700" fill="#4a5560">Machine learning</text>
+                <text x="26" y="54" font-family="roboto, sans-serif" font-size="12.5" fill="#6b7480">
+                    learn a function from data (1950s–)
+                </text>
+
+                <rect x="34" y="70" width="572" height="204" rx="10"
+                      fill="#e6eefb" stroke="#9fbde4" stroke-width="1.5"/>
+                <text x="52" y="96" font-family="roboto, sans-serif" font-size="15"
+                      font-weight="700" fill="#1c3f75">Deep learning</text>
+                <text x="52" y="116" font-family="roboto, sans-serif" font-size="12.5" fill="#3d6396">
+                    learn the representation too, in many layers (2010s–)
+                </text>
+
+                <rect x="60" y="132" width="520" height="126" rx="9"
+                      fill="#cfe0f6" stroke="#68ACE5" stroke-width="2"/>
+                <text x="78" y="158" font-family="roboto, sans-serif" font-size="15"
+                      font-weight="700" fill="#002d72">Self-supervised learning</text>
+                <text x="78" y="178" font-family="roboto, sans-serif" font-size="12.5" fill="#1c3f75">
+                    the labels come from the data itself
+                </text>
+
+                <rect x="86" y="192" width="468" height="52" rx="8"
+                      fill="#002d72"/>
+                <text x="104" y="216" font-family="roboto, sans-serif" font-size="14.5"
+                      font-weight="700" fill="#ffffff">Large language models</text>
+                <text x="104" y="234" font-family="roboto, sans-serif" font-size="12"
+                      fill="#a8c8e8">this course spends most of its time here</text>
+            </svg>
+            <figcaption>
+                Each box is a strictly narrower commitment than the one containing it. Moving inward
+                adds an assumption; nothing inward is a different field.
+            </figcaption>
+        </figure>
+
+        <div class="callout warn">
+            <span class="callout-label">Also from the slides</span>
+            Avoid inventing stacked combinations — "frontier foundation model", "large generative
+            pretrained foundation LLM". Each adjective should be doing work. If you cannot say which
+            property a word is asserting, delete it. This applies to your final project write-up.
+        </div>
+
+
+        <!-- ================================================================ -->
+        <h2 id="s6"><span class="hd-secnum">6</span>Check yourself</h2>
+
+        <p>
+            The §1 exercises covered the technical prerequisites. These are conceptual, and closer in
+            style to what an in-class quiz asks: short, no computation, but you need to have actually
+            thought about §2–5.
+        </p>
+
+        <p>
+            <button class="w-btn" type="button" data-toggle-answers="#s6-zone">Show all answers</button>
+        </p>
+
+        <div id="s6-zone">
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q1.</strong> A colleague says self-supervised learning is "unsupervised
+                    learning with extra steps." What is the substantive distinction?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    Self-supervised learning still <em>has</em> a supervised objective — real
+                    $(x, y)$ pairs with a real loss and real gradients. The pairs are constructed
+                    automatically rather than annotated. Classical unsupervised methods (clustering,
+                    PCA) have no target to predict at all. The practical consequence: self-supervision
+                    inherits everything we know about optimizing supervised losses, which is why it
+                    scaled and clustering did not.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q1b.</strong> Which of these best describes self-supervised learning?
+                    (This exact question has appeared on the quiz three years running, so the
+                    three-part answer is worth having ready.)</p>
+                <ul class="qlist" style="list-style:none;padding-left:8px">
+                    <li>&#9675; Models trained to predict outcomes, but disconnected from real-world tasks.</li>
+                    <li>&#9675; Models trained on large amounts of unlabeled data, learning predictive
+                        models of the world, tightly connected to real-world tasks.</li>
+                    <li>&#9675; Models that use large amounts of data but have no predictive capability.</li>
+                    <li>&#9675; Self-learning models that require minimal data for training.</li>
+                    <li>&#9675; A form of supervised learning with less labeled data.</li>
+                </ul>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    <p>The second. The definition has three parts, and all three do work:</p>
+                    <ol style="margin-bottom:8px">
+                        <li><strong>predictive models of the world</strong> — the objective is
+                            prediction, §2.2;</li>
+                        <li><strong>trained on large amounts of freely available unlabeled data</strong> —
+                            the labels are manufactured, §2.1, which is what makes the scale possible;</li>
+                        <li><strong>tightly connected to real-world tasks we care about</strong> — §2.4's
+                            argument that predicting text forces useful knowledge.</li>
+                    </ol>
+                    <p>
+                        Note why the last option is wrong, since it is the tempting one: self-supervision
+                        is not supervised learning with <em>fewer</em> labels. It has as many training
+                        targets as there are tokens — it just does not need a human to write them.
+                    </p>
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q2.</strong> The chain rule factorization
+                    $p(x_1,\ldots,x_T) = \prod_t p(x_t \mid x_{&lt;t})$ makes no independence
+                    assumptions. So where does a language model's error actually come from?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    From the factors, not the factorization. The identity is exact; the approximation
+                    is that a finite network $f_\theta$ with finite training data can only imperfectly
+                    represent each conditional $p(x_t \mid x_{&lt;t})$. An n-gram model additionally
+                    <em>does</em> assume independence, by truncating the conditioning context to the
+                    previous $n-1$ words — that is a second, separate error, and
+                    <a href="02.language-modeling.html#s1-markov">Handout #2 §1.3</a> takes it up.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q3.</strong> Is every pretrained model a foundation model? Is every
+                    foundation model self-supervised?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    No to both. "Pretrained" describes a workflow — a small model pretrained on one
+                    narrow corpus and fine-tuned for one task is pretrained but foundational to
+                    nothing. "Foundation model" describes a role in an ecosystem, and a model could
+                    in principle occupy that role having been trained with human labels
+                    (ImageNet-pretrained backbones played roughly that role for years). The terms
+                    describe different kinds of property, which is exactly why they are not
+                    interchangeable.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q4.</strong> Of the three forces in §4, which do you think is currently
+                    the binding constraint — and what would it take to change your mind?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    There is no single right answer here, and the point of the question is the second
+                    half. A defensible case: high-quality text is the constraint, since compute keeps
+                    growing while the stock of human-written text does not — which is why synthetic
+                    data, data curation and multiple epochs are all live research areas. An equally
+                    defensible case: compute, since every published scaling result says more of it
+                    still helps. What should move you is evidence, e.g. results showing that
+                    additional compute on fixed data has stopped paying, or that synthetic data
+                    substitutes cleanly for human text. Be able to say what would change your mind;
+                    we will revisit this when we cover scaling laws.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q5.</strong> Why can you sample fluent text from a causal language model
+                    but not from a masked one, even though both were trained self-supervised on the
+                    same corpus?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    The causal model's factors compose into a single valid joint distribution over
+                    sequences, by the chain rule — so sampling token by token, feeding each choice
+                    back in, draws from that joint. A masked model only ever learned conditionals of
+                    the form $p(x_i \mid x_{\neq i})$, each conditioned on both sides. There is no
+                    ordering of those conditionals whose product is a coherent joint, so
+                    iterative unmasking is a heuristic, not a sampler.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q6.</strong> Slide 6 lists things LLMs still fail at — simple logic
+                    puzzles, tracking constraints, confident hallucination. Give an explanation
+                    grounded in the training objective rather than in "the model isn't smart enough."</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    The objective rewards <em>plausible continuations</em>, not true ones. A fluent,
+                    well-formed wrong answer scores well on the training distribution because
+                    confident text is what the corpus contains; text is not annotated with whether it
+                    was correct. Nothing in $\sum_t \log p_\theta(x_t \mid x_{&lt;t})$ prefers a truthful
+                    answer over a probable-looking one, and nothing prefers admitting ignorance —
+                    human writing rarely does. Later sessions on alignment are largely about adding
+                    the signal the pretraining objective does not contain.
+                </div></details>
+            </div>
+        </div>
+
+        </div><!-- /#s6-zone -->
+
+
+        <!-- ================================================================ -->
+        <h2 id="s7"><span class="hd-secnum">7</span>Optional further reading</h2>
+
+        <p>
+            Strictly optional — nothing here is assumed in class or on a quiz. Use it if a §1 area was
+            shaky, or if you want to get ahead of Session 2.
+        </p>
+
+        <h4>If §1 was rusty</h4>
+        <ul>
+            <li>
+                <a href="https://cs229.stanford.edu/section/cs229-linalg.pdf">Linear Algebra Review and
+                    Reference</a> (Kolter &amp; Do) — the standard 30-page refresher; §1–4 cover
+                everything Exercise 1.1 touched.
+            </li>
+            <li>
+                <a href="https://cs229.stanford.edu/section/cs229-prob.pdf">Review of Probability
+                    Theory</a> (Maleki &amp; Do) — same series; the chain rule and expectation
+                sections are the relevant ones.
+            </li>
+            <li>
+                <a href="https://www.deeplearningbook.org/contents/prob.html">Deep Learning</a>
+                (Goodfellow, Bengio &amp; Courville), Ch. 2–4 — the same material with machine
+                learning as the motivation throughout.
+            </li>
+            <li>
+                <a href="https://pytorch.org/tutorials/beginner/basics/intro.html">PyTorch: Learn the
+                    Basics</a> — about an hour, and it covers exactly the §1.5 surface plus the
+                <code>Dataset</code>/<code>nn.Module</code> material we deferred.
+            </li>
+        </ul>
+
+        <h4>If you want to read ahead</h4>
+        <ul>
+            <li>
+                <a href="02.language-modeling.html">Handout #2</a> is already posted if you want to
+                start early — it picks up exactly where §2.2 stops.
+            </li>
+            <li>
+                Shannon, <em>Prediction and Entropy of Printed English</em> (1951) — where the idea
+                that predicting the next symbol measures how much you understand a language comes
+                from. Short, and startlingly modern.
+            </li>
+        </ul>
+
+
+        <div class="hd-footer">
+            <p>
+                <strong>Next session.</strong> #2, Thu Sept 3 — Language modeling: definitions and
+                history, counting and n-grams, measuring LM quality, language modeling as a learning
+                problem — see <a href="02.language-modeling.html">Handout #2</a>.
+            </p>
+            <p>
+                Found an error, or a passage that doesn't land? Post on
+                <a href="https://piazza.com/jhu/fall2026/cs601471671">Piazza</a> — corrections to these
+                handouts are welcome and useful.
+            </p>
+        </div>
+
+    </main>
+</div>
+
+<script defer src="vendor/katex/katex.min.js"></script>
+<script defer src="vendor/katex/auto-render.min.js"></script>
+<script defer src="vendor/highlight/highlight.min.js"></script>
+<script defer src="handout.js"></script>
+<script defer src="widgets/ssl-objective.js"></script>
+</body>
+</html>

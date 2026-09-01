@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Handout #N: TITLE — CS 601.471/671</title>
+    <meta name="description"
+          content="Session N reading handout: ONE SENTENCE.">
+
+    <link rel="shortcut icon" href="../favicon.ico">
+    <link rel="stylesheet" href="../fonts.css">
+    <link rel="stylesheet" href="vendor/katex/katex.min.css">
+    <link rel="stylesheet" href="vendor/highlight/github.min.css">
+    <link rel="stylesheet" href="handout.css">
+</head>
+
+<body class="handout" data-handout="NN.slug">
+
+<header class="hd-mast">
+    <div class="hd-wrap" style="display:block">
+        <div class="hd-course">CS 601.471/671 &nbsp;·&nbsp; NLP: Self-supervised Models &nbsp;·&nbsp; Fall 2026</div>
+        <h1>Handout #N — TITLE</h1>
+        <p class="hd-sub">
+            Session N (DAY, MONTH D) &nbsp;·&nbsp;
+            <a href="../slides/NN.SLIDES.pdf">Slides: TOPIC</a> &nbsp;·&nbsp;
+            <a href="../../index.html">Course page</a>
+        </p>
+    </div>
+</header>
+
+<div class="hd-wrap">
+
+    <!-- TOC is populated by handout.js from the h2/h3 ids below -->
+    <nav class="hd-toc" aria-label="Contents">
+        <div class="hd-toc-title">On this page</div>
+    </nav>
+
+    <main class="hd-body">
+
+                <p class="lead">
+            One or two sentences on what this handout is for and why the session needs it.
+        </p>
+
+        <div class="hd-glance">
+            <dl>
+                <dt>Assigned papers</dt>
+                <dd>None. <strong>This handout is the reading for Session N.</strong>
+                    (If a paper really is required, list it here instead; otherwise put suggestions
+                    under an &ldquo;Optional further reading&rdquo; section at the end.)</dd>
+
+                <dt>Time</dt>
+                <dd>NN&ndash;NN minutes.</dd>
+
+                <dt>By the end you should be able to</dt>
+                <dd>
+                    <ul style="margin-bottom:0">
+                        <li>&hellip;</li>
+                    </ul>
+                </dd>
+            </dl>
+        </div>
+
+
+        <h2 id="s1"><span class="hd-secnum">1</span>First section</h2>
+
+        <p>Prose. Inline math like $p(x_t \mid x_{&lt;t})$ &mdash; note that <code>&lt;</code> inside
+            math must be written as <code>&amp;lt;</code>, or the browser parses it as a tag.</p>
+
+        $$ \sum_{t=1}^{T} \log p_\theta(x_t \mid x_{&lt;t}) $$
+
+        <div class="callout">
+            <span class="callout-label">Definition</span>
+            Variants: <code>callout</code> (blue), <code>callout warn</code> (amber),
+            <code>callout try</code> (green), <code>callout aside</code> (grey).
+        </div>
+
+        <pre><code class="language-python">import torch  # highlighted by highlight.js
+</code></pre>
+
+        <h3 id="s1-sub">1.1 &nbsp;A subsection</h3>
+
+        <div class="ex">
+            <div class="ex-head"><span>Exercise 1.1 &mdash; short title</span>
+                <span class="ex-src">optional provenance</span></div>
+            <div class="ex-body">
+                <p>Question.</p>
+                <details class="ans">
+                    <summary>Answer</summary>
+                    <div class="ans-body">Worked answer.</div>
+                </details>
+            </div>
+        </div>
+
+        <label class="hd-check" data-key="unique-key">
+            <input type="checkbox"> I'm comfortable with this.
+        </label>
+
+        <div class="tbl-scroll">
+        <table class="tbl">
+            <thead><tr><th>Col</th><th>Col</th></tr></thead>
+            <tbody><tr><td>a</td><td>b</td></tr></tbody>
+        </table>
+        </div>
+
+        <!-- A widget: add <div class="widget-body" id="w-NAME"></div> and a
+             widgets/NAME.js that mounts into it, then load it at the bottom. -->
+
+
+        <div class="hd-footer">
+            <p>
+                <strong>Next session.</strong> #N+1, DAY MONTH D — TOPIC.
+            </p>
+            <p>
+                Found an error, or a passage that doesn't land? Post on
+                <a href="https://piazza.com/jhu/fall2026/cs601471671">Piazza</a> — corrections to these
+                handouts are welcome and useful.
+            </p>
+        </div>
+
+    </main>
+</div>
+
+<script defer src="vendor/katex/katex.min.js"></script>
+<script defer src="vendor/katex/auto-render.min.js"></script>
+<script defer src="vendor/highlight/highlight.min.js"></script>
+<script defer src="handout.js"></script>
+<!-- <script defer src="widgets/NAME.js"></script> -->
+</body>
+</html>
