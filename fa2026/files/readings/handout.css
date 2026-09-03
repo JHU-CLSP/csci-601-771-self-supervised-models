@@ -248,6 +248,28 @@ ol.qlist > li, ul.qlist > li { margin-bottom: 9px; }
     cursor: pointer;
 }
 .hd-check input { margin: 0; width: 15px; height: 15px; cursor: pointer; }
+
+/* --- long display equations scroll instead of widening the page --------- */
+.hd-body .katex-display {
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 2px 0;
+}
+
+/* --- source attribution line above a real-code excerpt ------------------ */
+.hd-srcline {
+    margin: 18px 0 -10px;
+    font-size: 12.5px;
+    color: var(--muted);
+    letter-spacing: .01em;
+}
+.hd-srcline code {
+    background: none !important;
+    border: 0 !important;
+    padding: 0 !important;
+    font-size: 12.5px;
+    color: var(--navy);
+}
 .hd-check.done { color: #2f6b36; background: var(--try-bg); border-color: #b7ddb9; }
 
 /* ---------- code ---------- */
@@ -264,6 +286,7 @@ ol.qlist > li, ul.qlist > li { margin-bottom: 9px; }
 .hd-body :not(pre) > code {
     background: #f0f2f5;
     color: #b02a55;
+    overflow-wrap: anywhere;   /* long file paths must not widen the page */
     padding: 1px 5px;
     border-radius: 3px;
     font-size: .89em;
