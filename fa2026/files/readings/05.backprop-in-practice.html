@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Handout #5: Backprop in Practice — CS 601.471/671</title>
+    <meta name="description"
+          content="Session 5 reading handout: backpropagation as the chain rule on a graph, why reverse mode, what autograd actually does, and PyTorch operators (slides 111–156).">
+
+    <link rel="shortcut icon" href="../favicon.ico">
+    <link rel="stylesheet" href="../fonts.css">
+    <link rel="stylesheet" href="vendor/katex/katex.min.css">
+    <link rel="stylesheet" href="vendor/highlight/github.min.css">
+    <link rel="stylesheet" href="handout.css">
+</head>
+
+<body class="handout" data-handout="05.backprop-in-practice">
+
+<header class="hd-mast">
+    <div class="hd-wrap" style="display:block">
+        <div class="hd-course">CS 601.471/671 &nbsp;·&nbsp; NLP: Self-supervised Models &nbsp;·&nbsp; Fall 2026</div>
+        <h1>Handout #5 — Backprop in Practice</h1>
+        <p class="hd-sub">
+            Session 5 (Tue, Sept 15) &nbsp;·&nbsp;
+            <a href="../slides/03-4-5-6.feedforward-nets.pdf">Slides: Feedforward Nets</a> &nbsp;·&nbsp;
+            <a href="../../index.html">Course page</a>
+        </p>
+    </div>
+</header>
+
+<div class="hd-wrap">
+
+    <!-- TOC is populated by handout.js from the h2/h3 ids below -->
+    <nav class="hd-toc" aria-label="Contents">
+        <div class="hd-toc-title">On this page</div>
+    </nav>
+
+    <main class="hd-body">
+
+                <p class="lead"><a href="04.training-neural-nets.html#s4">Handout #4</a> derived a backward
+sweep for a layered network. Now we apply the same idea to general computation graphs, follow
+local and upstream gradients, and see how automatic differentiation implements the sweep.
+The code reading makes these ideas concrete in a small autograd engine.</p>
+
+        <div class="hd-glance">
+            <dl>
+                <dt>Slides</dt><dd><strong>111–156</strong> of Feedforward Nets: computation graphs
+(111–136), implementing automatic differentiation (137–148), and PyTorch (149–156).
+Slide 156 also opens the transition to Handout #6.</dd>
+                <dt>Assigned papers</dt>
+                <dd>None. <strong>This handout is the reading for Session 5.</strong>
+                    §6 lists optional depth if you want it.</dd>
+
+                <dt>Time</dt>
+                <dd>50–70 minutes.</dd>
+
+                <dt>By the end you should be able to</dt>
+                <dd>
+                    <ul style="margin-bottom:0">
+                        <li>draw a computation graph and propagate gradients through it by hand;</li>
+                        <li>say why backpropagation runs <em>backwards</em>, in terms of cost;</li>
+                        <li>explain what <code>requires_grad</code>, <code>.backward()</code> and
+                            <code>.grad</code> each do, and what <code>no_grad</code> is for;</li>
+                        <li>open <code>micrograd</code>'s 150 lines and point at where each of these
+                            ideas actually lives.</li>
+                    </ul>
+                </dd>
+
+                <dt>Assumes</dt>
+                <dd>
+                    <a href="01.foundations.html#s1-calc">Handout #1 §1.3</a> (the chain rule,
+                    Jacobians), <a href="04.training-neural-nets.html#s1-gd">Handout #4 §1.3</a> (gradient
+                    descent), and <a href="04.training-neural-nets.html#s4">Handout #4 §4</a>
+                    (the analytical backward sweep).
+                </dd>
+            </dl>
+        </div>
+
+
+        <!-- ================================================================ -->
+        <h2 id="s1"><span class="hd-secnum">1</span>Backprop is the chain rule on a graph</h2>
+<p class="hd-srcline">Slides 111–136 · Computation graphs and local/upstream gradients</p>
+<div class="ex"><div class="ex-head"><span>The slides' worked graph (123–134)</span></div><div class="ex-body">
+<p>Let $a=x_1+x_2$, $b=ax_3$, and $f=b-x_4$, with $(x_1,x_2,x_3,x_4)=(5,4,3,2)$.
+Compute the forward values, then all four input derivatives in reverse order.</p>
+<details class="ans"><summary>Answer</summary><div class="ans-body">
+<p>The forward values are $a=9$, $b=27$, and $f=25$. Seed $\partial f/\partial f=1$.
+Subtraction gives $\partial f/\partial b=1$ and $\partial f/\partial x_4=-1$.
+Multiplication gives $\partial f/\partial a=x_3=3$ and $\partial f/\partial x_3=a=9$.
+Addition sends the upstream value 3 to both $x_1$ and $x_2$.
+Thus $\nabla f=(3,3,9,-1)^\top$. Each local derivative multiplies the sensitivity arriving from its output.</p>
+</div></details></div></div>
+
+        <p>
+            There is no new mathematics in backpropagation. It is the chain rule from
+            <a href="01.foundations.html#s1-calc">Handout #1 §1.3</a>, applied to a composition of
+            functions, organized so that nothing gets computed twice. The organizing idea is to stop
+            thinking of a network as a formula and start thinking of it as a
+            <strong>computation graph</strong>: one node per elementary operation, edges carrying
+            values forward.
+        </p>
+
+        <p>Take a concrete function and build its graph:</p>
+        $$
+        f(x, y, z) = \ln x + e^{y}\cdot z
+        $$
+
+        <figure>
+            <svg viewBox="0 0 620 210" width="100%" role="img"
+                 aria-label="Computation graph: x feeds a natural-log node h1; y feeds an exponential node h2; h2 and z feed a multiply node h3; h1 and h3 feed an addition node f.">
+                <defs>
+                    <marker id="a5" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+                        <path d="M0,0 L7,3 L0,6 z" fill="#8fa3bb"/>
+                    </marker>
+                </defs>
+                <g font-family="ui-monospace, Menlo, monospace" font-size="13">
+                    <circle cx="40" cy="42" r="17" fill="#e6eefb" stroke="#9fbde4"/>
+                    <text x="40" y="47" text-anchor="middle" fill="#1c3f75">x</text>
+                    <circle cx="40" cy="104" r="17" fill="#e6eefb" stroke="#9fbde4"/>
+                    <text x="40" y="109" text-anchor="middle" fill="#1c3f75">y</text>
+                    <circle cx="40" cy="166" r="17" fill="#e6eefb" stroke="#9fbde4"/>
+                    <text x="40" y="171" text-anchor="middle" fill="#1c3f75">z</text>
+                </g>
+                <g stroke="#8fa3bb" stroke-width="1.4" fill="none" marker-end="url(#a5)">
+                    <path d="M57 42 L163 42"/>
+                    <path d="M57 104 L163 104"/>
+                    <path d="M57 166 L300 166 L300 133"/>
+                    <path d="M217 104 L300 104 L300 122"/>
+                    <path d="M217 42 L440 42 L440 78"/>
+                    <path d="M340 128 L440 128 L440 100"/>
+                </g>
+                <g font-family="roboto, sans-serif" font-size="12.5">
+                    <rect x="163" y="26" width="54" height="32" rx="5" fill="#cfe0f6" stroke="#68ACE5"/>
+                    <text x="190" y="46" text-anchor="middle" fill="#002d72">ln</text>
+                    <text x="190" y="20" text-anchor="middle" font-size="10.5" fill="#6b7480">h₁</text>
+
+                    <rect x="163" y="88" width="54" height="32" rx="5" fill="#cfe0f6" stroke="#68ACE5"/>
+                    <text x="190" y="108" text-anchor="middle" fill="#002d72">exp</text>
+                    <text x="190" y="82" text-anchor="middle" font-size="10.5" fill="#6b7480">h₂</text>
+
+                    <rect x="286" y="122" width="54" height="32" rx="5" fill="#cfe0f6" stroke="#68ACE5"/>
+                    <text x="313" y="142" text-anchor="middle" fill="#002d72">×</text>
+                    <text x="313" y="116" text-anchor="middle" font-size="10.5" fill="#6b7480">h₃</text>
+
+                    <rect x="413" y="78" width="54" height="32" rx="5" fill="#002d72"/>
+                    <text x="440" y="98" text-anchor="middle" fill="#ffffff">+</text>
+                    <text x="484" y="98" font-size="12.5" fill="#002d72" font-weight="700">f</text>
+                </g>
+            </svg>
+            <figcaption>
+                Each node is one elementary operation. $h_1 = \ln x$, $h_2 = e^{y}$,
+                $h_3 = h_2 \cdot z$, $f = h_1 + h_3$.
+            </figcaption>
+        </figure>
+
+        <p>
+            <strong>Forward pass:</strong> walk left to right, storing each intermediate value.
+            <strong>Backward pass:</strong> walk right to left, and at every node apply the same
+            rule —
+        </p>
+
+        <div class="callout">
+            <span class="callout-label">The only rule you need</span>
+            $$\text{downstream} = \text{upstream} \times \text{local}$$
+            The <em>upstream</em> gradient is $\partial f / \partial(\text{this node's output})$,
+            handed to you by the node ahead. The <em>local</em> gradient is the derivative of this node
+            alone with respect to its input — something you can write down without knowing anything
+            about the rest of the graph. Multiply, pass it back. That locality is the whole trick: each
+            node needs to know only its own derivative.
+        </div>
+
+        <div class="ex">
+            <div class="ex-head"><span>Exercise 1.1 — propagate by hand</span>
+                <span class="ex-src">Quiz 1, sp2023, Q2; also HW3, sp2025, §5</span></div>
+            <div class="ex-body">
+                <p>
+                    For $f(x,y,z) = \ln x + e^{y}\cdot z$ at $(x,y,z) = (1, 3, 2)$:
+                </p>
+                <ol class="qlist">
+                    <li>Run the forward pass. Give $h_1$, $h_2$, $h_3$ and $f$.</li>
+                    <li>
+                        Give the local gradient at each node — $\partial h_1/\partial x$,
+                        $\partial h_2/\partial y$, $\partial h_3/\partial h_2$,
+                        $\partial h_3/\partial z$, $\partial f/\partial h_1$,
+                        $\partial f/\partial h_3$.
+                    </li>
+                    <li>
+                        Combine them to get $\partial f/\partial x$, $\partial f/\partial y$ and
+                        $\partial f/\partial z$.
+                    </li>
+                </ol>
+
+                <details class="ans">
+                    <summary>Answers</summary>
+                    <div class="ans-body">
+                        <p><strong>1. Forward.</strong></p>
+                        <div class="tbl-scroll">
+                        <table class="tbl">
+                            <thead><tr><th>Node</th><th>Expression</th><th>Value at $(1,3,2)$</th></tr></thead>
+                            <tbody>
+                            <tr><td>$h_1$</td><td>$\ln x$</td><td>$\ln 1 = 0$</td></tr>
+                            <tr><td>$h_2$</td><td>$e^{y}$</td><td>$e^{3} \approx 20.086$</td></tr>
+                            <tr><td>$h_3$</td><td>$h_2 \cdot z$</td><td>$2e^{3} \approx 40.171$</td></tr>
+                            <tr><td>$f$</td><td>$h_1 + h_3$</td><td>$0 + 2e^{3} \approx 40.171$</td></tr>
+                            </tbody>
+                            </table>
+                        </div>
+
+                        <p><strong>2. Local gradients.</strong> Each depends only on its own node:</p>
+                        $$
+                        \frac{\partial h_1}{\partial x} = \frac{1}{x} = 1, \qquad
+                        \frac{\partial h_2}{\partial y} = e^{y} = e^{3}, \qquad
+                        \frac{\partial h_3}{\partial h_2} = z = 2, \qquad
+                        \frac{\partial h_3}{\partial z} = h_2 = e^{3},
+                        $$
+                        $$
+                        \frac{\partial f}{\partial h_1} = 1, \qquad
+                        \frac{\partial f}{\partial h_3} = 1
+                        \qquad\text{(addition passes gradient through unchanged).}
+                        $$
+                        <p>
+                            Notice that $\partial h_3/\partial z$ needs $h_2$'s <em>value</em> — which is
+                            exactly why the forward pass stores its intermediates. A multiplication node
+                            hands each input the <em>other</em> input as its local gradient.
+                        </p>
+
+                        <p><strong>3. Combine, right to left.</strong></p>
+                        $$
+                        \frac{\partial f}{\partial x}
+                        = \underbrace{1}_{\partial f/\partial h_1}\cdot\underbrace{\frac{1}{x}}_{\text{local}}
+                        = \mathbf{1}
+                        $$
+                        $$
+                        \frac{\partial f}{\partial z}
+                        = \underbrace{1}_{\partial f/\partial h_3}\cdot\underbrace{h_2}_{\text{local}}
+                        = e^{3} \approx \mathbf{20.086}
+                        $$
+                        $$
+                        \frac{\partial f}{\partial y}
+                        = \underbrace{1}_{\partial f/\partial h_3}\cdot\underbrace{z}_{\partial h_3/\partial h_2}
+                        \cdot\underbrace{e^{y}}_{\partial h_2/\partial y}
+                        = 2e^{3} \approx \mathbf{40.171}
+                        $$
+                        <p class="w-note">
+                            Check them against autograd — three lines, and worth actually running:
+                        </p>
+                        <pre><code class="language-python">x = torch.tensor([1.0], requires_grad=True)
+y = torch.tensor([3.0], requires_grad=True)
+z = torch.tensor([2.0], requires_grad=True)
+
+f = torch.log(x) + torch.exp(y) * z
+f.backward()
+x.grad, y.grad, z.grad     # tensor([1.]), tensor([40.1711]), tensor([20.0855])</code></pre>
+                    </div>
+                </details>
+            </div>
+        </div>
+
+
+        <!-- ================================================================ -->
+        <h2 id="s2"><span class="hd-secnum">2</span>Why <em>backwards</em>?</h2>
+
+        <p>
+            The chain rule does not tell you which direction to evaluate in. You could go left to
+            right, computing $\partial(\text{everything})/\partial x$ as you sweep forward — that is
+            <strong>forward-mode</strong> differentiation, and it is perfectly valid. So why does
+            everyone go backwards?
+        </p>
+
+        <p>Count the passes. For a function $f : \mathbb{R}^n \to \mathbb{R}^m$:</p>
+
+        <div class="tbl-scroll">
+        <table class="tbl">
+            <thead>
+            <tr><th></th><th>One pass gives you…</th><th>Passes needed for the full Jacobian</th></tr>
+            </thead>
+            <tbody>
+            <tr>
+                <td><strong>Forward mode</strong></td>
+                <td>the derivative of <em>everything</em> with respect to <em>one input</em></td>
+                <td>$n$ — one per input</td>
+            </tr>
+            <tr>
+                <td><strong>Reverse mode</strong></td>
+                <td>the derivative of <em>one output</em> with respect to <em>everything</em></td>
+                <td>$m$ — one per output</td>
+            </tr>
+            </tbody>
+        </table>
+        </div>
+
+        <p>
+            Now look at what we actually need. Training minimizes a <strong>scalar</strong> loss with
+            respect to <em>every parameter</em>: $n$ is in the billions, $m = 1$. Reverse mode gets the
+            whole gradient in <strong>one</strong> backward pass; forward mode would need billions of
+            them. That asymmetry — and nothing else — is why backpropagation runs backwards.
+        </p>
+
+        <div class="callout aside">
+            <span class="callout-label">A useful consequence</span>
+            The backward pass costs roughly the same as the forward pass — a small constant factor more,
+            because each node does a couple of multiplications instead of one. So a training step costs
+            about 2–3× an inference step, regardless of depth. Backprop is also <strong>linear</strong>
+            in the number of layers, not quadratic: each node is visited once. (That "quadratic in the
+            number of layers" claim is a perennial quiz distractor — see §5.)
+        </div>
+
+        <p>
+            The price is memory. Every intermediate value the backward pass will need must be
+            <em>kept</em> from the forward pass — that is what $\partial h_3/\partial z = h_2$ was
+            telling us in §1. Activation memory, not parameter memory, is what usually decides the
+            largest batch you can fit, and techniques like gradient checkpointing exist purely to trade
+            recomputation against it.
+        </p>
+
+
+        <!-- ================================================================ -->
+        <h2 id="s3"><span class="hd-secnum">3</span>What autograd actually does</h2>
+
+        <p>
+            PyTorch builds the graph from §1 for you, at runtime, as your forward code executes. There
+            is no compilation step and no special syntax: ordinary Python arithmetic on tensors records
+            itself.
+        </p>
+
+        <pre><code class="language-python">import torch
+
+w = torch.tensor([2.0], requires_grad=True)     # a leaf we want gradients for
+x = torch.tensor([3.0])                         # data: no requires_grad, no gradient
+
+y = w * x                                       # y remembers: "I came from a mul"
+loss = (y - 1.0) ** 2                           # ...and so on, node by node
+
+print(y.grad_fn)        # &lt;MulBackward0 ...&gt;    -- the recorded operation
+print(loss.requires_grad)   # True              -- inherited from w
+
+loss.backward()         # walk the recorded graph, right to left
+print(w.grad)           # tensor([30.]) -- d/dw (wx-1)^2 = 2(wx-1)x = 2(5)(3)
+print(x.grad)           # None -- x never asked for gradients</code></pre>
+
+        <p>Four things in there deserve emphasis.</p>
+
+        <ul>
+            <li>
+                <strong><code>requires_grad</code> marks what you want gradients for.</strong> It
+                propagates: any tensor computed from a <code>requires_grad</code> tensor also carries
+                gradients. Model parameters have it set by default; your data does not, and should not.
+            </li>
+            <li>
+                <strong><code>grad_fn</code> is the graph.</strong> Each non-leaf tensor holds a
+                reference to the operation that produced it and to its inputs. "Building the graph" is
+                not a separate phase — it <em>is</em> the forward pass.
+            </li>
+            <li>
+                <strong><code>.backward()</code> consumes the graph.</strong> By default the graph is
+                freed as it is traversed, which is why calling <code>backward()</code> twice on the same
+                loss raises an error rather than silently doubling your gradient.
+            </li>
+            <li>
+                <strong><code>.grad</code> accumulates.</strong> It is <em>added to</em>, never
+                replaced — hence <code>optimizer.zero_grad()</code>, and
+                <a href="01.foundations.html#s1-pytorch">Handout #1 Exercise 1.5c</a>.
+            </li>
+        </ul>
+
+        <div class="callout warn">
+            <span class="callout-label">Turning it off, and why you must</span>
+            Recording the graph costs time and — mostly — memory. When you are not going to call
+            <code>backward()</code>, say so:
+            <pre style="margin:10px 0 0"><code class="language-python">model.eval()
+with torch.no_grad():                    # record nothing; free the memory
+    val_loss = F.cross_entropy(model(x_val), y_val)</code></pre>
+            <p style="margin:8px 0 0">
+                Forgetting <code>no_grad</code> around an evaluation loop is one of the most common
+                out-of-memory causes there is: you are storing activations for the entire validation
+                set in order to compute gradients you then throw away. <code>tensor.detach()</code>
+                does the same job for a single tensor — it returns a copy cut out of the graph, which
+                is what you want when logging a loss value or feeding a model's own output back in as
+                data.
+            </p>
+        </div>
+
+        <h3 id="s3-loop">3.1 &nbsp;The loop, annotated</h3>
+
+        <p>
+            <a href="04.training-neural-nets.html#s1-sgd">Handout #4 §1.4</a> introduced minibatch gradient descent.
+            Here is its training loop, with every line now accounted for:
+        </p>
+
+        <pre><code class="language-python">for x_batch, y_batch in dataloader:
+    optimizer.zero_grad()              # .grad accumulates -- clear last step's
+    logits = model(x_batch)            # forward: compute AND record the graph
+    loss = F.cross_entropy(logits, y_batch)     # one scalar -- reverse mode needs m = 1
+    loss.backward()                    # traverse the graph, fill every .grad
+    optimizer.step()                   # theta <- theta - lr * grad   (Handout #4 §1.3)</code></pre>
+
+        <p>
+            The order is forced. <code>backward()</code> needs the graph, so it must follow the forward
+            pass; <code>step()</code> needs the gradients, so it must follow <code>backward()</code>;
+            and <code>zero_grad()</code> must happen before <code>backward()</code> or you add this
+            step's gradients to the last one's. Every model in the rest of this course trains with
+            exactly these five lines.
+        </p>
+
+
+<div class="ex" id="sample-autograd-order"><div class="ex-head"><span>Who computes, who updates, who clears?</span>
+<span class="ex-src">Adapted from Quiz 1, sp2024, Q1.14–16</span></div><div class="ex-body">
+<p>After a forward pass has produced a scalar loss, explain the roles and valid ordering of
+<code>loss.backward()</code>, <code>optimizer.step()</code>, and <code>optimizer.zero_grad(set_to_none=True)</code>.
+Does <code>backward()</code> change parameter values? Can clearing gradients at the end of a step also be correct?</p><details class="ans"><summary>Work it out, then reveal the answer</summary>
+<div class="ans-body"><p>Clear old gradients, run the forward pass, call <code>backward()</code> to accumulate derivatives into leaf parameter <code>.grad</code> buffers, then call <code>step()</code> to update parameters. Backward alone does not update their values. Clearing after the update also works if gradients are clear before the first backward pass and none are unintentionally carried into the next one. Clearing between backward and step discards the gradients the optimizer needs.</p></div></details></div></div>
+
+<div class="ex" id="sample-grad-accumulation"><div class="ex-head"><span>Predict the accumulation</span>
+<span class="ex-src">Adapted from Quiz 1, sp2024, Q1.15–16 (coding extension)</span></div><div class="ex-body">
+<p>Predict the three printed gradients before running this independent snippet. Each backward call uses a newly constructed graph.</p>
+<pre><code class="language-python">import torch
+w = torch.tensor(2.0, requires_grad=True)
+(w ** 2).backward()
+print(w.grad.item())
+(3 * w).backward()
+print(w.grad.item())
+w.grad = None
+(3 * w).backward()
+print(w.grad.item())
+assert w.item() == 2.0 and w.grad.item() == 3.0</code></pre><details class="ans"><summary>Work it out, then reveal the answer</summary>
+<div class="ans-body"><p>The outputs are 4, 7, and 3. The second backward adds its contribution 3 to the existing 4. Clearing removes the earlier contribution. The parameter remains 2 throughout because no optimizer update occurs.</p></div></details></div></div>
+
+<div class="ex" id="sample-module-registration"><div class="ex-head"><span>What does nn.Module contribute?</span>
+<span class="ex-src">Adapted from Quiz 1, sp2024, Q1.21</span></div><div class="ex-body">
+<p>Is <code>nn.Module</code> an optimizer, a data loader, or a base class for composing neural-network components? If a learned weight is stored as an ordinary tensor attribute, will <code>model.parameters()</code> automatically include it?</p><details class="ans"><summary>Work it out, then reveal the answer</summary>
+<div class="ans-body"><p>It is the base class for neural-network components. Assigning an <code>nn.Parameter</code> registers a learned parameter; assigning a child module registers that component. An ordinary tensor attribute is not automatically a parameter, even if it has <code>requires_grad=True</code>. An optimizer built from <code>model.parameters()</code> will therefore miss that tensor.</p></div></details></div></div>
+<h2 id="s5"><span class="hd-secnum">4</span>Reading real code: <code>micrograd</code></h2>
+
+        <p>
+            Everything above is now in your head. The rest of your career it will be in
+            <em>someone else's repository</em>, written by people who were not trying to teach you
+            anything. Being able to open an unfamiliar file, find the four lines that matter, and
+            recognize them as something you already understand is a skill in itself — and it is
+            learnable. Each handout from here on ends with one short reading of real, widely used code.
+        </p>
+
+        <p>
+            The one for backprop is Karpathy's
+            <a href="https://github.com/karpathy/micrograd" target="_blank" rel="noopener noreferrer">micrograd</a>:
+            a scalar-valued autograd engine in about 150 lines, plus a small neural-net library on top
+            of it. It is a real, working reverse-mode autodiff implementation — the same algorithm
+            PyTorch runs, with the tensors, the kernels, the device handling and the twenty years of
+            performance work stripped away. What is left is §1–§3 of this handout, in Python you can
+            read in one sitting.
+        </p>
+
+        <div class="callout try">
+            <div class="callout-label">Try it</div>
+            <p>
+                Two files, both worth opening in a browser tab beside this page:
+            </p>
+            <ul style="margin-bottom:0">
+                <li><a href="https://github.com/karpathy/micrograd/blob/master/micrograd/engine.py" target="_blank" rel="noopener noreferrer"><code>micrograd/engine.py</code></a>
+                    — 94 lines. The autograd engine: one class, <code>Value</code>.</li>
+                <li><a href="https://github.com/karpathy/micrograd/blob/master/micrograd/nn.py" target="_blank" rel="noopener noreferrer"><code>micrograd/nn.py</code></a>
+                    — 60 lines. <code>Neuron</code>, <code>Layer</code>, <code>MLP</code>, and how a
+                    model exposes its parameters.</li>
+            </ul>
+        </div>
+
+        <p>
+            <strong>What to assess as you read.</strong> Not "do I understand every line" — you will,
+            and that is not the point. The question is whether you can point at the place in the file
+            where each idea from this handout lives: the computation graph, the local derivatives,
+            gradient accumulation, the reverse topological traversal, and the parameter interface. The
+            four subsections below walk those five, then §4.5 hands the file back to you.
+        </p>
+
+
+        <h3 id="s5-node">4.1 &nbsp;The graph is built by the forward pass</h3>
+
+        <p>
+            There is no graph data structure anywhere in <code>micrograd</code>, and no function that
+            constructs one. Every node builds itself, at the moment the operation that produced it is
+            executed:
+        </p>
+
+        <p class="hd-srcline"><code>engine.py</code> · <code>Value.__init__</code></p>
+        <pre><code class="language-python">def __init__(self, data, _children=(), _op=''):
+    self.data = data
+    self.grad = 0
+    # internal variables used for autograd graph construction
+    self._backward = lambda: None
+    self._prev = set(_children)
+    self._op = _op # the op that produced this node, for graphviz / debugging / etc</code></pre>
+
+        <p>
+            That is the whole node: a number (<code>data</code>), a slot for its gradient
+            (<code>grad</code>, initialized to zero and not to <code>None</code> — remember that), the
+            set of nodes it was computed from (<code>_prev</code>), and a closure
+            (<code>_backward</code>) that knows how to push a gradient one step further back. The
+            default <code>_backward</code> is a no-op, which is exactly right for a leaf: an input has
+            no children to send anything to.
+        </p>
+
+        <p>
+            <code>_prev</code> is the edge set of §1's diagram. It points <em>backwards</em>, from a
+            node to its inputs, because backwards is the only direction the algorithm ever needs to
+            walk. This is PyTorch's <code>grad_fn</code> from §3, in nine lines: <code>_op</code> is
+            the string PyTorch would render as <code>MulBackward0</code>, and <code>_backward</code>
+            is the function behind it.
+        </p>
+
+
+        <h3 id="s5-local">4.2 &nbsp;Local derivatives, and why <code>+=</code></h3>
+
+        <p>
+            Now the operations. Each one does two things: compute the output value, and install the
+            closure that will later distribute the output's gradient to the inputs.
+        </p>
+
+        <p class="hd-srcline"><code>engine.py</code> · <code>Value.__mul__</code></p>
+        <pre><code class="language-python">def __mul__(self, other):
+    other = other if isinstance(other, Value) else Value(other)
+    out = Value(self.data * other.data, (self, other), '*')
+
+    def _backward():
+        self.grad += other.data * out.grad
+        other.grad += self.data * out.grad
+    out._backward = _backward
+
+    return out</code></pre>
+
+        <p>
+            Read the two lines inside <code>_backward</code> against §1's rule. <code>out.grad</code>
+            is the <strong>upstream</strong> gradient $\partial L/\partial \text{out}$;
+            <code>other.data</code> is the <strong>local</strong> derivative $\partial
+            \text{out}/\partial \text{self}$, which for a product is just the other operand. Their
+            product is the <strong>downstream</strong> gradient. <em>Downstream = upstream × local</em>
+            is not a slogan about backprop; it is line 1 of <code>_backward</code>, in every op in the
+            file. Check the others and you will find nothing new — <code>__add__</code> passes
+            <code>out.grad</code> through unchanged (local derivative $1$), <code>__pow__</code>
+            multiplies by $n x^{n-1}$, and <code>relu</code> multiplies by
+            <code>(out.data &gt; 0)</code>, a Python bool doing duty as the $\{0,1\}$ gate.
+        </p>
+
+        <p>
+            The <code>+=</code> is the part to slow down on. It is gradient accumulation — §3's claim
+            that <code>.grad</code> adds rather than overwrites, and the reason your training loop
+            needs <code>zero_grad()</code>. Here you can see precisely why it must be a sum. Consider
+            $y = x \cdot x + x$. The node <code>x</code> is reached along three separate edges, and
+            each one delivers its own contribution: two from the product, one from the sum. The correct
+            derivative $2x + 1$ only appears if they are added up.
+        </p>
+
+        <div class="callout warn">
+            <div class="callout-label">Change one character</div>
+            <p style="margin-bottom:0">
+                Replace both <code>+=</code> with <code>=</code> and run
+                <code>x = Value(3.0); y = x*x + x; y.backward()</code>. Correct is
+                <code>x.grad == 7.0</code>. With the overwrite you get <code>3.0</code> — the last
+                edge to be processed wins and the other two are erased. Note what this bug does
+                <em>not</em> do: it does not crash, it does not produce a NaN, and on a graph where
+                every node happens to have one consumer it gives the right answer. It just quietly
+                trains a worse model. Most autograd bugs look like this.
+            </p>
+        </div>
+
+
+        <h3 id="s5-topo">4.3 &nbsp;The traversal: <code>backward()</code></h3>
+
+        <p>
+            Eleven lines, and it is the entire algorithm of §2:
+        </p>
+
+        <p class="hd-srcline"><code>engine.py</code> · <code>Value.backward</code></p>
+        <pre><code class="language-python">def backward(self):
+
+    # topological order all of the children in the graph
+    topo = []
+    visited = set()
+    def build_topo(v):
+        if v not in visited:
+            visited.add(v)
+            for child in v._prev:
+                build_topo(child)
+            topo.append(v)
+    build_topo(self)
+
+    # go one variable at a time and apply the chain rule to get its gradient
+    self.grad = 1
+    for v in reversed(topo):
+        v._backward()</code></pre>
+
+        <p>
+            <code>build_topo</code> is a depth-first post-order walk: a node is appended only after all
+            of its children are, so <code>topo</code> runs inputs-first and ends with the node you
+            called <code>.backward()</code> on. Then <code>reversed(topo)</code> walks it
+            root-first. That ordering is the correctness condition of the whole method — a node's
+            <code>_backward</code> may only run once <code>out.grad</code> is <em>final</em>, meaning
+            every consumer of that node has already contributed. Reverse topological order is exactly
+            the order that guarantees it.
+        </p>
+
+        <p>
+            <code>self.grad = 1</code> is the seed: $\partial L/\partial L = 1$. It is also the
+            precise place where "we need the loss to be a scalar" is enforced — you cannot seed a
+            vector with $1$ and this line would be meaningless. That is PyTorch's
+            <code>loss.backward()</code> versus <code>t.backward(gradient=...)</code>, and it is §2's
+            $m = 1$ argument reduced to an assignment.
+        </p>
+
+        <p>
+            Finally, count the work: <code>visited</code> ensures each node is appended once, and the
+            loop calls each <code>_backward</code> once. One pass, one visit per node —
+            <strong>linear</strong> in the size of the graph, which is the answer to §5's Q1 sitting in
+            plain sight.
+        </p>
+
+        <div class="callout warn">
+            <div class="callout-label">Change one word</div>
+            <p style="margin-bottom:0">
+                Drop the <code>reversed</code>. On <code>a = Value(2.0); b = Value(5.0); L = a*b + a</code>
+                the correct gradients are <code>a.grad == 6.0</code>, <code>b.grad == 2.0</code>; walking
+                <code>topo</code> forwards gives <code>1.0</code> and <code>0.0</code>. Trace why:
+                every node's <code>_backward</code> now runs <em>before</em> its own
+                <code>grad</code> has been set, so it faithfully multiplies the correct local
+                derivative by an upstream gradient of zero. Only the root, which was seeded by hand,
+                does anything at all.
+            </p>
+        </div>
+
+
+        <h3 id="s5-params">4.4 &nbsp;How a model exposes its parameters</h3>
+
+        <p>
+            <code>nn.py</code> adds no calculus whatsoever — it is 60 lines of bookkeeping over
+            <code>Value</code>. But it answers a question Handout #3's training loop skipped: when you
+            write <code>optimizer.step()</code>, how does anything know <em>which</em> numbers are the
+            model's?
+        </p>
+
+        <p class="hd-srcline"><code>nn.py</code> · the parameter interface (<code>__repr__</code> and
+            constructors elided; everything else is verbatim)</p>
+        <pre><code class="language-python">class Module:
+    def zero_grad(self):
+        for p in self.parameters():
+            p.grad = 0
+    def parameters(self):
+        return []
+
+class Neuron(Module):
+    def __init__(self, nin, nonlin=True):
+        self.w = [Value(random.uniform(-1,1)) for _ in range(nin)]
+        self.b = Value(0)
+        self.nonlin = nonlin
+    def __call__(self, x):
+        act = sum((wi*xi for wi,xi in zip(self.w, x)), self.b)
+        return act.relu() if self.nonlin else act
+    def parameters(self):
+        return self.w + [self.b]
+
+class Layer(Module):
+    def parameters(self):
+        return [p for n in self.neurons for p in n.parameters()]
+
+class MLP(Module):
+    def parameters(self):
+        return [p for layer in self.layers for p in layer.parameters()]</code></pre>
+
+        <p>
+            One contract — <code>parameters()</code> returns a flat list of leaf <code>Value</code>s —
+            and it composes by recursion: a layer's parameters are its neurons' concatenated, a
+            network's are its layers'. <code>zero_grad</code> is then a two-line loop defined once, on
+            the base class, and inherited by everything. This is <code>torch.nn.Module</code> in
+            miniature: <code>model.parameters()</code>, the thing you hand to your optimizer, is the
+            same recursive flattening, and PyTorch's version differs mainly in doing the registration
+            automatically (via <code>__setattr__</code>) instead of making you write the list.
+        </p>
+
+        <p>
+            Two details worth catching in <code>__call__</code>, both easy to read past. The
+            <code>sum(..., self.b)</code> uses the bias as the <em>start value</em> of the sum, which
+            is how $b$ enters the graph as an ordinary addend rather than a special case. And
+            <code>nonlin</code> exists because <code>MLP.__init__</code> sets
+            <code>nonlin = i != len(nouts)-1</code>: every layer gets a ReLU except the last. That is
+            not a stylistic choice — a ReLU on the output would clamp every negative prediction to
+            zero and, worse, hand back a zero gradient for all of them.
+        </p>
+
+
+        <h3 id="s5-yours">4.5 &nbsp;Now do something to it</h3>
+
+        <p>
+            <button class="w-btn" type="button" data-toggle-answers="#s5-zone">Show all answers</button>
+        </p>
+
+        <div id="s5-zone">
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q1.</strong> §1's exercise used $f = \ln x + e^{y} z$. Try to build it with
+                    <code>micrograd</code>. What stops you, and what would you have to write?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    <code>Value</code> has <code>__add__</code>, <code>__mul__</code>,
+                    <code>__pow__</code> and <code>relu</code> — and nothing else.
+                    There is no <code>log</code> and no <code>exp</code>, so the expression is simply
+                    not expressible. Adding them is the best possible exercise on this file, because
+                    each is four lines and you cannot fake your way through the local derivative:
+<pre><code class="language-python">def exp(self):
+    out = Value(math.exp(self.data), (self,), 'exp')
+    def _backward():
+        self.grad += out.data * out.grad      # d/dx e^x = e^x -- reuse out.data
+    out._backward = _backward
+    return out
+
+def log(self):
+    out = Value(math.log(self.data), (self,), 'log')
+    def _backward():
+        self.grad += (1 / self.data) * out.grad
+    out._backward = _backward
+    return out</code></pre>
+                    Note the asymmetry that makes the point: <code>exp</code>'s local derivative is
+                    most cheaply read off the <em>output</em> (<code>out.data</code>), while
+                    <code>log</code>'s needs the <em>input</em> (<code>self.data</code>). Real
+                    frameworks make the same choice op by op, and it is why activations have to be
+                    kept around — §2's memory argument, from the other side.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q2.</strong> <code>_prev</code> is a <code>set</code>. What breaks in
+                    <code>x * x</code>, and why is it fine anyway?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    <code>_children = (self, other)</code> where both are the same object, so
+                    <code>set(_children)</code> has <strong>one</strong> element and the graph appears
+                    to have a single edge where mathematically there are two. It is fine because
+                    <code>_prev</code> is used only to decide traversal <em>order</em>, never to count
+                    contributions. The two contributions are delivered by the two
+                    <code>+=</code> statements inside the single <code>_backward</code> closure, which
+                    runs once and adds both. Deduplicating the edge is in fact necessary: visiting
+                    <code>x</code> twice in the traversal would not double the gradient, but the
+                    <code>visited</code> set already prevents that.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q3.</strong> <code>backward()</code> can be called on <em>any</em>
+                    <code>Value</code>, not just a loss. What happens if you call it twice on the same
+                    node without zeroing, and how does PyTorch differ?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    In <code>micrograd</code> you get <strong>double</strong> the gradients — the
+                    graph is rebuilt and traversed again, and every <code>+=</code> lands on top of the
+                    values from the first call. (The seed <code>self.grad = 1</code> is an assignment,
+                    so the root itself is not doubled; everything else is.) PyTorch instead raises
+                    <em>"Trying to backward through the graph a second time"</em>, because it
+                    <strong>frees</strong> the graph after the backward pass — the behavior §3
+                    described. Micrograd keeps the graph alive as long as you hold a reference to the
+                    output, which is friendlier to experiment with and much more expensive.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q4.</strong> There is no <code>no_grad</code> in <code>micrograd</code>, and
+                    no <code>requires_grad</code> either. What are the consequences at inference time?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    Every forward pass allocates the full graph, unconditionally: a
+                    <code>Value</code> object per intermediate scalar, each holding a closure and a
+                    set. You cannot turn it off, so evaluating the model costs the same memory as
+                    training it. That is exactly the bug §3 warned about — a validation loop without
+                    <code>no_grad</code> — except here it is not a bug but the design, which is
+                    tolerable only because the graphs are tiny. It also means micrograd has no notion
+                    of a constant: inputs and parameters are indistinguishable, and
+                    <code>x.grad</code> is computed for the data whether you want it or not.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q5.</strong> How many <code>Value</code> objects does
+                    <code>MLP(3, [4, 4, 1]).parameters()</code> return? And roughly how many exist
+                    after one forward pass?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    Parameters: $4 \times (3{+}1) + 4 \times (4{+}1) + 1 \times (4{+}1) = 16 + 20 + 5 =
+                    \textbf{41}$ — weights plus one bias per neuron, at each of the three layers.
+                    Intermediates are far more numerous: every single <code>wi*xi</code> product and
+                    every partial sum is its own node, so the first layer alone creates roughly
+                    $4 \times (3 + 3 + 1)$ of them. This is the scalar-autograd tax, and it is the one
+                    thing PyTorch changes structurally: one tensor node covers a whole matmul, so the
+                    graph has a handful of nodes where micrograd would have millions. The
+                    <em>algorithm</em> in §4.3 is unchanged — only the granularity is.
+                </div></details>
+            </div>
+        </div>
+
+        </div><!-- /#s5-zone -->
+
+        <div class="hd-check" data-key="micrograd">
+            <input type="checkbox" id="chk-micrograd">
+            <label for="chk-micrograd">I can point at the line in <code>engine.py</code> that
+                implements each of: the graph edges, a local derivative, gradient accumulation, the
+                reverse traversal, and the scalar seed.</label>
+        </div>
+
+        <!-- ================================================================ -->
+        <h2 id="s6"><span class="hd-secnum">5</span>Check yourself</h2>
+
+        <p>
+            <button class="w-btn" type="button" data-toggle-answers="#s6-zone">Show all answers</button>
+        </p>
+
+        <div id="s6-zone">
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q1.</strong> True or false: backpropagation is a sequential process, and its
+                    complexity is a quadratic function of the number of layers.
+                    <span class="ex-src">Quiz 1, sp2024 &amp; sp2025</span></p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    <strong>False</strong> — and this is the standard distractor on this topic. It is
+                    sequential (you cannot compute layer $k$'s gradient before layer $k+1$'s), but the
+                    cost is <strong>linear</strong> in depth: each node is visited exactly once on the
+                    way back. That is the entire point of reverse mode, §2 — if it were quadratic,
+                    deep networks would never have become practical.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q2.</strong> True or false: when the gradient flows backward through a
+                    sigmoid or tanh nonlinearity, it cannot change sign.
+                    <span class="ex-src">Quiz 1, sp2024 &amp; sp2025</span></p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    <strong>True.</strong> The local gradient of a sigmoid is
+                    $\sigma(z)\bigl(1-\sigma(z)\bigr)$, which is strictly positive since
+                    $\sigma \in (0,1)$; $\tanh' = 1 - \tanh^2$ is likewise positive on $(-1,1)$.
+                    Multiplying by a positive number preserves sign. Note the flip side: that local
+                    gradient is at most $0.25$ for the sigmoid, so this activation attenuates the
+                    upstream signal. The weight matrix can also amplify it; the whole layer need not
+                    shrink gradients by four. We study these products in Handout #6. ReLU has local
+                    derivative 1 on its positive side
+                    (<a href="03.neural-nets.html#s2-activations">Handout #3 §2.3</a>).
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q3.</strong> Why does the backward pass need values computed during the
+                    forward pass? Give the smallest example you can.</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    Because local gradients often depend on the node's inputs. The smallest example is
+                    multiplication: for $h = a \cdot b$, $\partial h/\partial a = b$ and
+                    $\partial h/\partial b = a$ — each input's local gradient <em>is</em> the other
+                    input's value, so both must be retained. §1's $\partial h_3/\partial z = h_2$ is
+                    exactly this. The consequence is the memory cost in §2: activations are kept alive
+                    from forward to backward, which is usually what limits batch size.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q4.</strong> You evaluate your model on a validation set inside the training
+                    loop and run out of GPU memory, even though the validation set is smaller than a
+                    training batch. What did you forget, and why does it matter so much?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    Check whether validation uses <code>torch.no_grad()</code>. Recording an unneeded
+                    graph increases memory for a forward pass; retaining graph-connected outputs or
+                    losses across batches can keep multiple graphs alive. Graphs do not automatically
+                    accumulate if no references remain. <code>model.eval()</code> changes dropout and
+                    batch-normalization behavior but does not disable graph recording. Actual memory
+                    limits depend on parameters, optimizer state, activations, and temporary storage.
+                </div></details>
+            </div>
+        </div>
+
+        </div><!-- /#s6-zone -->
+
+
+        <!-- ================================================================ -->
+        <h2 id="s7"><span class="hd-secnum">6</span>Optional further reading</h2>
+
+        <p>
+            Strictly optional — nothing here is assumed in class or on a quiz.
+        </p>
+
+        <ul>
+            <li>
+                <a href="https://www.3blue1brown.com/lessons/backpropagation">3Blue1Brown,
+                <em>Backpropagation, intuitively</em></a> and
+                <a href="https://www.3blue1brown.com/lessons/backpropagation-calculus">
+                <em>Backpropagation calculus</em></a> — these are the assigned reading for Session 4,
+                and if §1 did not land, watch them before anything else.
+            </li>
+            <li>
+                <a href="https://www.youtube.com/watch?v=VMj-3S1tku0" target="_blank" rel="noopener noreferrer">Karpathy,
+                <em>The spelled-out intro to neural networks and backpropagation</em></a> — two and a
+                half hours in which <code>micrograd</code> is written from an empty file. If §4 was the
+                part of this handout you most wanted more of, this is the more.
+            </li>
+            <li>
+                <a href="https://karpathy.github.io/2016/05/31/rl/">Karpathy,
+                <em>Yes you should understand backprop</em></a> — a short argument for why treating
+                <code>.backward()</code> as a black box will eventually cost you, with the failure
+                modes named. Read it after §3.
+            </li>
+            <li>
+                <a href="https://pytorch.org/tutorials/beginner/blitz/autograd_tutorial.html">PyTorch,
+                <em>A Gentle Introduction to torch.autograd</em></a> — the official version of §3,
+                with more on graph mechanics.
+            </li>
+            <li>
+                Rumelhart, Hinton &amp; Williams, <em>Learning representations by back-propagating
+                errors</em> (1986) — four pages, and now readable: you have everything you need.
+            </li>
+        </ul>
+
+        <div class="hd-footer">
+            <p>
+                <strong>Next session.</strong> #6, Thu Sept 17 — <a href="06.training-practice.html">Handout #6: Practical Neural Network Training</a>
+                covers slides 156–188: batching, memory, normalization, activations, initialization,
+                dropout, and debugging.
+            </p>
+            <p>
+                Found an error, or a passage that doesn't land? Post on
+                <a href="https://piazza.com/jhu/fall2026/cs601471671">Piazza</a> — corrections to these
+                handouts are welcome and useful.
+            </p>
+        </div>
+
+    </main>
+</div>
+
+<script defer src="vendor/katex/katex.min.js"></script>
+<script defer src="vendor/katex/auto-render.min.js"></script>
+<script defer src="vendor/highlight/highlight.min.js"></script>
+<script defer src="handout.js"></script>
+
+</body>
+</html>

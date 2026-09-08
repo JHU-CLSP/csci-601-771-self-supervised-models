@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Handout: The Decoder-Only Transformer — CS 601.471/671</title>
+    <meta name="description"
+          content="Reading handout: self-attention from the bottleneck problem, causal masking, multi-head and grouped-query attention, the pre-norm block, RoPE, the KV cache, and a guided reading of Hugging Face's Llama implementation.">
+
+    <link rel="shortcut icon" href="../favicon.ico">
+    <link rel="stylesheet" href="../fonts.css">
+    <link rel="stylesheet" href="vendor/katex/katex.min.css">
+    <link rel="stylesheet" href="vendor/highlight/github.min.css">
+    <link rel="stylesheet" href="handout.css">
+</head>
+
+<body class="handout" data-handout="transformers">
+
+<header class="hd-mast">
+    <div class="hd-wrap" style="display:block">
+        <div class="hd-course">CS 601.471/671 &nbsp;·&nbsp; NLP: Self-supervised Models &nbsp;·&nbsp; Fall 2026</div>
+        <h1>Handout — The Decoder-Only Transformer</h1>
+        <p class="hd-sub">
+            Session number TBD &nbsp;·&nbsp;
+            <a href="../../index.html">Course page</a>
+        </p>
+    </div>
+</header>
+
+<div class="hd-wrap">
+
+    <!-- TOC is populated by handout.js from the h2/h3 ids below -->
+    <nav class="hd-toc" aria-label="Contents">
+        <div class="hd-toc-title">On this page</div>
+    </nav>
+
+    <main class="hd-body">
+
+        <p class="lead">
+            The RNN handout ended with two structural complaints: the recurrence cannot be parallelized
+            over time, and everything about the past has to fit through a fixed-size vector. Attention
+            answers both with the same move — stop summarizing the past, and keep all of it addressable.
+            This handout builds the decoder-only Transformer from that idea, then reads a production
+            implementation of it line by line.
+        </p>
+
+        <div class="hd-glance">
+            <dl>
+                <dt>Assigned papers</dt>
+                <dd>None. <strong>This handout is the reading for this session.</strong>
+                    §8 lists optional depth, including the original paper.</dd>
+
+                <dt>Time</dt>
+                <dd>70–90 minutes. §6 is the longest section and is worth the time.</dd>
+
+                <dt>By the end you should be able to</dt>
+                <dd>
+                    <ul style="margin-bottom:0">
+                        <li>write down scaled dot-product attention and justify every symbol, including
+                            the $1/\sqrt{d}$;</li>
+                        <li>explain the causal mask, and why the same code both trains in parallel and
+                            generates one token at a time;</li>
+                        <li>account for the cost of attention in time and in memory, at training and at
+                            inference;</li>
+                        <li>say what problem each of pre-norm, RMSNorm, RoPE, GQA and SwiGLU solves;</li>
+                        <li>open <code>modeling_llama.py</code> — a 500-line production file — and find
+                            the 40 lines that are the architecture.</li>
+                    </ul>
+                </dd>
+
+                <dt>Assumes</dt>
+                <dd>
+                    <a href="rnn-language-models.html#s5">the RNN handout §5</a> (the two structural
+                    costs), <a href="04.training-neural-nets.html#s2">Handout #4 §2</a> (batched algebra), and
+                    <a href="06.training-practice.html#s9">Handout #6 §9</a> (the LM loss in code).
+                </dd>
+            </dl>
+        </div>
+
+
+        <!-- ================================================================ -->
+        <h2 id="s1"><span class="hd-secnum">1</span>From a summary to an addressable past</h2>
+
+        <p>
+            An RNN computes $h_t = f(h_{t-1}, x_t)$. Whatever position $t$ needs to know about position
+            $t - 40$ has to have survived 40 lossy overwrites of a $d_h$-dimensional vector. The
+            information may still be there; there is no mechanism for asking for it specifically.
+        </p>
+
+        <p>
+            Attention inverts the design. Keep a representation of <em>every</em> previous position, and
+            let each position issue a <strong>query</strong> — "which earlier positions are relevant to
+            me?" — answered by comparing that query against a <strong>key</strong> published by each
+            position. The answer is a set of weights, used to average the <strong>values</strong> those
+            positions also publish. Nothing is compressed away in advance, and the retrieval is learned.
+        </p>
+
+        <div class="callout">
+            <span class="callout-label">The one-sentence version</span>
+            Attention is a differentiable, learned, soft dictionary lookup: instead of returning the
+            single entry whose key matches, it returns a weighted average of all values, with weights
+            given by a softmax over key–query similarities.
+        </div>
+
+        <p>
+            Two consequences follow immediately, and they are exactly the RNN's two complaints, reversed.
+            <strong>Any position can reach any other in one step</strong> — the path length between two
+            tokens is $O(1)$ rather than $O(\text{distance})$, which is also why gradients no longer have
+            to survive a long product of Jacobians. And <strong>all positions can be computed
+            simultaneously</strong>, because position $t$'s output depends on the other positions'
+            representations at the <em>same</em> layer, not on a state threaded through them. Training
+            becomes a few large matrix multiplications, which is precisely what a GPU wants.
+        </p>
+
+
+        <!-- ================================================================ -->
+        <h2 id="s2"><span class="hd-secnum">2</span>Self-attention</h2>
+
+        <h3 id="s2-qkv">2.1 &nbsp;Queries, keys, values</h3>
+
+        <p>
+            Let $X \in \mathbb{R}^{T \times d}$ hold one row per position. Three learned projections
+            produce
+        </p>
+
+        $$ Q = X W_Q, \qquad K = X W_K, \qquad V = X W_V $$
+
+        <p>and the output is</p>
+
+        $$ \operatorname{Attn}(Q,K,V) = \operatorname{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}} + M\right) V $$
+
+        <p>
+            with $M$ the mask of §2.2. Read the shapes, because they carry the meaning:
+            $QK^\top$ is $T \times T$ — one score for every ordered pair of positions — the softmax is
+            taken over the last axis so each row is a distribution over positions, and multiplying by
+            $V \in \mathbb{R}^{T \times d_v}$ produces $T \times d_v$, one output vector per position.
+        </p>
+
+        <p>
+            The <strong>same input</strong> supplies queries, keys and values, which is what "self"
+            means. In a translation model's cross-attention, $Q$ comes from the decoder and $K, V$ from
+            the encoder; the mechanism is identical.
+        </p>
+
+        <h4>Why $1/\sqrt{d_k}$</h4>
+
+        <p>
+            Not a tuning constant. If the entries of $q$ and $k$ are independent with unit variance,
+            then $q \cdot k$ is a sum of $d_k$ such products and has variance $d_k$ — so its standard
+            deviation grows as $\sqrt{d_k}$. Feed scores of that scale into a softmax and it saturates:
+        </p>
+
+        <pre><code class="language-python">d = 64
+q, k = torch.randn(10000, d), torch.randn(10000, d)
+dots = (q * k).sum(-1)
+print(dots.var().item(), (dots * d**-0.5).var().item())
+# 64.03  ->  1.000        variance d, brought back to 1
+
+# and what that does to a softmax over 8 positions:
+# unscaled: max prob 0.9980, entropy 0.014
+# scaled:   max prob 0.4125, entropy 1.708   (uniform would be 2.079)</code></pre>
+
+        <p>
+            An unscaled softmax puts 99.8% of its mass on one position before training has learned
+            anything — and Handout #5 §6 Q2's other half applies: a saturated softmax has near-zero
+            gradient, so the layer cannot learn its way out. Dividing by $\sqrt{d_k}$ keeps the scores
+            $O(1)$ regardless of head dimension. It is a variance-control argument, of the same family
+            as the initialization schemes.
+        </p>
+
+        <h3 id="s2-mask">2.2 &nbsp;The causal mask</h3>
+
+        <p>
+            A language model may not look ahead: $p(x_t \mid x_{&lt;t})$ must not depend on $x_t$ or
+            later. But $QK^\top$ computes all $T^2$ pairs, including future ones. The fix is to add
+            $-\infty$ to the disallowed entries <em>before</em> the softmax, so they receive exactly zero
+            weight:
+        </p>
+
+        $$ M_{ij} = \begin{cases} 0 & j \le i \\ -\infty & j > i \end{cases} $$
+
+        <p>
+            $\exp(-\infty) = 0$, so masked positions contribute nothing and — importantly — the
+            remaining weights still sum to 1, because the softmax normalizes over what is left. Adding
+            a mask before the softmax is not the same as zeroing weights after it, and only the former
+            gives a proper distribution.
+        </p>
+
+        <div class="callout warn">
+            <span class="callout-label">This is why one implementation does two jobs</span>
+            With the mask in place, a single forward pass over a length-$T$ sequence produces, at
+            position $t$, exactly the prediction a model that had only seen $x_{\le t}$ would produce.
+            So <em>all $T$ training predictions are computed in parallel from one pass</em>, and they are
+            all legitimate. This is the property Handout #5 §4.2's shift exploits, and it is the single
+            biggest reason Transformers train efficiently. An RNN gets the same parallelism-free
+            guarantee only by being sequential.
+        </div>
+
+        <h3 id="s2-maskimpl">2.3 &nbsp;Two ways to apply the mask</h3>
+
+        <p>
+            The equation says "add $M$", but in code there are two conventions, and you will meet both.
+            An <strong>additive mask</strong> is a float tensor of $0$ and $-\infty$ that you add to the
+            scores. A <strong>boolean mask</strong> is a tensor of <code>True</code>/<code>False</code>
+            that you hand to <code>masked_fill</code>, which writes the sentinel in for you:
+        </p>
+
+        <pre><code class="language-python"># additive: build the float tensor, then add
+scores = q @ k.transpose(-2, -1) * d_k**-0.5
+scores = scores + mask                       # mask: 0 where allowed, -inf where not
+
+# boolean: keep a predicate, let masked_fill choose the sentinel
+scores = q @ k.transpose(-2, -1) * d_k**-0.5
+scores = scores.masked_fill(blocked, torch.finfo(scores.dtype).min)</code></pre>
+
+        <p>
+            They compute the same thing, and the difference is engineering, not mathematics. Both are
+            common: <code>nn.MultiheadAttention</code> and
+            <code>F.scaled_dot_product_attention</code> accept either form, while Hugging Face passes an
+            additive mask into attention nearly everywhere — which is why §6.4's line reads
+            <code>attn_weights + attention_mask</code>.
+        </p>
+
+        <div class="tbl-scroll">
+        <table class="tbl">
+            <thead><tr><th></th><th>Additive (float)</th><th>Boolean (<code>masked_fill</code>)</th></tr></thead>
+            <tbody>
+                <tr><td>Combining several masks</td>
+                    <td>just sum them</td>
+                    <td><code>&amp;</code> works, but only for hard masks</td></tr>
+                <tr><td>Continuous position biases (ALiBi, T5 relative bias)</td>
+                    <td>same tensor, same addition</td>
+                    <td>does not fit — you end up adding anyway</td></tr>
+                <tr><td>Soft penalties (discourage, not forbid)</td>
+                    <td>subtract $5$ instead of $\infty$</td>
+                    <td>all-or-nothing</td></tr>
+                <tr><td>Memory at $[B, h, T, T]$</td>
+                    <td>4 bytes/entry in fp32</td>
+                    <td>1 byte/entry</td></tr>
+                <tr><td>Dtype safety</td>
+                    <td>must match the score dtype</td>
+                    <td>dtype-agnostic; the sentinel is read off <code>scores.dtype</code></td></tr>
+                <tr><td>Ambiguity</td>
+                    <td>any float can hide in there</td>
+                    <td>one bit, one meaning (modulo polarity)</td></tr>
+            </tbody>
+        </table>
+        </div>
+
+        <p>
+            The memory column matters less than it looks, because masks are almost always broadcast from
+            $[1, 1, T, T]$ rather than materialized per batch and head. The dtype column matters more.
+            An additive mask has to be built in the score dtype: a fp32 mask added to fp16 scores
+            silently upcasts the whole $T \times T$ score tensor to fp32, and casting
+            <code>finfo(float32).min</code> down to fp16 overflows to <code>-inf</code>. A boolean mask
+            has no dtype to get wrong.
+        </p>
+
+        <p>
+            So: <strong>purely structural masking</strong> — causal, padding — is a little cleaner and
+            cheaper as boolean. <strong>The moment any continuous bias enters</strong>, build one additive
+            tensor and add everything into it, because that is the only representation the soft terms fit
+            in. Real libraries do both: Hugging Face's <code>masking_utils.py</code> composes causal,
+            padding and sliding-window masks as <em>boolean predicate functions</em>
+            (<code>and_masks</code>, <code>or_masks</code>) and then, in <code>eager_mask</code>,
+            converts once at the boundary with
+            <code>torch.where(mask, 0.0, torch.finfo(dtype).min)</code> — predicates where composition
+            happens, floats where arithmetic happens. And on modern PyTorch, prefer handing the mask to
+            <code>F.scaled_dot_product_attention</code> in either form: it applies the sentinel correctly
+            and dispatches to a fused kernel that never materializes the $T \times T$ scores at all
+            (§2.5).
+        </p>
+
+        <div class="callout warn">
+            <span class="callout-label">Neither choice saves you from a fully masked row</span>
+            If some row of the mask blocks <em>every</em> position — a padding-only row, or an off-by-one
+            in a sliding window — then softmax sees all $-\infty$, and
+            $\exp(-\infty)/\sum\exp(-\infty) = 0/0$. Verified in torch 2.12: both
+            <code>softmax(scores + (-inf))</code> and
+            <code>softmax(scores.masked_fill(all_true, -inf))</code> return
+            <code>[nan, nan, nan, nan]</code>, and that <code>nan</code> then propagates through every
+            later layer and into the gradients. Using <code>finfo(dtype).min</code> instead of literal
+            <code>-inf</code> removes the <code>nan</code>: the same row returns
+            <code>[0.25, 0.25, 0.25, 0.25]</code> — a uniform average over exactly the positions you
+            meant to forbid. That is a real trade, a loud failure for a silent one, so the fix is to not
+            have empty rows rather than to pick a sentinel. Note also that <em>how</em> you apply the mask
+            and <em>what sentinel</em> you use are independent choices, and it is the sentinel that
+            decides this one.
+        </div>
+
+        <h3 id="s2-heads">2.4 &nbsp;Multiple heads</h3>
+
+        <p>
+            One attention operation produces one weighted average per position — one "kind" of lookup.
+            Real text needs several at once (the syntactic subject, the coreferent, the nearby
+            modifier). So run $h$ attention operations in parallel on $d/h$-dimensional slices,
+            concatenate, and project:
+        </p>
+
+        $$ \operatorname{head}_i = \operatorname{Attn}\big(XW_Q^i,\, XW_K^i,\, XW_V^i\big), \qquad
+           \operatorname{MHA}(X) = \big[\operatorname{head}_1; \dots; \operatorname{head}_h\big]\, W_O $$
+
+        <p>
+            Note the parameter budget is unchanged: $h$ heads of width $d/h$ have the same total
+            projection size as one head of width $d$. Heads are close to free, and they are the reason
+            attention maps are interpretable per head rather than in aggregate.
+        </p>
+
+        <h3 id="s2-cost">2.5 &nbsp;What it costs</h3>
+
+        <div class="tbl-scroll">
+        <table class="tbl">
+            <thead><tr><th></th><th>RNN</th><th>Self-attention</th></tr></thead>
+            <tbody>
+                <tr><td>Time per layer (training)</td><td>$O(T d^2)$</td><td>$O(T^2 d + T d^2)$</td></tr>
+                <tr><td>Sequential steps</td><td>$O(T)$</td><td>$O(1)$</td></tr>
+                <tr><td>Max path between positions</td><td>$O(T)$</td><td>$O(1)$</td></tr>
+                <tr><td>Memory for scores</td><td>—</td><td>$O(T^2)$ per head</td></tr>
+                <tr><td>Per token at inference</td><td>$O(d^2)$</td><td>$O(T d)$ with a cache</td></tr>
+            </tbody>
+        </table>
+        </div>
+
+        <p>
+            The $T^2$ terms are the whole story of Transformer engineering. Note which resource each
+            one costs: the $O(T^2 d)$ compute is often <em>not</em> the binding constraint at moderate
+            $T$, because $Td^2$ dominates while $T &lt; d$; the $O(T^2)$ <em>memory</em> for the score
+            matrix is what actually breaks first, and that is what FlashAttention removes — it computes
+            the same result without ever materializing the $T \times T$ matrix. And Handout #1 §1.4's
+            big-O exercises on $Ax$ and $AB$ were preparation for exactly this table.
+        </p>
+
+        <div class="hd-check" data-key="tr-attn">
+            <input type="checkbox" id="chk-tr-attn">
+            <label for="chk-tr-attn">I can write scaled dot-product attention from memory, state every
+                shape, and justify the mask and the $\sqrt{d_k}$.</label>
+        </div>
+
+
+        <!-- ================================================================ -->
+        <h2 id="s3"><span class="hd-secnum">3</span>The block</h2>
+
+        <p>
+            Attention alone is a weighted average — it mixes information <em>across</em> positions but
+            applies no per-position nonlinear computation. A Transformer layer therefore alternates two
+            sublayers, and this alternation is the actual architecture:
+        </p>
+
+        <ol>
+            <li><strong>Attention</strong> — mixes across positions. This is the only place in the whole
+                model where positions talk to each other.</li>
+            <li><strong>A position-wise MLP</strong> — the same small network applied independently to
+                every position, which does the per-token computation. It is typically $4\times$ wider
+                than $d$ and holds roughly two thirds of the model's parameters.</li>
+        </ol>
+
+        <p>
+            Each is wrapped in a <strong>residual connection</strong> and a <strong>normalization</strong>.
+            The residual is not decoration: $y = x + f(x)$ means $\partial y/\partial x = I + \partial
+            f/\partial x$, so there is an identity path along which gradients reach the bottom of a
+            100-layer stack undiminished. That is the RNN handout §3.3's additive-path idea, transplanted
+            from depth-in-time to depth-in-layers.
+        </p>
+
+        <p>
+            <strong>Pre-norm versus post-norm.</strong> The original paper normalized <em>after</em> the
+            residual add, $\operatorname{Norm}(x + f(x))$. Every large model now normalizes
+            <em>before</em> the sublayer, $x + f(\operatorname{Norm}(x))$, because that keeps the residual
+            path free of any normalization at all — so the identity path is exactly the identity, and
+            deep stacks train without a learning-rate warmup babysitting them. You will see this in the
+            code as two <code>norm</code> calls placed at the <em>top</em> of each sublayer, and it is
+            worth recognizing on sight since it is one of the few architectural details that visibly
+            changed after 2017.
+        </p>
+
+        <div class="callout aside">
+            <span class="callout-label">Encoder, decoder, or neither</span>
+            The 2017 paper described an encoder–decoder for translation. Three families descend from it:
+            encoder-only (BERT — bidirectional, no causal mask, for representations), decoder-only
+            (GPT, Llama — causal mask, for generation), and encoder–decoder (T5). This handout is about
+            the decoder-only case because that is what a language model is: the mask in §2.2 is the
+            entire difference.
+        </div>
+
+
+        <!-- ================================================================ -->
+        <h2 id="s4"><span class="hd-secnum">4</span>Position information</h2>
+
+        <p>
+            Here is a fact worth sitting with: <strong>attention is permutation-equivariant</strong>.
+            Shuffle the rows of $X$ and the outputs shuffle identically — the mechanism contains no
+            notion of order. Order has to be injected, or the model is a bag of words.
+        </p>
+
+        <p>
+            The original solution added a fixed sinusoidal vector to each input embedding (you saw it in
+            the RNN example's <code>PositionalEncoding</code> class). Two problems: it is absolute, so
+            what the model learns about "three tokens back" at position 10 is not shared with position
+            1000, and it degrades badly past the lengths seen in training.
+        </p>
+
+        <p>
+            <strong>RoPE</strong> (rotary position embeddings) takes a different route. Rather than
+            adding anything to the input, it <em>rotates</em> $q$ and $k$ by an angle proportional to
+            their position, in each of $d/2$ two-dimensional subspaces at different frequencies. The
+            point is what this does to the dot product — and it is checkable:
+        </p>
+
+        <pre><code class="language-python">q, k = torch.randn(8), torch.randn(8)
+for m, n in [(3, 1), (10, 8), (100, 98), (5, 3)]:
+    cos, sin = rope_cos_sin(torch.tensor([m, n]), dim=8)
+    q_m = apply(q, cos[0], sin[0])
+    k_n = apply(k, cos[1], sin[1])
+    print(m, n, (q_m * k_n).sum().item(), q_m.norm().item())
+
+# 3   1   0.142312   1.821554
+# 10  8   0.142312   1.821554
+# 100 98  0.142312   1.821554
+# 5   3   0.142312   1.821554</code></pre>
+
+        <p>
+            Four different absolute positions, one identical dot product — because in every case
+            $m - n = 2$. Rotating $q$ by $m\theta$ and $k$ by $n\theta$ makes their inner product a
+            function of $(m-n)$ alone, so <strong>relative position falls out of the geometry</strong>
+            rather than being learned. And the norm is unchanged (1.8216 before and after), because a
+            rotation is orthogonal — nothing is scaled, so nothing has to be renormalized.
+        </p>
+
+        <p>
+            One more consequence, visible in the same construction: because position enters only through
+            $q$ and $k$, the rotation must be applied <em>inside</em> every attention layer rather than
+            once at the input. §6.3 is where you will see that in the code.
+        </p>
+
+
+        <!-- ================================================================ -->
+        <h2 id="s5"><span class="hd-secnum">5</span>Inference, and the KV cache</h2>
+
+        <p>
+            The RNN handout §7.4 showed PyTorch's example regenerating the whole prefix for every new
+            Transformer token — $O(T^2)$ total, and honest about it. Production code does not do that.
+        </p>
+
+        <p>
+            Observe: when you append token $T{+}1$, the keys and values of positions $1..T$ do not
+            change. They are functions of those positions' representations, which the causal mask
+            guarantees are unaffected by anything later. So <strong>cache them</strong>. Each new token
+            computes one query, one key and one value, appends the latter two to the cache, and attends
+            over $T{+}1$ cached keys. Per-token cost drops from $O(T^2)$ recompute to $O(T d)$, and total
+            generation from $O(T^3)$ to $O(T^2)$.
+        </p>
+
+        <p>
+            The cache is not free, and its size is the dominant memory cost of serving long contexts:
+            $2 \cdot L \cdot T \cdot n_{kv} \cdot d_{head}$ values. For a Llama-3-8B-shaped model
+            ($L = 32$, $n_{kv} \cdot d_{head} = 8 \times 128$) in bf16:
+        </p>
+
+        <div class="tbl-scroll">
+        <table class="tbl">
+            <thead><tr><th>Context $T$</th><th>KV cache (GQA, 8 KV heads)</th><th>If it used 32 KV heads</th></tr></thead>
+            <tbody>
+                <tr><td>1,000</td><td>0.12 GiB</td><td>0.49 GiB</td></tr>
+                <tr><td>8,192</td><td>1.00 GiB</td><td>4.00 GiB</td></tr>
+                <tr><td>128,000</td><td>15.62 GiB</td><td>62.50 GiB</td></tr>
+            </tbody>
+        </table>
+        </div>
+
+        <p>
+            That right-hand column is why <strong>grouped-query attention</strong> exists. GQA gives
+            every query head its own $W_Q$ but shares one key/value pair across a group of them — here,
+            4 query heads per KV head — cutting the cache by exactly that factor with little measured
+            quality loss. It is a change made for the memory bandwidth of inference, not for modeling
+            reasons, and §6.4 is where you will find it as a single function call.
+        </p>
+
+
+        <!-- ================================================================ -->
+        <h2 id="s6"><span class="hd-secnum">6</span>Reading real code: Hugging Face's Llama</h2>
+
+        <p>
+            The other files in this series were small on purpose. This one is not:
+            <code>modeling_llama.py</code> is ~500 lines inside a library of hundreds of thousands, with
+            decorators, dispatch tables, type unions and deprecation shims. It is the most-read
+            Transformer implementation in the world, and being able to work in a file like this is the
+            actual professional skill.
+        </p>
+
+        <div class="callout try">
+            <div class="callout-label">Try it</div>
+            <p style="margin-bottom:0">
+                <a href="https://github.com/huggingface/transformers/blob/main/src/transformers/models/llama/modeling_llama.py" target="_blank" rel="noopener noreferrer"><code>src/transformers/models/llama/modeling_llama.py</code></a>
+                — open it, then jump straight to these six definitions and read <em>only</em> them:
+                <code>LlamaRMSNorm</code>, <code>apply_rotary_pos_emb</code>, <code>repeat_kv</code>,
+                <code>eager_attention_forward</code>, <code>LlamaAttention.forward</code>,
+                <code>LlamaDecoderLayer.forward</code>. That is roughly 90 lines, and it is the
+                architecture. Everything else is plumbing.
+            </p>
+        </div>
+
+        <div class="callout">
+            <span class="callout-label">How to read a large file</span>
+            The skill being practiced here is <em>triage</em>, and it generalizes. Find the class named
+            after the thing you care about. Read its <code>forward</code> first and ignore
+            <code>__init__</code> until a name in <code>forward</code> puzzles you. Ignore every
+            decorator on the first pass — they are cross-cutting concerns (docstrings, tracing,
+            checkpointing), not logic. Treat any argument you do not recognize as
+            <code>None</code> and see if the code still makes sense; it usually does, because those
+            arguments exist for configurations you are not using.
+        </div>
+
+        <h3 id="s6-norm">6.1 &nbsp;<code>LlamaRMSNorm</code> — a simplification, not a new idea</h3>
+
+        <p class="hd-srcline"><code>modeling_llama.py</code> · <code>LlamaRMSNorm.forward</code> (verbatim)</p>
+        <pre><code class="language-python">def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
+    input_dtype = hidden_states.dtype
+    hidden_states = hidden_states.to(torch.float32)
+    variance = hidden_states.pow(2).mean(-1, keepdim=True)
+    hidden_states = hidden_states * torch.rsqrt(variance + self.variance_epsilon)
+    return self.weight * hidden_states.to(input_dtype)</code></pre>
+
+        <p>
+            Compare LayerNorm: subtract the mean, divide by the standard deviation, scale and shift.
+            RMSNorm drops the mean subtraction and the bias — it only rescales each vector to unit
+            root-mean-square. Verify that it really does not center:
+        </p>
+
+        <pre><code class="language-python">x = torch.randn(4, 16) + 3.0        # deliberately off-center
+rms(x).mean(-1)                     # [0.954, 0.945, 0.961, 0.938]  <- NOT zero
+F.layer_norm(x, (16,)).mean(-1)     # [0.0, 0.0, 0.0, 0.0]
+rms(x).pow(2).mean(-1).sqrt()       # [1.0, 1.0, 1.0, 1.0]          <- unit RMS</code></pre>
+
+        <p>
+            Fewer operations, fewer parameters, empirically as good — one of many places where the
+            2017 design turned out to have a load-bearing part and a decorative one.
+        </p>
+
+        <p>
+            The two <code>dtype</code> lines are the more instructive detail. The whole model may run in
+            bfloat16, which has about three decimal digits of precision; squaring and summing 4096 such
+            numbers is precisely where that runs out. So this function upcasts to float32 for the
+            reduction and casts back at the end. <strong>Numerical-stability casts around reductions are
+            everywhere in production ML code</strong>, they are never in the paper, and noticing them is
+            a good sign you are reading rather than skimming.
+        </p>
+
+        <h3 id="s6-block">6.2 &nbsp;<code>LlamaDecoderLayer.forward</code> — §3, exactly</h3>
+
+        <p class="hd-srcline"><code>modeling_llama.py</code> · <code>LlamaDecoderLayer.forward</code>
+            (verbatim; the <code>self_attn</code> call's argument list elided)</p>
+        <pre><code class="language-python">    residual = hidden_states
+    hidden_states = self.input_layernorm(hidden_states)
+    # Self Attention
+    hidden_states, _ = self.self_attn(...)
+    hidden_states = residual + hidden_states
+
+    # Fully Connected
+    residual = hidden_states
+    hidden_states = self.post_attention_layernorm(hidden_states)
+    hidden_states = self.mlp(hidden_states)
+    hidden_states = residual + hidden_states
+    return hidden_states</code></pre>
+
+        <p>
+            Ten lines for the entire block, and the structure is completely legible: stash the residual,
+            normalize, apply the sublayer, add back. Twice. Note that this is <strong>pre-norm</strong> —
+            <code>input_layernorm</code> is applied to the input of the sublayer, and nothing normalizes
+            the residual stream itself, so <code>residual + ...</code> is an unobstructed identity path
+            from the last layer to the first (§3).
+        </p>
+
+        <p>
+            The name <code>post_attention_layernorm</code> is a genuine trap: it is
+            <em>after the attention sublayer</em> in sequence, but it is the <em>pre</em>-norm of the MLP
+            sublayer. The name describes its position in the file, not its role in the architecture, and
+            it has confused a lot of readers into thinking Llama is post-norm. Read the code, not the
+            identifier.
+        </p>
+
+        <h3 id="s6-attn">6.3 &nbsp;<code>LlamaAttention.forward</code> — shapes, RoPE, cache, dispatch</h3>
+
+        <p class="hd-srcline"><code>modeling_llama.py</code> · <code>LlamaAttention.forward</code>
+            (verbatim; signature and the interface call's kwargs elided)</p>
+        <pre><code class="language-python">    input_shape = hidden_states.shape[:-1]
+    hidden_shape = (*input_shape, -1, self.head_dim)
+
+    query_states = self.q_proj(hidden_states).view(hidden_shape).transpose(1, 2)
+    key_states = self.k_proj(hidden_states).view(hidden_shape).transpose(1, 2)
+    value_states = self.v_proj(hidden_states).view(hidden_shape).transpose(1, 2)
+
+    cos, sin = position_embeddings
+    query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
+
+    if past_key_values is not None:
+        key_states, value_states = past_key_values.update(key_states, value_states, self.layer_idx)
+
+    attention_interface: Callable = ALL_ATTENTION_FUNCTIONS.get_interface(
+        self.config._attn_implementation, eager_attention_forward
+    )
+
+    attn_output, attn_weights = attention_interface(...)
+
+    attn_output = attn_output.reshape(*input_shape, -1).contiguous()
+    attn_output = self.o_proj(attn_output)
+    return attn_output, attn_weights</code></pre>
+
+        <p>
+            Six things, and every one of them is a section of this handout appearing as one or two lines.
+        </p>
+
+        <ul>
+            <li><strong>The <code>view().transpose(1, 2)</code> idiom</strong> is multi-head attention
+                (§2.4), and it is worth decoding once and for all. Input is
+                <code>(B, T, d)</code>. <code>q_proj</code> gives <code>(B, T, h·d_head)</code>. The
+                <code>view</code> splits that last axis into <code>(B, T, h, d_head)</code> — no data
+                moves, it is a reinterpretation — and the <code>transpose</code> makes it
+                <code>(B, h, T, d_head)</code>, so that the last two axes are the $T \times d_{head}$
+                matrix each head attends over, and the batch and head axes ride along as batch
+                dimensions of the matmul. <strong>The heads are never separate objects</strong>; they are
+                a reshape. That is how "$h$ parallel attentions" becomes one batched matmul.</li>
+            <li><strong>RoPE is applied here, per layer, to $q$ and $k$ only</strong> — never to $v$,
+                never to the residual stream — which is §4's last paragraph made concrete. If you were
+                looking for where positions enter the model, this is the only place.</li>
+            <li><strong>The cache is one line.</strong> <code>past_key_values.update(...)</code> appends
+                this step's keys and values and hands back the full history, so the very same
+                <code>forward</code> serves training (no cache; $T$ positions at once) and generation
+                (cache; one position at a time). §5's optimization required no separate code path — the
+                only difference is whether an object was passed in.</li>
+            <li><strong>The dispatch table.</strong> <code>ALL_ATTENTION_FUNCTIONS.get_interface(...)</code>
+                selects FlashAttention, SDPA, or the fallback <code>eager_attention_forward</code>
+                depending on configuration. This is the seam where a mathematically identical operation
+                is swapped for a faster implementation, and the reason the default has the name
+                "eager": it is the readable one, kept precisely so there is something to read.</li>
+            <li><strong>The mask is not here.</strong> It arrives as an argument, prepared once for the
+                whole model rather than rebuilt per layer. Worth noting because a first-time reader
+                looking for §2.2's triangular matrix will not find it in the attention class.</li>
+            <li><strong><code>o_proj</code></strong> is the $W_O$ of §2.4, and the
+                <code>reshape</code> before it is the concatenation of heads. Two lines for the second
+                half of the multi-head formula.</li>
+        </ul>
+
+        <h3 id="s6-eager">6.4 &nbsp;<code>eager_attention_forward</code> — the formula itself</h3>
+
+        <p class="hd-srcline"><code>modeling_llama.py</code> · <code>eager_attention_forward</code>
+            (verbatim, body only)</p>
+        <pre><code class="language-python">    key_states = repeat_kv(key, module.num_key_value_groups)
+    value_states = repeat_kv(value, module.num_key_value_groups)
+
+    attn_weights = torch.matmul(query, key_states.transpose(2, 3)) * scaling
+    if attention_mask is not None:
+        attn_weights = attn_weights + attention_mask
+
+    attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=torch.float32).to(query.dtype)
+    attn_weights = nn.functional.dropout(attn_weights, p=dropout, training=module.training)
+    attn_output = torch.matmul(attn_weights, value_states)
+    attn_output = attn_output.transpose(1, 2).contiguous()
+
+    return attn_output, attn_weights</code></pre>
+
+        <p>
+            This is §2.1's equation, and you should be able to point at each symbol:
+            <code>matmul(query, key.transpose(2,3))</code> is $QK^\top$, <code>* scaling</code> is
+            $1/\sqrt{d_k}$ (set as <code>self.scaling = self.head_dim**-0.5</code> in
+            <code>__init__</code>), <code>+ attention_mask</code> is $+M$ — <strong>additive, before the
+            softmax</strong>, exactly as §2.2 insisted, and the additive-vs-boolean choice of §2.3 resolved this way for the whole library — and <code>matmul(attn_weights, value_states)</code>
+            is the multiplication by $V$.
+        </p>
+
+        <p>
+            Two details the equation does not show. <code>dtype=torch.float32</code> inside the softmax
+            is another stability upcast, for the same reason as §6.1. And <code>repeat_kv</code> is
+            grouped-query attention:
+        </p>
+
+        <p class="hd-srcline"><code>modeling_llama.py</code> · <code>repeat_kv</code> (verbatim, docstring trimmed)</p>
+        <pre><code class="language-python">    batch, num_key_value_heads, slen, head_dim = hidden_states.shape
+    if n_rep == 1:
+        return hidden_states
+    hidden_states = hidden_states[:, :, None, :, :].expand(batch, num_key_value_heads, n_rep, slen, head_dim)
+    return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)</code></pre>
+
+        <p>
+            GQA's saving is in the <em>cache</em> (§5): only $n_{kv}$ keys and values are stored. But the
+            matmul needs one key per query head, so they are broadcast back up here — and note
+            <code>expand</code>, which creates a view with stride 0 rather than copying, followed by a
+            <code>reshape</code> that does have to materialize. The <code>if n_rep == 1: return</code>
+            early exit means plain multi-head attention pays nothing for this function's existence. Small
+            code, and it tells you where the designers expected the cost to be.
+        </p>
+
+        <h3 id="s6-mlp">6.5 &nbsp;<code>LlamaMLP</code> — three matrices, not two</h3>
+
+        <p class="hd-srcline"><code>modeling_llama.py</code> · <code>LlamaMLP.forward</code> (verbatim)</p>
+        <pre><code class="language-python">def forward(self, x):
+    down_proj = self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))
+    return down_proj</code></pre>
+
+        <p>
+            A textbook Transformer MLP is $W_2\,\sigma(W_1 x)$ — two matrices. This one has three, and
+            the middle <code>*</code> is an elementwise product of two different projections of the same
+            input. That is a <strong>gated linear unit</strong> (with SiLU as <code>act_fn</code>, making
+            it SwiGLU), and it is the same gating idea as the RNN handout §3.3: one branch computes a
+            value, the other computes a multiplicative, input-dependent gate on it.
+        </p>
+
+        <p>
+            The parameter arithmetic is worth doing, because it explains a config value that otherwise
+            looks arbitrary. For Llama-3-8B, $d = 4096$ and $d_{ff} = 14336$:
+            $3 \cdot d \cdot d_{ff} = 176{,}160{,}768$ parameters per layer, where a two-matrix MLP would
+            use $2 \cdot d \cdot d_{ff} = 117{,}440{,}512$. Since $14336 \approx \tfrac{2}{3} \times 4 \times
+            4096$, the third matrix was paid for by narrowing $d_{ff}$ from the traditional $4d$ —
+            keeping the parameter count roughly fixed and spending it on gating instead of width. That
+            is why <code>intermediate_size</code> is a strange non-round number in these configs.
+        </p>
+
+        <h3 id="s6-head">6.6 &nbsp;<code>LlamaForCausalLM</code> — where Handout #5 §4 reappears</h3>
+
+        <p class="hd-srcline"><code>modeling_llama.py</code> · <code>LlamaForCausalLM</code> (verbatim, excerpts)</p>
+        <pre><code class="language-python">class LlamaForCausalLM(LlamaPreTrainedModel, GenerationMixin):
+    _tied_weights_keys = {"lm_head.weight": "model.embed_tokens.weight"}
+    ...
+        hidden_states = outputs.last_hidden_state
+        # Only compute necessary logits, and do not upcast them to float if we are not computing the loss
+        slice_indices = slice(-logits_to_keep, None) if isinstance(logits_to_keep, int) else logits_to_keep
+        logits = self.lm_head(hidden_states[:, slice_indices, :])
+
+        loss = None
+        if labels is not None:
+            loss = self.loss_function(logits=logits, labels=labels, vocab_size=self.config.vocab_size, **kwargs)</code></pre>
+
+        <p>
+            Three observations to close the loop with earlier handouts.
+        </p>
+
+        <p>
+            <code>_tied_weights_keys</code> is the RNN handout §7.2's <code>self.decoder.weight =
+            self.encoder.weight</code>, expressed declaratively — same idea, same gradient accumulation,
+            stated as configuration rather than as an assignment. With $|\Sigma| = 128256$ and
+            $d = 4096$ that is 525M parameters shared rather than duplicated.
+        </p>
+
+        <p>
+            <code>logits_to_keep</code> is an optimization you can now derive yourself. During
+            generation you need the distribution at the <em>last</em> position only, but
+            <code>lm_head</code> projects to $|\Sigma| = 128{,}256$ — so computing it for all $T$
+            positions would produce a $T \times 128256$ tensor to throw away. Slicing first turns the
+            single largest matmul in the model into a $1 \times d$ one. During training,
+            <code>logits_to_keep=0</code> keeps everything, because every position is a training example
+            (§2.2's callout).
+        </p>
+
+        <p>
+            And <code>loss_function(logits=..., labels=...)</code> is Handout #5 §4 behind a library
+            interface — including the shift. Hugging Face's convention is that you pass
+            <code>labels</code> equal to <code>input_ids</code> and the shift is applied
+            <em>internally</em>. If you shift them yourself as well, you get an off-by-two, a model that
+            appears to train, and a mystery. Handout #5 §4.2 was about doing it by hand; this is the
+            trap in its library form, and the two are the same trap.
+        </p>
+
+        <h3 id="s6-yours">6.7 &nbsp;Now do something to it</h3>
+
+        <p>
+            <button class="w-btn" type="button" data-toggle-answers="#s6-zone">Show all answers</button>
+        </p>
+
+        <div id="s6-zone">
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q1.</strong> Search the file for the causal mask. Where is it built, and why
+                    is it not in <code>LlamaAttention</code>?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    It is prepared in <code>LlamaModel.forward</code> (via the library's mask-creation
+                    helpers) and passed down to every layer. Two reasons it lives there: it is identical
+                    for all $L$ layers, so building it once saves $L-1$ constructions of a
+                    $T \times T$ tensor; and it must be <em>combined</em> with the padding mask the user
+                    supplied, which is a property of the batch, not of a layer. The general lesson is
+                    that anything constant across layers migrates upward in a real implementation — so
+                    when you cannot find a thing where the math says it should be, look one level up.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q2.</strong> Delete the <code>* scaling</code> from
+                    <code>eager_attention_forward</code>. Does anything break? What would you observe
+                    when training a model with $d_{head} = 128$?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    Nothing breaks and nothing warns. The scores now have standard deviation
+                    $\sqrt{128} \approx 11.3$ instead of 1, so at initialization each softmax row puts
+                    nearly all its mass on one arbitrary position (§2.1's measurement: 0.998 at
+                    $d = 64$, worse at 128). Symptoms: the loss barely moves from
+                    $\ln |\Sigma|$, attention entropy is near zero from step one, and the attention
+                    layers' gradients are tiny because a saturated softmax has a near-zero Jacobian —
+                    the model degenerates toward using only the residual and MLP path. Notably, it will
+                    still <em>train a bit</em>, which is what makes this class of bug expensive.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q3.</strong> Set <code>num_key_value_heads = num_attention_heads</code>.
+                    What changes in the code's behavior, and what changes in your GPU bill?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    <code>num_key_value_groups</code> becomes 1, so <code>repeat_kv</code> takes its
+                    early return and is a no-op: you have plain multi-head attention. The compute in the
+                    attention matmuls is unchanged — <code>repeat_kv</code> was only broadcasting — but
+                    <code>k_proj</code> and <code>v_proj</code> are now 4× larger, and the KV cache is
+                    4× larger: 62.5 GiB instead of 15.6 GiB at a 128k context (§5). Since long-context
+                    serving is bound by memory bandwidth rather than FLOPs, that is close to a 4×
+                    difference in tokens per second per GPU. This is the clearest example in the file of
+                    an architectural choice made for the deployment economics rather than for quality.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q4.</strong> Why does <code>apply_rotary_pos_emb</code> take both
+                    <code>q</code> and <code>k</code>, but not <code>v</code>?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    Because RoPE's entire mechanism is what the rotation does to the <em>inner product</em>
+                    $q_m \cdot k_n$, making it depend on $m - n$ (§4). $v$ never appears in an inner
+                    product with a position-rotated vector — it is the payload being averaged, not part
+                    of the addressing. Rotating it would just apply a position-dependent orthogonal
+                    transform to the content, which the following <code>o_proj</code> would have to undo.
+                    A good check on whether §4 landed: the position information is in the
+                    <em>attention pattern</em>, not in the values.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q5.</strong> The file contains no <code>for</code> loop over heads and no
+                    <code>for</code> loop over positions, yet §2.4 describes $h$ parallel attentions and
+                    §2.2 a triangular mask over $T^2$ pairs. Where did both loops go?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    Into the shapes. Heads became an axis by <code>view(...).transpose(1, 2)</code>, so
+                    <code>(B, h)</code> are batch dimensions of <code>torch.matmul</code> and all heads
+                    are computed in one call (§6.3). Positions became the two matmul dimensions, so all
+                    $T^2$ pairs are one $T \times d_{head}$ by $d_{head} \times T$ product. This is
+                    Handout #4 §2's batched algebra as a working practice: <strong>in production tensor
+                    code the loops of the mathematical description are almost always axes, and finding
+                    which axis a loop turned into is the main work of reading it.</strong>
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q6.</strong> You want to add a new architecture that is Llama with one
+                    change. What does the structure of this file suggest about how the library expects
+                    you to do that — and what does that imply about reading it as a reference?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    The library's convention is <em>copy the whole file</em> and edit it, rather than
+                    subclass and override. Hence hundreds of near-identical <code>modeling_*.py</code>
+                    files across the repo — deliberate duplication, chosen so that any single model can
+                    be read top to bottom without chasing an inheritance chain. For you as a reader this
+                    is a gift: <code>modeling_llama.py</code> really is self-contained enough to
+                    understand alone. It also means that when you compare Llama to Mistral or Qwen, a
+                    plain <code>diff</code> of the two files is a genuinely good way to see what is
+                    architecturally different — which is a much better first question than reading either
+                    paper's related-work section.
+                </div></details>
+            </div>
+        </div>
+
+        </div><!-- /#s6-zone -->
+
+        <div class="callout warn">
+            <span class="callout-label">This file moves</span>
+            <code>transformers</code> is refactored continuously; the excerpts above were read at commit
+            <code>ac32445</code>. If what you open does not match, the architecture will still be
+            there — look for the same six definitions and expect the plumbing around them to have
+            changed. That is itself the normal condition of reading a live codebase.
+        </div>
+
+        <div class="hd-check" data-key="llama">
+            <input type="checkbox" id="chk-llama">
+            <label for="chk-llama">I can open <code>modeling_llama.py</code> and point at: $QK^\top$,
+                the scaling, the mask add, the head reshape, the RoPE application, the cache update, and
+                the residual path.</label>
+        </div>
+
+
+        <!-- ================================================================ -->
+        <h2 id="s7"><span class="hd-secnum">7</span>Check yourself</h2>
+
+        <p>
+            <button class="w-btn" type="button" data-toggle-answers="#s7-zone">Show all answers</button>
+        </p>
+
+        <div id="s7-zone">
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q1.</strong> True or false: without positional information, a Transformer
+                    language model would still distinguish <em>"dog bites man"</em> from
+                    <em>"man bites dog"</em>, because the causal mask already imposes an order.</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    <strong>False</strong>, though the mask makes it a good question. The mask restricts
+                    <em>which</em> positions each query may attend to, so a position knows how many
+                    tokens precede it — but the attended-to set is still an unordered bag: the mechanism
+                    has no way to tell which of two visible tokens came first. Position information
+                    (§4) is what breaks that symmetry. Note the mask does leak <em>some</em> order
+                    information, which is why "no positional encoding" decoder-only models are not
+                    completely hopeless — a genuinely surprising empirical result, and not a reason to
+                    omit RoPE.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q2.</strong> Doubling the context length from 4k to 8k. What happens to
+                    training FLOPs per token, and to KV cache memory?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    Cache memory <strong>doubles</strong> — it is linear in $T$ (§5). Training compute
+                    per token grows less than proportionally: the $O(Td^2)$ per-position work is
+                    unchanged, while the attention term $O(T^2d)$ per sequence is $O(Td)$ per token, so
+                    it doubles. Whether the total doubles depends on which term dominates, i.e. on
+                    $T$ versus $d$. The reflex worth building: with attention, always ask "per token or
+                    per sequence?", because the two answers differ by a factor of $T$ and most confused
+                    arguments about quadratic cost are really unit errors.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q3.</strong> An RNN and a Transformer both have a "context length." In what
+                    sense are these different kinds of limit?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    The RNN's is <em>soft and about learning</em>: nothing forbids using token 1 at step
+                    1000, but the gradient never taught it to, and the state is a lossy summary (RNN
+                    handout §3, §5). The Transformer's is <em>hard and about resources</em>: within $T$
+                    every position is exactly addressable at $O(1)$ path length; beyond it, positions do
+                    not exist in the computation at all — you run out of memory, or out of positions the
+                    model was trained to handle. So one degrades gracefully and unreliably; the other
+                    works perfectly then stops. That is why "extending context" means something concrete
+                    for a Transformer and almost nothing for an RNN.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q4.</strong> Your training loss is fine but generation is gibberish after a
+                    few tokens. Name two Transformer-specific causes.</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    (1) <strong>The mask is wrong or absent at training time</strong> — every position
+                    could see its own target, the task became trivial, and the loss is meaninglessly low
+                    (Handout #5 §6's last question, in its Transformer form). Check the loss against the
+                    $\ln|\Sigma|$ baseline: a suspiciously low value is the tell.
+                    (2) <strong>A cache or position-id bug at inference</strong> — a stale KV cache, or
+                    <code>position_ids</code> restarting at 0 for each new token, gives the model a
+                    different geometry than it trained on. Both produce fluent-then-degenerating text,
+                    which is why the first diagnostic is to score a held-out sequence in one forward pass
+                    and compare against the incremental path token by token: if they disagree, it is (2).
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q5.</strong> Which of pre-norm, RMSNorm, RoPE, GQA and SwiGLU would you
+                    expect to matter most for (a) training a 100-layer model, (b) serving 128k-token
+                    contexts, (c) a paper's headline quality number?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    (a) <strong>Pre-norm</strong> — it is what makes very deep stacks trainable at all,
+                    by keeping the identity path clean (§3). (b) <strong>GQA</strong>, decisively: it is
+                    a 4× cut in the memory that bounds long-context serving (§5), with RoPE second since
+                    it determines whether the model works at unseen lengths. (c) None of them, mostly —
+                    RMSNorm and SwiGLU are efficiency-and-tidiness wins whose quality effect is small
+                    next to data, scale and training recipe (Handout #1 §4). Being able to sort
+                    architectural changes by <em>which</em> resource they buy is more useful than
+                    remembering the list.
+                </div></details>
+            </div>
+        </div>
+
+        </div><!-- /#s7-zone -->
+
+
+        <!-- ================================================================ -->
+        <h2 id="s8"><span class="hd-secnum">8</span>Optional further reading</h2>
+
+        <p>Strictly optional — nothing here is assumed in class or on a quiz.</p>
+
+        <ul>
+            <li>
+                <a href="https://arxiv.org/abs/1706.03762" target="_blank" rel="noopener noreferrer">Vaswani
+                et al., <em>Attention Is All You Need</em></a> (2017) — read it <em>after</em> this
+                handout, and notice how much of what you now consider standard (pre-norm, RMSNorm, RoPE,
+                GQA, decoder-only) is not in it.
+            </li>
+            <li>
+                <a href="https://github.com/karpathy/nanoGPT/blob/master/model.py" target="_blank" rel="noopener noreferrer">Karpathy,
+                <code>nanoGPT/model.py</code></a> — ~300 lines, the same architecture with none of the
+                library machinery. The natural companion to §6: read it as the version of
+                <code>modeling_llama.py</code> with the plumbing deleted.
+            </li>
+            <li>
+                <a href="https://jalammar.github.io/illustrated-transformer/" target="_blank" rel="noopener noreferrer">Alammar,
+                <em>The Illustrated Transformer</em></a> — if §2 needed more pictures.
+            </li>
+            <li>
+                <a href="https://arxiv.org/abs/2104.09864" target="_blank" rel="noopener noreferrer">Su
+                et al., <em>RoFormer</em></a> (RoPE) and
+                <a href="https://arxiv.org/abs/2305.13245" target="_blank" rel="noopener noreferrer">Ainslie
+                et al., <em>GQA</em></a> — the two papers behind §4 and §5, both short and both readable
+                now that you have seen the code.
+            </li>
+        </ul>
+
+        <div class="hd-footer">
+            <p>
+                <strong>Session number to be assigned.</strong> This handout is written for the
+                decoder-only Transformer session; the masthead and the schedule link will be filled in
+                once the ordering is fixed.
+            </p>
+            <p>
+                Found an error, or a passage that doesn't land? Post on
+                <a href="https://piazza.com/jhu/fall2026/cs601471671">Piazza</a> — corrections to these
+                handouts are welcome and useful.
+            </p>
+        </div>
+
+    </main>
+</div>
+
+<script defer src="vendor/katex/katex.min.js"></script>
+<script defer src="vendor/katex/auto-render.min.js"></script>
+<script defer src="vendor/highlight/highlight.min.js"></script>
+<script defer src="handout.js"></script>
+
+</body>
+</html>

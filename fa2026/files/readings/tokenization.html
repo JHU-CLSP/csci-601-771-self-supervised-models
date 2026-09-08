@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Handout: Tokenization &amp; Subwords — CS 601.471/671</title>
+    <meta name="description"
+          content="Reading handout: why words and characters both fail as vocabularies, UTF-8 bytes as the floor, byte-pair encoding, what tokenization does to perplexity and arithmetic, and a guided reading of minbpe.">
+
+    <link rel="shortcut icon" href="../favicon.ico">
+    <link rel="stylesheet" href="../fonts.css">
+    <link rel="stylesheet" href="vendor/katex/katex.min.css">
+    <link rel="stylesheet" href="vendor/highlight/github.min.css">
+    <link rel="stylesheet" href="handout.css">
+</head>
+
+<body class="handout" data-handout="tokenization">
+
+<header class="hd-mast">
+    <div class="hd-wrap" style="display:block">
+        <div class="hd-course">CS 601.471/671 &nbsp;·&nbsp; NLP: Self-supervised Models &nbsp;·&nbsp; Fall 2026</div>
+        <h1>Handout — Tokenization &amp; Subwords</h1>
+        <p class="hd-sub">
+            Session number TBD &nbsp;·&nbsp;
+            <a href="../../index.html">Course page</a>
+        </p>
+    </div>
+</header>
+
+<div class="hd-wrap">
+
+    <!-- TOC is populated by handout.js from the h2/h3 ids below -->
+    <nav class="hd-toc" aria-label="Contents">
+        <div class="hd-toc-title">On this page</div>
+    </nav>
+
+    <main class="hd-body">
+
+        <p class="lead">
+            Every handout so far has quietly assumed that text arrives as a sequence of tokens from a
+            finite vocabulary $\Sigma$. Nothing in the world hands you that. Between a UTF-8 file and
+            $x_1, \dots, x_T$ sits a design decision — and it is the one decision in the whole pipeline
+            that is made once, frozen before training, and then silently constrains everything the
+            model can ever do.
+        </p>
+
+        <div class="hd-glance">
+            <dl>
+                <dt>Assigned papers</dt>
+                <dd>None. <strong>This handout is the reading for this session.</strong>
+                    §7 lists optional depth.</dd>
+
+                <dt>Time</dt>
+                <dd>50–70 minutes.</dd>
+
+                <dt>By the end you should be able to</dt>
+                <dd>
+                    <ul style="margin-bottom:0">
+                        <li>say precisely what goes wrong with a word vocabulary and with a character
+                            vocabulary, in terms you can put a number on;</li>
+                        <li>run byte-pair encoding by hand on a short string;</li>
+                        <li>explain why two models' perplexities are not comparable unless they share a
+                            tokenizer — and what <em>is</em> comparable;</li>
+                        <li>predict which model failures are really tokenizer failures;</li>
+                        <li>read <code>minbpe</code> and point at the four lines that are the algorithm.</li>
+                    </ul>
+                </dd>
+
+                <dt>Assumes</dt>
+                <dd>
+                    <a href="02.language-modeling.html#s1">Handout #2 §1</a> (the formal setup and
+                    $\Sigma^*$), <a href="02.language-modeling.html#s3-sparsity">§3.3</a> (sparsity and
+                    <code>&lt;UNK&gt;</code>), and <a href="02.language-modeling.html#s5-def">§5.1</a>
+                    (perplexity).
+                </dd>
+            </dl>
+        </div>
+
+
+        <!-- ================================================================ -->
+        <h2 id="s1"><span class="hd-secnum">1</span>The gap between text and the model</h2>
+
+        <p>
+            Handout #2 opened with a vocabulary $\Sigma$ and a distribution over $\Sigma^*$, and then
+            did what every intro does: <code>line.split()</code>. Splitting on whitespace is a
+            tokenizer, and a bad one. This section is about why every obvious choice fails, because
+            the reason subword tokenization looks so strange is that it is the only thing left standing.
+        </p>
+
+        <h3 id="s1-words">1.1 &nbsp;Words do not work</h3>
+
+        <p>
+            Take $\Sigma$ to be the words of English. Three problems, in increasing order of
+            seriousness.
+        </p>
+
+        <p>
+            <strong>The vocabulary is unbounded.</strong> Not large — <em>unbounded</em>. Every new
+            proper noun, product name, typo, hashtag, URL and inflection is a new word, and the count
+            of distinct words in a corpus keeps climbing as the corpus grows; it never saturates. You
+            therefore have to truncate, and the truncation point is arbitrary.
+        </p>
+
+        <p>
+            <strong>Every truncation creates an <code>&lt;UNK&gt;</code>.</strong> Handout #2 §3.3
+            introduced this as the fix for unseen words. Look at what it actually costs. A model with
+            <code>&lt;UNK&gt;</code> in its vocabulary is a model that can be <em>surprised in a way it
+            cannot represent</em>: at generation time it may emit <code>&lt;UNK&gt;</code>, which is not
+            a word, and at scoring time it assigns one shared probability to the entire infinite set of
+            things it has never seen. Worse, that makes perplexity gameable — shrink your vocabulary and
+            more of the test set collapses into a single high-probability
+            <code>&lt;UNK&gt;</code> event, and your number improves while your model gets less useful.
+        </p>
+
+        <p>
+            <strong>The vocabulary is where the sparsity lives.</strong> The output layer is a
+            $d \times |\Sigma|$ matrix and the softmax runs over $|\Sigma|$ entries, so a 500k-word
+            vocabulary is expensive on both counts. And rare words — the ones that carry the most
+            information — get the fewest gradient updates, which is Handout #2 §3.3's counting problem
+            reappearing in a neural model. Zipf's law guarantees that most of your vocabulary is rare.
+        </p>
+
+        <div class="callout aside">
+            <span class="callout-label">And that is before you leave English</span>
+            "Word" is not a well-defined unit. Chinese and Japanese do not delimit words with spaces at
+            all. Turkish and Finnish are agglutinative: a single "word" can encode what English needs a
+            clause for, so the number of distinct word forms explodes. German compounds without spaces.
+            A tokenizer whose primitive is "the thing between two spaces" has quietly assumed a
+            language family.
+        </div>
+
+        <h3 id="s1-chars">1.2 &nbsp;Characters do not work either</h3>
+
+        <p>
+            So go the other way: let $\Sigma$ be characters. Every problem above vanishes.
+            $|\Sigma|$ is tiny, nothing is ever out-of-vocabulary, and there is no
+            <code>&lt;UNK&gt;</code>. The cost moves somewhere else.
+        </p>
+
+        <p>
+            Sequences get roughly 4–5× longer. That is not a constant-factor annoyance — it multiplies
+            through everything downstream. A recurrent model has to carry information across 5× more
+            steps to relate two adjacent words. A Transformer's attention is quadratic in sequence
+            length, so 5× longer is <strong>25×</strong> the attention cost for the same text. And the
+            model now spends most of its capacity learning spelling: predicting <code>e</code> after
+            <code>th</code> is nearly free information, and the loss is dominated by these easy
+            positions.
+        </p>
+
+        <div class="tbl-scroll">
+        <table class="tbl">
+            <thead><tr><th></th><th>Words</th><th>Characters</th><th>Subwords</th></tr></thead>
+            <tbody>
+                <tr><td>$|\Sigma|$</td><td>unbounded → truncated to ~50k–500k</td><td>~100 (or 256 bytes)</td><td>chosen, typically 32k–256k</td></tr>
+                <tr><td>Out-of-vocabulary</td><td>always possible</td><td>never</td><td>never</td></tr>
+                <tr><td>Sequence length</td><td>shortest</td><td>~4–5× longer</td><td>~1.3× words</td></tr>
+                <tr><td>Rare-word learning</td><td>poor (few updates)</td><td>n/a — built from parts</td><td>good (shared parts)</td></tr>
+                <tr><td>Morphology</td><td>invisible (<code>run</code>/<code>running</code> unrelated)</td><td>must be learned</td><td>partly explicit</td></tr>
+            </tbody>
+        </table>
+        </div>
+
+        <p>
+            The last row is the one that is easy to miss. With a word vocabulary,
+            <code>run</code> and <code>running</code> are two unrelated integers; whatever the model
+            learns about one, it must learn again for the other. Subwords make the shared part
+            <em>literally the same token</em>, so the parameters are shared for free.
+        </p>
+
+        <div class="hd-check" data-key="tok-tradeoff">
+            <input type="checkbox" id="chk-tok-tradeoff">
+            <label for="chk-tok-tradeoff">I can state the word-vocabulary problem and the
+                character-vocabulary problem without looking, and say which one
+                <code>&lt;UNK&gt;</code> belongs to.</label>
+        </div>
+
+
+        <!-- ================================================================ -->
+        <h2 id="s2"><span class="hd-secnum">2</span>UTF-8, and why bytes are the floor</h2>
+
+        <p>
+            Modern tokenizers do not start from characters. They start from <strong>bytes</strong>, and
+            the reason is worth stating carefully because it is the design decision that makes
+            <code>&lt;UNK&gt;</code> impossible rather than merely unlikely.
+        </p>
+
+        <p>
+            Unicode has ~150,000 assigned code points and grows with each release, so "character" is
+            not a fixed alphabet either. UTF-8 encodes any code point as 1–4 bytes, and there are
+            exactly $256$ possible byte values, forever. Take $\Sigma_0 = \{0, 1, \dots, 255\}$ and
+            <em>every</em> possible text — every language, every emoji, every corrupted file — is
+            already in $\Sigma_0^*$. There is nothing left to be out of vocabulary.
+        </p>
+
+        <p>
+            The price is paid unevenly, and this is the part students should see as numbers rather than
+            as a remark:
+        </p>
+
+        <pre><code class="language-python">for s in ["hello", "héllo", "こんにちは", "مرحبا", "🙂"]:
+    print(f"{s!r:12} chars={len(s):3} bytes={len(s.encode()):3}")
+
+# 'hello'        chars=  5 bytes=  5
+# 'héllo'        chars=  5 bytes=  6
+# 'こんにちは'      chars=  5 bytes= 15
+# 'مرحبا'        chars=  5 bytes= 10
+# '🙂'            chars=  1 bytes=  4</code></pre>
+
+        <p>
+            ASCII is one byte per character; Japanese is three; a single emoji is four. Before any
+            merging happens at all, the same <em>content</em> costs three times as many symbols in
+            Japanese as in English. §4.3 returns to what that means for users.
+        </p>
+
+        <div class="callout">
+            <span class="callout-label">Definition</span>
+            A <strong>byte-level</strong> tokenizer is one whose base vocabulary is the 256 byte
+            values, so that any input is representable and <code>&lt;UNK&gt;</code> never occurs. A
+            <strong>subword</strong> tokenizer additionally learns a set of multi-byte units from a
+            corpus, to buy back the sequence length that bytes cost. Almost every current model is
+            both.
+        </div>
+
+
+        <!-- ================================================================ -->
+        <h2 id="s3"><span class="hd-secnum">3</span>Byte-pair encoding</h2>
+
+        <p>
+            BPE was a data-compression algorithm from 1994, repurposed for NLP in 2015. The idea is one
+            sentence: <strong>repeatedly find the most frequent adjacent pair of symbols and replace it
+            with a single new symbol.</strong> Each replacement costs one vocabulary slot and shortens
+            every occurrence by one. Run it $k$ times and you have a vocabulary of size $256 + k$ that
+            is adapted to your corpus.
+        </p>
+
+        <h3 id="s3-train">3.1 &nbsp;Training: merge the most frequent pair</h3>
+
+        <p>
+            Here is a real run on a four-sentence corpus, with $k = 6$ merges. This is genuine output,
+            not an illustration:
+        </p>
+
+        <pre><code class="language-python">text = ("the cat sat on the mat. the cat sat on the hat. "
+        "the rat sat on the mat. the bat sat on the cat.")
+
+tokenizer = BasicTokenizer()
+tokenizer.train(text, vocab_size=256 + 6, verbose=True)
+
+# merge 1/6: (97, 116)  -> 256 (b'at')    had 12 occurrences
+# merge 2/6: (116, 104) -> 257 (b'th')    had  8 occurrences
+# merge 3/6: (257, 101) -> 258 (b'the')   had  8 occurrences
+# merge 4/6: (258, 32)  -> 259 (b'the ')  had  8 occurrences
+# merge 5/6: (256, 32)  -> 260 (b'at ')   had  8 occurrences
+# merge 6/6: (32, 259)  -> 261 (b' the ') had  7 occurrences</code></pre>
+
+        <p>
+            Read it slowly, because four separate lessons are visible in six lines.
+        </p>
+
+        <ul>
+            <li><strong>Merges compose.</strong> Merge 3 consumes token <code>257</code>, which merge 2
+                created. The units are built up in a fixed order, and each new token is a tree over
+                earlier ones — <code>the</code> is <code>(th)+e</code> is <code>((t+h))+e</code>.</li>
+            <li><strong>It found morphology without being told about it.</strong> <code>at</code> and
+                <code>the</code> are real units of English. Nobody supplied a dictionary; frequency
+                alone produced them.</li>
+            <li><strong>Space is just byte 32.</strong> Merges 4, 5 and 6 all involve it, so
+                <code>the&nbsp;</code> (with trailing space) and <code>&nbsp;the&nbsp;</code> are
+                tokens. This is <em>why</em> tokens in real vocabularies have leading spaces attached,
+                and it is also a pathology: a token spanning a word boundary means the model sees
+                "cat" and " cat" as unrelated integers. Production tokenizers restrict merges with a
+                pre-tokenization regex to stop exactly this; §5 shows where <code>minbpe</code> chose
+                not to.</li>
+            <li><strong>It is greedy and irreversible.</strong> Merge 1 was taken because 12 &gt; 8, and
+                nothing later reconsiders it. There is no search and no optimality claim.</li>
+        </ul>
+
+        <div class="callout warn">
+            <span class="callout-label">The order is the model</span>
+            The output of training is not a set of tokens, it is an <em>ordered list of merge rules</em>.
+            Two tokenizers with identical vocabularies but different merge orders will segment text
+            differently. This is why you cannot mix a checkpoint with the wrong tokenizer version and
+            why the merge list ships with the weights.
+        </div>
+
+        <h3 id="s3-encode">3.2 &nbsp;Encoding: replay the merges, in order</h3>
+
+        <p>
+            To tokenize new text: convert to bytes, then apply the learned merges repeatedly, always
+            choosing the merge that was learned <em>earliest</em>, until none apply. Earliest-first is
+            what makes encoding consistent with training.
+        </p>
+
+        <pre><code class="language-python">tokenizer.encode("the cat sat")
+# [259, 99, 260, 115, 256]
+#   ^     ^    ^    ^    ^
+# 'the ' 'c'  'at ' 's'  'at'
+
+# 11 bytes in, 5 tokens out; and it round-trips:
+assert tokenizer.decode(tokenizer.encode("the cat sat")) == "the cat sat"</code></pre>
+
+        <p>
+            Note that the segmentation is nothing a linguist would choose —
+            <code>'c'</code>, <code>'at '</code>, <code>'s'</code>, <code>'at'</code> cuts "cat" and
+            "sat" in half. It is not supposed to be linguistically principled. It is supposed to be
+            short, deterministic, and total, and it is all three.
+        </p>
+
+        <h3 id="s3-decode">3.3 &nbsp;Decoding, and why it can fail</h3>
+
+        <p>
+            Decoding is the easy direction: look up the bytes for each id, concatenate, and interpret
+            the result as UTF-8. The subtlety is that the model emits token ids one at a time, and there
+            is no guarantee a prefix of them forms valid UTF-8 — a multi-byte character can be cut in
+            half. Real code therefore decodes with <code>errors="replace"</code>:
+        </p>
+
+        <pre><code class="language-python">tokenizer.decode([104, 101, 196])   # 'he�'  -- 196 begins a 2-byte char that never finishes</code></pre>
+
+        <p>
+            That <code>�</code> is not a bug in the tokenizer; it is a truthful report that the model
+            produced half a character. If you have ever seen a streaming chat interface emit a
+            replacement character that resolves itself a moment later, you have watched this happen: the
+            second byte arrived on the next token.
+        </p>
+
+        <div class="ex">
+            <div class="ex-head"><span>Exercise 3.1 — merge by hand</span></div>
+            <div class="ex-body">
+                <p>
+                    Run two merges of BPE by hand on <code>aaabdaaabac</code> (treat each letter as one
+                    byte). Give the merge rules and the final sequence.
+                </p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    Pair counts: <code>aa</code> appears 4 times (positions 1–2, 2–3, 6–7, 7–8),
+                    <code>ab</code> 2, <code>ba</code> 2, <code>bd</code> 1, <code>da</code> 1,
+                    <code>ac</code> 1. So the first merge is <code>aa → X</code>.
+                    Applying it left to right: <code>aaabdaaabac</code> → <code>XabdXabac</code>.
+                    Now <code>Xa</code> appears twice and <code>ab</code> twice — a tie, broken by
+                    whichever the implementation's <code>max</code> encounters first. Taking
+                    <code>ab → Y</code> gives <code>XYdXYac</code>; taking <code>Xa → Y</code> gives
+                    <code>YbdYbac</code>. Both are legitimate BPE runs, which is the point of the
+                    exercise: <strong>tie-breaking is implementation-defined</strong>, and it is one of
+                    several reasons two "BPE tokenizers" trained on the same text can disagree.
+                    <p style="margin-bottom:0">
+                    Note also that <code>aa</code> in <code>aaa</code> was counted twice but could only
+                    be merged once — see §6 Q3.</p>
+                </div></details>
+            </div>
+        </div>
+
+
+        <!-- ================================================================ -->
+        <h2 id="s4"><span class="hd-secnum">4</span>What your tokenizer does to everything downstream</h2>
+
+        <p>
+            Tokenization is usually taught as preprocessing, which makes it sound harmless. It is not
+            preprocessing; it is a choice of what the model's atoms <em>are</em>. Three consequences,
+            the first of which will affect how you read every number in this course.
+        </p>
+
+        <h3 id="s4-ppl">4.1 &nbsp;Perplexity is not comparable across tokenizers</h3>
+
+        <p>
+            Handout #2 §5.1 defined perplexity as $\exp\!\big(\tfrac{1}{N}\sum_{t} -\log
+            p(x_t \mid x_{&lt;t})\big)$ — an average <em>per token</em>. If two models tokenize the same
+            text into different numbers of tokens, they are dividing the same total by different $N$.
+        </p>
+
+        <p>
+            Make it concrete. One test string; two tokenizers; suppose both models assign the identical
+            total log-probability $-30$ nats to the string — that is, <em>they are equally good models
+            of the text</em>:
+        </p>
+
+        <pre><code class="language-python">import math
+total_logp = -30.0            # nats, for the whole 40-byte string
+
+for name, n_tokens in [("byte-level", 40), ("BPE", 12)]:
+    per_token = -total_logp / n_tokens
+    print(f"{name:11} {n_tokens:3} tokens  loss {per_token:.2f} nats  ppl {math.exp(per_token):6.2f}")
+
+# byte-level   40 tokens  loss 0.75 nats  ppl   2.12
+# BPE          12 tokens  loss 2.50 nats  ppl  12.18</code></pre>
+
+        <p>
+            Perplexity 2.12 versus 12.18 for two models that are <em>exactly as good</em>. The
+            byte-level model looks six times better and is not. Nothing is wrong with the definition;
+            the quantity is simply per-token, and "token" is not a fixed unit.
+        </p>
+
+        <div class="callout">
+            <span class="callout-label">What is comparable</span>
+            <strong>Bits per byte</strong> (or per character): divide the total log-probability by the
+            number of <em>bytes</em> in the text rather than the number of tokens.
+            $\text{bpb} = \frac{-\sum_t \log_2 p(x_t \mid x_{&lt;t})}{\#\text{bytes}}$. The numerator is
+            a property of the model and the text; the denominator is a property of the text alone. In
+            the example above both models give $30 / (\ln 2 \cdot 40) = 1.082$ bits per byte — equal, as
+            they should be. When you see two papers' perplexities compared, check that they share a
+            tokenizer. Often they do not.
+        </div>
+
+        <h3 id="s4-arith">4.2 &nbsp;Failures that are really tokenizer failures</h3>
+
+        <p>
+            A surprising number of famous LLM weaknesses are not reasoning failures at all. They are
+            consequences of the segmentation the model was handed.
+        </p>
+
+        <ul>
+            <li><strong>Spelling and character counting.</strong> Asked how many <code>r</code>s are in
+                a word, the model does not see letters — it sees two or three opaque integers. The
+                letters are recoverable only from what it has learned <em>about</em> those integers.
+                This is genuinely hard for the same reason it would be hard for you to count the letters
+                in a word you only ever heard spoken.</li>
+            <li><strong>Reversing strings</strong> — same cause. The atoms are not the units the task
+                asks about.</li>
+            <li><strong>Arithmetic.</strong> Whether <code>1234</code> is one token, or
+                <code>123</code>+<code>4</code>, or <code>12</code>+<code>34</code>, depends on which
+                digit strings were frequent in the tokenizer's training corpus. Column-wise addition is
+                nearly impossible when the columns are not aligned with the atoms. Several model
+                families now force digits to be tokenized individually, purely to fix this — a
+                tokenizer change made to buy a reasoning capability.</li>
+            <li><strong>The trailing-space bug.</strong> Because <code>&nbsp;cat</code> and
+                <code>cat</code> are different tokens (§3.1), a prompt ending in a space puts the model
+                in a different state than one that does not, and can measurably degrade output. This is
+                a real, reported, confusing-in-practice bug with a purely tokenizer-shaped cause.</li>
+        </ul>
+
+        <div class="callout aside">
+            <span class="callout-label">Why this matters for how you evaluate</span>
+            When a model fails a task, the useful first question is not "does it lack the concept?" but
+            "can it even see the units the task is about?" These two hypotheses call for completely
+            different fixes, and confusing them wastes a lot of time.
+        </div>
+
+        <h3 id="s4-multi">4.3 &nbsp;The multilingual tax</h3>
+
+        <p>
+            §2 showed that Japanese text costs ~3× the bytes of English. Merges are learned from a
+            corpus, so a corpus that is mostly English spends its vocabulary budget on English units,
+            and the ~3× byte disadvantage is <em>not</em> bought back by merging. The result, measured
+            across current tokenizers, is that the same content can take several times more tokens in a
+            lower-resource language than in English. That means, for the same text: a larger share of a
+            fixed context window, more compute per document, higher cost per API call, and — since
+            attention is quadratic — disproportionately more work. An implementation detail chosen for
+            compression turns into a distributional question about who the system serves well.
+        </p>
+
+
+        <!-- ================================================================ -->
+        <h2 id="s5"><span class="hd-secnum">5</span>Reading real code: <code>minbpe</code></h2>
+
+        <p>
+            Everything in §3 is about 30 lines of Python. Karpathy's
+            <a href="https://github.com/karpathy/minbpe" target="_blank" rel="noopener noreferrer">minbpe</a>
+            is the clean version of it, and the file to read is
+            <code>basic.py</code>: byte-level BPE with no regex pre-tokenization and no special
+            tokens, which is exactly the algorithm above and nothing else.
+        </p>
+
+        <div class="callout try">
+            <div class="callout-label">Try it</div>
+            <p>Open these beside this page:</p>
+            <ul style="margin-bottom:0">
+                <li><a href="https://github.com/karpathy/minbpe/blob/master/minbpe/basic.py" target="_blank" rel="noopener noreferrer"><code>minbpe/basic.py</code></a>
+                    — 74 lines, of which ~30 matter: <code>train</code>, <code>encode</code>,
+                    <code>decode</code>.</li>
+                <li><a href="https://github.com/karpathy/minbpe/blob/master/minbpe/base.py" target="_blank" rel="noopener noreferrer"><code>minbpe/base.py</code></a>
+                    — the two helpers <code>get_stats</code> and <code>merge</code>, plus the
+                    save/load format. The helpers are the whole of BPE's arithmetic.</li>
+            </ul>
+        </div>
+
+        <p>
+            <strong>What to assess as you read.</strong> Whether you can point at: pair counting, the
+            merge loop, how the vocabulary is constructed, and the encode/decode round-trip — and
+            whether you can say what the file deliberately does <em>not</em> do.
+        </p>
+
+        <h3 id="s5-helpers">5.1 &nbsp;Two helpers, and that is the arithmetic</h3>
+
+        <p class="hd-srcline"><code>base.py</code> · <code>get_stats</code>, <code>merge</code>
+            (docstrings trimmed)</p>
+        <pre><code class="language-python">def get_stats(ids, counts=None):
+    counts = {} if counts is None else counts
+    for pair in zip(ids, ids[1:]): # iterate consecutive elements
+        counts[pair] = counts.get(pair, 0) + 1
+    return counts
+
+def merge(ids, pair, idx):
+    newids = []
+    i = 0
+    while i < len(ids):
+        # if not at the very last position AND the pair matches, replace it
+        if ids[i] == pair[0] and i < len(ids) - 1 and ids[i+1] == pair[1]:
+            newids.append(idx)
+            i += 2
+        else:
+            newids.append(ids[i])
+            i += 1
+    return newids</code></pre>
+
+        <p>
+            <code>zip(ids, ids[1:])</code> is the idiom for "all adjacent pairs" and is worth adding to
+            your vocabulary. <code>merge</code> is a left-to-right scan with a two-step skip on a match:
+            the <code>i += 2</code> is what prevents a merged token from being immediately re-merged
+            with the byte after it. Both functions operate on flat lists of <code>int</code> — there is
+            no tree, no trie, no string anywhere in the hot path.
+        </p>
+
+        <p>
+            One asymmetry between them is a genuine subtlety rather than a bug, and §6 Q3 asks about it:
+            <code>get_stats([1,1,1])</code> reports <code>{(1,1): 2}</code>, but
+            <code>merge([1,1,1], (1,1), 4)</code> returns <code>[4, 1]</code> — one merge, not two.
+        </p>
+
+        <h3 id="s5-train">5.2 &nbsp;The training loop</h3>
+
+        <p class="hd-srcline"><code>basic.py</code> · <code>BasicTokenizer.train</code> (verbatim; the
+            <code>verbose</code> print and the two closing <code>self.</code> assignments elided)</p>
+        <pre><code class="language-python">def train(self, text, vocab_size, verbose=False):
+    assert vocab_size >= 256
+    num_merges = vocab_size - 256
+
+    # input text preprocessing
+    text_bytes = text.encode("utf-8") # raw bytes
+    ids = list(text_bytes) # list of integers in range 0..255
+
+    # iteratively merge the most common pairs to create new tokens
+    merges = {} # (int, int) -> int
+    vocab = {idx: bytes([idx]) for idx in range(256)} # int -> bytes
+    for i in range(num_merges):
+        # count up the number of times every consecutive pair appears
+        stats = get_stats(ids)
+        # find the pair with the highest count
+        pair = max(stats, key=stats.get)
+        # mint a new token: assign it the next available id
+        idx = 256 + i
+        # replace all occurrences of pair in ids with idx
+        ids = merge(ids, pair, idx)
+        # save the merge
+        merges[pair] = idx
+        vocab[idx] = vocab[pair[0]] + vocab[pair[1]]</code></pre>
+
+        <p>
+            Read the loop body against §3.1 and it is a line-for-line match: count, take the argmax,
+            mint the next id, rewrite the sequence, record the rule. Four things to notice.
+        </p>
+
+        <ul>
+            <li><code>assert vocab_size >= 256</code> and <code>num_merges = vocab_size - 256</code>:
+                the 256 bytes are not negotiable, so the only free parameter is how many merges you can
+                afford. "Vocabulary size 32768" means 32512 merges.</li>
+            <li><code>vocab[idx] = vocab[pair[0]] + vocab[pair[1]]</code> — plain bytes concatenation.
+                Every token's <em>meaning</em> is defined recursively by the two tokens it came from,
+                which is why <code>base.py</code> can rebuild the entire vocabulary from the merge list
+                alone (<code>_build_vocab</code>) and why the saved model file contains only merges.</li>
+            <li><code>max(stats, key=stats.get)</code> silently picks the first maximum on a tie, in
+                dict insertion order. That is the implementation-defined tie-break from Exercise 3.1,
+                and it is one line.</li>
+            <li>It is $O(k \cdot n)$: a full pass over the whole sequence per merge. Fine for a
+                tutorial, hopeless for a real corpus, which is why production trainers maintain
+                incremental counts. Notice that <code>get_stats</code>'s optional <code>counts</code>
+                argument is the seam left for exactly that.</li>
+        </ul>
+
+        <h3 id="s5-encode">5.3 &nbsp;<code>encode</code>: replay in merge order</h3>
+
+        <p class="hd-srcline"><code>basic.py</code> · <code>BasicTokenizer.encode</code> (verbatim)</p>
+        <pre><code class="language-python">def encode(self, text):
+    # given a string text, return the token ids
+    text_bytes = text.encode("utf-8") # raw bytes
+    ids = list(text_bytes) # list of integers in range 0..255
+    while len(ids) >= 2:
+        # find the pair with the lowest merge index
+        stats = get_stats(ids)
+        pair = min(stats, key=lambda p: self.merges.get(p, float("inf")))
+        # subtle: if there are no more merges available, the key will
+        # result in an inf for every single pair, and the min will be
+        # just the first pair in the list, arbitrarily
+        # we can detect this terminating case by a membership check
+        if pair not in self.merges:
+            break # nothing else can be merged anymore
+        # otherwise let's merge the best pair (lowest merge index)
+        idx = self.merges[pair]
+        ids = merge(ids, pair, idx)
+    return ids</code></pre>
+
+        <p>
+            This is the single most instructive function in the file, because the obvious
+            implementation is wrong and the code shows why.
+        </p>
+
+        <p>
+            <strong><code>min</code>, not <code>max</code>.</strong> Training used the most
+            <em>frequent</em> pair; encoding uses the <em>earliest-learned</em> pair, because
+            <code>self.merges[p]</code> is the id, and ids were minted in order. Frequency is
+            irrelevant now — it was already used, once, at training time. Replaying in the original
+            order is what guarantees new text is segmented the way the training text was.
+        </p>
+
+        <p>
+            <strong>The <code>float("inf")</code> default and the membership check.</strong> Pairs with
+            no merge rule get infinite priority, so they sort last. But if <em>every</em> pair is
+            unmergeable, <code>min</code> still returns something — the first pair, arbitrarily — and
+            merging it would corrupt the output. Hence the explicit <code>if pair not in
+            self.merges: break</code>. The four-line comment in the source is there because the author
+            knew this looked redundant and is not. Sentinel-value tricks almost always need a companion
+            check like this; it is a pattern worth recognizing.
+        </p>
+
+        <h3 id="s5-notdoing">5.4 &nbsp;What the file deliberately does not do</h3>
+
+        <p>
+            The module docstring is unusually valuable, because it tells you the shape of the gap
+            between this and a production tokenizer:
+        </p>
+
+        <p class="hd-srcline"><code>basic.py</code> · module docstring (verbatim)</p>
+        <pre><code class="language-python">"""
+Minimal (byte-level) Byte Pair Encoding tokenizer.
+
+Algorithmically follows along the GPT tokenizer:
+https://github.com/openai/gpt-2/blob/master/src/encoder.py
+
+But:
+- Does not handle the regular expression splitting pattern.
+- Does not handle any special tokens.
+"""</code></pre>
+
+        <p>
+            Those two omissions are exactly the two pathologies you already met.
+            <em>No regex splitting</em> is why <code>b' the '</code> became a token in §3.1 — GPT's
+            tokenizer first splits text into word-ish chunks and only merges within a chunk, so no
+            token can span a word boundary. <em>No special tokens</em> means there is no
+            <code>&lt;|endoftext|&gt;</code>, and therefore no way to mark a document boundary — the
+            thing Handout #2 §1.2 needed <code>&lt;/s&gt;</code> for. The sibling file
+            <code>regex.py</code> adds both, and reading it afterwards is a good exercise in seeing how
+            much complexity those two features cost.
+        </p>
+
+        <h3 id="s5-yours">5.5 &nbsp;Now do something to it</h3>
+
+        <p>
+            <button class="w-btn" type="button" data-toggle-answers="#s5-zone">Show all answers</button>
+        </p>
+
+        <div id="s5-zone">
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q1.</strong> Clone it and run the §3.1 example yourself with
+                    <code>verbose=True</code>, then raise <code>vocab_size</code> to 256+20. At what
+                    point do the merges stop being interesting, and why?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    On a 96-byte corpus the useful merges are exhausted almost immediately: once the
+                    frequent units are absorbed, the most-frequent remaining pair has a count of 2 or
+                    even 1, and BPE starts minting tokens for whole sentences —
+                    memorizing the corpus rather than learning units of the language. This is the
+                    tokenizer version of overfitting, and it tells you the real constraint: vocabulary
+                    size only makes sense relative to corpus size. Real tokenizers are trained on
+                    gigabytes precisely so that the 30,000th merge is still supported by many
+                    occurrences.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q2.</strong> <code>encode</code> calls <code>get_stats</code> over the entire
+                    sequence on every iteration of the <code>while</code> loop. What is the complexity,
+                    and what happens if you call <code>encode</code> on a 1 MB string?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    Each iteration is $O(n)$ for the scan plus $O(n)$ for the rewrite, and the loop runs
+                    once per <em>applicable merge</em> — up to $O(k)$ where $k$ is the vocabulary's
+                    merge count. So worst case $O(k n)$, with $k \approx 30{,}000$ in practice: a 1 MB
+                    string is minutes-to-hours, not milliseconds. The fix real implementations use is to
+                    chunk the input first (the regex pre-tokenization from §5.4 does this as a side
+                    effect — no merge can cross a chunk, so you encode each short chunk independently
+                    and can cache results per chunk). Two features for the price of one, which is
+                    usually why an "obvious cleanup" in someone else's code turns out to be load-bearing.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q3.</strong> Explain the <code>get_stats</code>/<code>merge</code> asymmetry
+                    from §5.1: counting says <code>(1,1)</code> occurs twice in <code>[1,1,1]</code>,
+                    merging produces only one new token. Is <code>train</code> wrong?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    Not wrong, but the counts are an <strong>upper bound</strong> on the merges a rule
+                    will actually perform, because overlapping occurrences compete and the
+                    left-to-right scan with <code>i += 2</code> takes the leftmost. So
+                    <code>max(stats, key=stats.get)</code> is greedy on a slightly optimistic estimate,
+                    and on inputs with long runs of a repeated byte it can pick a pair that yields fewer
+                    merges than a competitor. The consequence is a marginally worse compression ratio,
+                    not incorrect behavior — <code>encode</code> and <code>decode</code> stay exact
+                    inverses regardless. Worth knowing because it is the kind of "close enough"
+                    approximation that real systems are full of, and it is invisible unless you compare
+                    the two helpers.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q4.</strong> Add a special token. Sketch what you would have to change so
+                    that <code>&lt;|endoftext|&gt;</code> is a single id that can never be produced by
+                    merging.</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    Reserve an id above the merge range and register it in
+                    <code>self.special_tokens</code> (<code>base.py</code> already has the field and
+                    <code>_build_vocab</code> already handles it). The real work is in
+                    <code>encode</code>: you must split the input on the literal special-token strings
+                    <em>first</em>, BPE-encode only the segments between them, and splice the reserved
+                    ids in. If instead you let the special text flow through the byte path, it gets
+                    merged into ordinary tokens and becomes indistinguishable from a user typing
+                    <code>&lt;|endoftext|&gt;</code> — which is precisely the injection vector behind a
+                    class of prompt-boundary attacks. Note also the security asymmetry this creates:
+                    whether user text is allowed to name special tokens is a decision, and the safe
+                    answer is no. See <code>regex.py</code>'s <code>allowed_special</code> parameter for
+                    how the library exposes that choice.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q5.</strong> Where in this file is the decision that makes
+                    <code>&lt;UNK&gt;</code> impossible?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    Two lines, both in <code>train</code>: <code>text_bytes = text.encode("utf-8")</code>
+                    and <code>vocab = {idx: bytes([idx]) for idx in range(256)}</code>. The base
+                    vocabulary is all 256 bytes and the input is always bytes, so every possible input
+                    is representable before a single merge is learned. Merges can only ever
+                    <em>shorten</em> a sequence, never make it unrepresentable. That is the whole of §2
+                    in two lines, and it is why no modern tokenizer has an <code>&lt;UNK&gt;</code>
+                    token — the problem Handout #2 §3.3 needed one for was designed out of existence
+                    rather than solved.
+                </div></details>
+            </div>
+        </div>
+
+        </div><!-- /#s5-zone -->
+
+        <div class="hd-check" data-key="minbpe">
+            <input type="checkbox" id="chk-minbpe">
+            <label for="chk-minbpe">I can point at the line in <code>minbpe</code> that implements each
+                of: pair counting, the merge loop, vocabulary construction, and the earliest-merge-first
+                rule in <code>encode</code>.</label>
+        </div>
+
+
+        <!-- ================================================================ -->
+        <h2 id="s6"><span class="hd-secnum">6</span>Check yourself</h2>
+
+        <p>
+            <button class="w-btn" type="button" data-toggle-answers="#s6-zone">Show all answers</button>
+        </p>
+
+        <div id="s6-zone">
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q1.</strong> Model A has perplexity 8.2, model B has 21.5, on the same test
+                    file. Which is better?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    <strong>Unanswerable as stated.</strong> If A is byte-level and B uses a 50k
+                    subword vocabulary, B is probably the far better model — B's tokens each carry much
+                    more content, so a higher per-token perplexity is expected. You need either a shared
+                    tokenizer or a tokenizer-independent measure such as bits per byte. §4.1.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q2.</strong> True or false: a byte-level BPE tokenizer with a 32k vocabulary
+                    can fail to represent some input strings.</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    <strong>False</strong>, and the reason is structural rather than statistical: the
+                    256 single-byte tokens are always present, so the worst case for an unfamiliar
+                    string is that it is encoded as many short tokens — never that it cannot be encoded.
+                    Contrast a word-level vocabulary, where the worst case is
+                    <code>&lt;UNK&gt;</code> and information is genuinely destroyed. §2, §5.5 Q5.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q3.</strong> Your model scores 1.9 bits per byte on English and 1.9 on
+                    Japanese. Is it equally good at both?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    Equally good <em>per byte</em>, which is not equally good per unit of content:
+                    Japanese needs about three times the bytes for the same information (§2), so equal
+                    bits-per-byte means it is spending roughly three times the bits to say the same
+                    thing. Bits per byte removes the tokenizer from the comparison but not the
+                    encoding, and no scalar fully fixes cross-language comparison. Being explicit about
+                    which denominator you chose, and why, is the actual skill.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q4.</strong> Why does adding merges to a tokenizer reduce sequence length but
+                    <em>increase</em> the size of the model's embedding and output layers? Which cost
+                    dominates?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    Each merge adds a vocabulary entry, and both the embedding matrix and the output
+                    projection are $d \times |\Sigma|$, so parameters grow linearly in $|\Sigma|$. Meanwhile
+                    sequence length falls — with diminishing returns, since later merges are rarer and
+                    save less. For a Transformer, the compute per layer is roughly linear in $T$ and the
+                    attention term quadratic in $T$, so shortening sequences is worth a great deal; the
+                    softmax over $|\Sigma|$ is the main countervailing cost and it is why vocabularies
+                    sit in the tens of thousands rather than the millions. The trade-off is genuinely
+                    empirical, which is why "vocabulary size" is a hyperparameter and not a theorem.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q5.</strong> You fine-tune a pretrained model on a corpus of chemistry
+                    papers. Someone proposes retraining the tokenizer on that corpus first, to get
+                    better units for chemical names. What breaks?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    Every pretrained weight that is indexed by token id: the embedding matrix and the
+                    output layer become meaningless, since id 4,712 no longer refers to what it did
+                    during pretraining. You would be discarding the pretraining you were trying to
+                    build on. This is why tokenizers are frozen for the life of a model family, and why
+                    <em>extending</em> a vocabulary (appending new ids with freshly initialized rows,
+                    leaving existing ids untouched) is the practical move instead. §3.1's callout — the
+                    merge list ships with the weights — is the same fact from the other side.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q6.</strong> A colleague reports that their model's perplexity dropped from
+                    30 to 12 after they "cleaned up the tokenizer." What is the first thing you ask?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    Whether the token count on the test set changed — because if the tokenizer changed,
+                    the denominator changed and the two numbers measure different things (§4.1). A
+                    tokenizer change that merges more aggressively will lower token count, raise
+                    per-token loss and <em>raise</em> perplexity; one that adds
+                    <code>&lt;UNK&gt;</code>-like collapsing will lower it for free. Ask for bits per
+                    byte, or for perplexity under a fixed reference tokenizer. This is not pedantry:
+                    it is one of the easiest ways to accidentally publish an improvement that is not one.
+                </div></details>
+            </div>
+        </div>
+
+        </div><!-- /#s6-zone -->
+
+
+        <!-- ================================================================ -->
+        <h2 id="s7"><span class="hd-secnum">7</span>Optional further reading</h2>
+
+        <p>Strictly optional — nothing here is assumed in class or on a quiz.</p>
+
+        <ul>
+            <li>
+                <a href="https://aclanthology.org/P16-1162/" target="_blank" rel="noopener noreferrer">Sennrich,
+                Haddow &amp; Birch, <em>Neural Machine Translation of Rare Words with Subword Units</em></a>
+                (2016) — the paper that brought BPE into NLP, to solve the rare-word problem in
+                translation. Short, and readable now that you have §3.
+            </li>
+            <li>
+                <a href="https://www.youtube.com/watch?v=zduSFxRajkE" target="_blank" rel="noopener noreferrer">Karpathy,
+                <em>Let's build the GPT Tokenizer</em></a> — two hours, builds
+                <code>minbpe</code> from nothing and demonstrates the §4.2 failures live.
+            </li>
+            <li>
+                <a href="https://github.com/karpathy/minbpe/blob/master/minbpe/regex.py" target="_blank" rel="noopener noreferrer"><code>minbpe/regex.py</code></a>
+                — the sibling of the file we read, adding the two things §5.4 says
+                <code>basic.py</code> lacks. Read it as a diff against <code>basic.py</code>.
+            </li>
+            <li>
+                <a href="https://arxiv.org/abs/1808.06226" target="_blank" rel="noopener noreferrer">Kudo &amp; Richardson,
+                <em>SentencePiece</em></a> (2018) — the other major family, including the unigram LM
+                tokenizer, which picks a segmentation by likelihood rather than by greedy merging.
+            </li>
+        </ul>
+
+        <div class="hd-footer">
+            <p>
+                <strong>Session number to be assigned.</strong> This handout is written for the
+                tokenization &amp; subwords session; the masthead and the schedule link will be filled
+                in once the ordering is fixed.
+            </p>
+            <p>
+                Found an error, or a passage that doesn't land? Post on
+                <a href="https://piazza.com/jhu/fall2026/cs601471671">Piazza</a> — corrections to these
+                handouts are welcome and useful.
+            </p>
+        </div>
+
+    </main>
+</div>
+
+<script defer src="vendor/katex/katex.min.js"></script>
+<script defer src="vendor/katex/auto-render.min.js"></script>
+<script defer src="vendor/highlight/highlight.min.js"></script>
+<script defer src="handout.js"></script>
+
+</body>
+</html>

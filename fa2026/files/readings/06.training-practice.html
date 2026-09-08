@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Handout #6: Practical Neural Network Training — CS 601.471/671</title>
+    <meta name="description"
+          content="Session 6, slides 156–188: batching, memory, normalization, activations, gradient stability, initialization, dropout, and debugging.">
+
+    <link rel="shortcut icon" href="../favicon.ico">
+    <link rel="stylesheet" href="../fonts.css">
+    <link rel="stylesheet" href="vendor/katex/katex.min.css">
+    <link rel="stylesheet" href="vendor/highlight/github.min.css">
+    <link rel="stylesheet" href="handout.css">
+</head>
+
+<body class="handout" data-handout="06.training-practice">
+
+<header class="hd-mast">
+    <div class="hd-wrap" style="display:block">
+        <div class="hd-course">CS 601.471/671 &nbsp;·&nbsp; NLP: Self-supervised Models &nbsp;·&nbsp; Fall 2026</div>
+        <h1>Handout #6 — Practical Neural Network Training</h1>
+        <p class="hd-sub">
+            Session 6 (Thu, Sept 17) &nbsp;·&nbsp;
+            <a href="../slides/03-4-5-6.feedforward-nets.pdf">Slides: Feedforward Nets</a> &nbsp;·&nbsp;
+            <a href="../../index.html">Course page</a>
+        </p>
+    </div>
+</header>
+
+<div class="hd-wrap">
+
+    <!-- TOC is populated by handout.js from the h2/h3 ids below -->
+    <nav class="hd-toc" aria-label="Contents">
+        <div class="hd-toc-title">On this page</div>
+    </nav>
+
+    <main class="hd-body">
+
+<p class="lead">A correct backward pass is necessary, but training can still fail. This handout connects
+practical choices to the quantities we derived: tensor shapes, activation values, gradients, and
+validation loss. Diagnose what changed before changing another hyperparameter.</p>
+<div class="hd-glance"><dl>
+<dt>Slides</dt><dd><strong>156–188</strong> of <a href="../slides/03-4-5-6.feedforward-nets.pdf">Feedforward Nets</a>.
+Slide 156 recaps automatic differentiation and bridges Handouts #5 and #6.</dd>
+<dt>Session</dt><dd>Thursday, Sept 17. About 70–90 minutes for the core material and exercises;
+the language-model application at the end is optional.</dd>
+<dt>By the end</dt><dd>Batch examples with explicit axes; account for training memory; choose normalization
+axes; diagnose gradient problems; explain initialization and dropout; run a tiny-data training check.</dd>
+<dt>Assumes</dt><dd><a href="04.training-neural-nets.html#s4">Handout #4: analytical backprop</a> and
+<a href="05.backprop-in-practice.html#s3">Handout #5: autograd and the training loop</a>.</dd>
+</dl></div>
+<div class="tbl-scroll"><table class="tbl"><thead><tr><th>Slides</th><th>Reading route</th></tr></thead><tbody>
+<tr><td>156–163</td><td><a href="#s1">Batching and memory</a></td></tr>
+<tr><td>164–167</td><td><a href="#s2">Normalization</a></td></tr>
+<tr><td>168–174</td><td><a href="#s3">Activations</a></td></tr>
+<tr><td>175–178</td><td><a href="#s4">Gradient stability and residual connections</a></td></tr>
+<tr><td>179–180</td><td><a href="#s5">Initialization</a></td></tr>
+<tr><td>181–185</td><td><a href="#s6">Validation and dropout</a></td></tr>
+<tr><td>186–188</td><td><a href="#s7">Debugging and synthesis</a></td></tr>
+</tbody></table></div>
+
+<h2 id="s1"><span class="hd-secnum">1</span>Batching and training memory</h2>
+<p class="hd-srcline">Slides 156–163</p>
+<p>A batch applies the same parameters to multiple examples. Vectorized tensor operations let the
+hardware process those examples together. For language data we use $X\in\mathbb R^{B\times T\times d}$:
+batch, sequence position, embedding coordinate. The slides display another axis order; either works
+if every operation uses the declared convention. An axis's size does not tell you its meaning.</p>
+$$Y=XW^\top+b,\qquad W\in\mathbb R^{h\times d},\qquad Y\in\mathbb R^{B\times T\times h}.$$
+<p>The multiplication acts on the last axis, while the bias broadcasts over examples and positions.
+Its leading cost is $BTdh$ multiply-accumulates. Larger batches can improve hardware utilization,
+but their saved activations also consume more memory.</p>
+<pre><code class="language-python">import torch
+
+torch.manual_seed(0)
+B, T, d, h = 2, 3, 4, 5
+X = torch.randn(B, T, d)
+W = torch.randn(h, d)
+b = torch.randn(h)
+Y = X @ W.T + b
+loop = torch.stack([torch.stack([W @ token + b for token in seq]) for seq in X])
+assert Y.shape == (B, T, h)
+torch.testing.assert_close(Y, loop)
+print("Vectorized and loop results agree:", Y.shape)</code></pre>
+<p>Training memory includes <strong>parameters, parameter gradients, optimizer state, saved
+activations, and temporary workspace</strong>. For a simple float32 Adam accounting, parameters,
+gradients, and two moment buffers use roughly $16P$ bytes for $P$ parameters, before activations
+and temporary buffers. Mixed precision and implementation choices change this estimate.</p>
+<p>Peak memory varies during a step. Optimizer state is often allocated lazily at the first step;
+backward typically releases saved graph tensors, but parameter <code>.grad</code> buffers persist
+until cleared. <code>zero_grad(set_to_none=True)</code> clears those references. Validation should
+use <code>model.eval()</code> and <code>torch.no_grad()</code>: the first changes layer behavior,
+the second disables graph recording. Holding graph-connected losses in a list can retain graphs;
+logging <code>loss.item()</code> avoids that reference.</p>
+<div class="ex"><div class="ex-head"><span>Memory accounting</span></div><div class="ex-body"><p>
+Under the simple float32 Adam estimate, what storage does a 10-million-parameter model need before
+activations? Does halving batch size halve all training memory?</p><details class="ans"><summary>Answer</summary><div class="ans-body">
+About 160 million bytes (160 MB decimal). Halving the batch often roughly halves batch-dependent
+activation storage; parameter, gradient, and optimizer-state storage stays the same.</div></details></div></div>
+
+
+<div class="ex" id="sample-vectorization-depth"><div class="ex-head"><span>Does vectorization remove depth dependencies?</span>
+<span class="ex-src">Adapted from HW3, sp2025, §1.2</span></div><div class="ex-body">
+<p>True or false: vectorizing an $L$-layer network allows all layers to be evaluated simultaneously because there is no longer a Python loop over examples.</p><details class="ans"><summary>Work it out, then reveal the answer</summary>
+<div class="ans-body"><p>False. Examples and independent arithmetic within a layer can be batched, but a layer still depends on the preceding activations. A library or compiler may hide or fuse loops; it does not remove those mathematical dependencies.</p></div></details></div></div>
+
+<div class="ex" id="sample-memory-quiz"><div class="ex-head"><span>Account for buffers before guessing the bottleneck</span>
+<span class="ex-src">Adapted from Quiz 3, sp2025, Q6.1 and Q6.3 (single-device adaptation)</span></div><div class="ex-body">
+<p>A model has one billion parameters. Assume 2 bytes per parameter, 2 per gradient, and two Adam moment buffers of 4 bytes each per parameter. Ignoring activations, temporary buffers, and any master parameter copy, how many decimal GB are needed? Can you name the largest training-memory component without more information?</p><details class="ans"><summary>Work it out, then reveal the answer</summary>
+<div class="ans-body"><p>Each parameter accounts for $2+2+4+4=12$ bytes, giving 12 billion bytes, or 12 GB. The two moment buffers together use 8 GB under these assumptions. No component is universally largest: activations depend on batch size, sequence length, architecture, and saved tensors; optimizer storage depends on the optimizer and precision. The original Q6.1 answer gives a fixed forward/backward ranking that is not generally valid.</p></div></details></div></div>
+<h2 id="s2"><span class="hd-secnum">2</span>Normalization: choose what to center</h2>
+<p class="hd-srcline">Slides 164–167</p>
+<p>For a numerical input feature, standardization uses $(x-\mu)/\sqrt{v+\epsilon}$, where $\mu$
+and $v$ are estimated from the <strong>training split</strong> and reused on validation and test
+inputs. Do not standardize discrete token IDs: their integer values are labels, not magnitudes.</p>
+<p>The slides' positive-input argument is local: for a single affine unit and one example,
+$\nabla_w\ell=\delta x$. If every coordinate of $x$ is positive, the weight-gradient coordinates
+share a sign. Centering can improve this geometry; gradients summed across examples need not share
+a sign, and centering is not a universal convergence guarantee.</p>
+<p>Normalization inside a network is an operation with its own axes. For $X$ shaped $(B,T,d)$,
+<code>LayerNorm(d)</code> computes mean and variance over the final $d$ coordinates separately for
+each token. Batch normalization uses statistics across the batch and relevant spatial axes and
+normally tracks running statistics for evaluation. These choices are not interchangeable.</p>
+$$\operatorname{LN}(x)=\gamma\odot\frac{x-\mu(x)}{\sqrt{v(x)+\epsilon}}+\beta.$$
+<pre><code class="language-python">import torch
+from torch import nn
+
+torch.manual_seed(1)
+X = torch.randn(2, 3, 4, dtype=torch.float64)
+layer = nn.LayerNorm(4, elementwise_affine=False, eps=1e-5).double()
+manual = (X - X.mean(-1, keepdim=True)) / torch.sqrt(
+    X.var(-1, unbiased=False, keepdim=True) + 1e-5)
+torch.testing.assert_close(layer(X), manual)
+torch.testing.assert_close(layer(X).mean(-1), torch.zeros(2, 3, dtype=X.dtype), atol=1e-12, rtol=0)
+print("One mean and variance per token; output shape:", layer(X).shape)</code></pre>
+<div class="ex"><div class="ex-head"><span>Which axes?</span></div><div class="ex-body"><p>
+For a $(2,3,4)$ tensor, how many means does <code>LayerNorm(4)</code> compute? Does normalization
+force the final output variance to be exactly one?</p><details class="ans"><summary>Answer</summary><div class="ans-body">
+Six means, one for each example-position pair. The epsilon changes the normalized variance to
+$v/(v+\epsilon)$; learned scale and shift can change the final statistics further.</div></details></div></div>
+
+
+<div class="ex" id="sample-positive-inputs"><div class="ex-head"><span>What does centering actually change?</span>
+<span class="ex-src">Adapted from Quiz 1, sp2024, Q1.18 and Q1.23</span></div><div class="ex-body">
+<p>For one affine unit and one example, take $x=(1,2)^\top$ and upstream scalar $\delta$. Can the weight gradient have signs $(+,-)$? Now use $x=(-1,2)^\top$. Does normalization force every feature to contribute equally to the final prediction?</p><details class="ans"><summary>Work it out, then reveal the answer</summary>
+<div class="ans-body"><p>Since $\nabla_w\ell=\delta x$, positive inputs yield two entries with the same sign (or both zero). With centered inputs and $\delta&lt;0$, the signs are $(+,-)$. This is a local geometric observation, not a claim about every batch-averaged gradient. Normalization changes scales and can help optimization; learned weights still determine influence, so it does not force equal feature contributions.</p></div></details></div></div>
+<h2 id="s3"><span class="hd-secnum">3</span>Activation functions and their derivatives</h2>
+<p class="hd-srcline">Slides 168–174</p>
+<div class="tbl-scroll"><table class="tbl"><thead><tr><th>Function</th><th>Derivative</th><th>Training implication</th></tr></thead><tbody>
+<tr><td>Sigmoid $\sigma(z)$</td><td>$\sigma(z)(1-\sigma(z))$</td><td>In $(0,1)$; derivative at most $1/4$ and small in either tail.</td></tr>
+<tr><td>$\tanh z$</td><td>$1-\tanh^2 z$</td><td>Output centered around zero, but still saturates in either tail.</td></tr>
+<tr><td>ReLU $\max(0,z)$</td><td>1 for $z&gt;0$, 0 for $z&lt;0$</td><td>No positive-side saturation; negative inputs block the local gradient.</td></tr>
+<tr><td>Leaky ReLU $\max(\alpha z,z)$, $0&lt;\alpha&lt;1$</td><td>$\alpha$ for $z&lt;0$, 1 for $z&gt;0$</td><td>Retains a nonzero negative-side derivative.</td></tr>
+</tbody></table></div>
+<p>At zero, nonsmooth functions need a chosen derivative convention. Saturation is gradual:
+sigmoid derivatives at finite inputs are mathematically positive, although finite precision can
+round them to zero. A “dead ReLU” stays inactive across the relevant training inputs, not merely
+on one example. Leaky ReLU avoids an exactly zero negative slope but cannot guarantee learning.</p>
+<p>Monotonicity is not required for a valid activation. GELU and SiLU/Swish provide smooth,
+nonmonotone alternatives. For the feedforward experiments in these slides, ReLU is a useful
+baseline; compare alternatives with the same data split and training budget.</p>
+<div class="ex"><div class="ex-head"><span>Separate the factors</span></div><div class="ex-body"><p>
+Does sigmoid's derivative being at most $1/4$ prove that a whole network's gradients must shrink
+by a factor of four at every layer?</p><details class="ans"><summary>Answer</summary><div class="ans-body">
+No. The backward rule includes the weight matrix as well as the activation derivative. A weight
+matrix can amplify a signal. The activation contributes attenuation; the full Jacobian determines
+the layer's effect.</div></details></div></div>
+
+
+<div class="ex" id="sample-saturated-init"><div class="ex-head"><span>Large weights plus sigmoid</span>
+<span class="ex-src">Adapted from HW3, sp2025, §1.7; Quiz 1, sp2025, Q1.13</span></div><div class="ex-body">
+<p>A sigmoid hidden unit receives preactivation $z=10$ after initialization. Estimate its derivative and compare it with the derivative at $z=0$. If the upstream gradient is 1, how much signal reaches the preactivation?</p><details class="ans"><summary>Work it out, then reveal the answer</summary>
+<div class="ans-body"><p>$\sigma\prime(10)=\sigma(10)(1-\sigma(10))\approx4.54\times10^{-5}$, compared with $1/4$ at zero. The incoming value 1 becomes about $4.54\times10^{-5}$. Large weights can cause this saturation, depending on the inputs and cancellations; positive weights alone do not guarantee large preactivations on every example.</p></div></details></div></div>
+<h2 id="s4"><span class="hd-secnum">4</span>Vanishing gradients, exploding gradients, and residuals</h2>
+<p class="hd-srcline">Slides 175–178</p>
+<p>Handout #4 derived $g_i=A_i^\top g_{i+1}$. Repeating that rule multiplies many Jacobians.
+For a scalar illustration, twenty factors of $0.5$ give about $9.54\times10^{-7}$; twenty factors
+of 2 give $1{,}048{,}576$. In multiple dimensions, amplification depends on directions and singular
+values, not just whether individual matrix entries exceed 1.</p>
+$$\|g_i\|\leq\left(\prod_{j=i}^{L-1}\|A_j\|\right)\|g_L\|.$$
+<p>This is an upper bound, not a prediction that every direction grows at that rate. Monitor
+activation and gradient norms at several layers. Nonfinite gradients, nearly zero gradients, and
+large but finite gradients require different diagnoses. Gradient clipping limits a large finite
+update; it cannot repair a NaN already produced in the forward pass.</p>
+<p>A residual block computes $h_{i+1}=h_i+F(h_i)$, so its backward rule is</p>
+$$g_i=(I+J_F(h_i))^\top g_{i+1}=g_{i+1}+J_F(h_i)^\top g_{i+1}.$$
+<p>The identity path supplies a direct gradient contribution alongside the learned branch. Shapes
+must agree for addition, or a projection is needed. Residuals improve gradient flow in many
+networks; they do not guarantee that gradients cannot vanish or explode.</p>
+<div class="ex"><div class="ex-head"><span>The identity path is not a guarantee</span></div><div class="ex-body"><p>
+For the scalar residual $y=x+F(x)$, what happens when $F'(x)=0$? What about $F'(x)=-1$?</p>
+<details class="ans"><summary>Answer</summary><div class="ans-body">The total derivative is $1+F'(x)$.
+It equals 1 in the first case, preserving the upstream gradient, and 0 in the second, where the
+two contributions cancel.</div></details></div></div>
+
+
+<div class="ex" id="sample-residual-derivation"><div class="ex-head"><span>Backpropagate through both residual paths</span>
+<span class="ex-src">Adapted from HW4, sp2025, §3.2–4</span></div><div class="ex-body">
+<p>Let $z_1=W_1x$, $h_1=\operatorname{ReLU}(z_1)$, $z_2=W_2h_1$, $h_3=h_1+\operatorname{ReLU}(z_2)$, and $J=\tfrac12\|h_3-y\|^2$. Derive $\nabla_xJ$ using column gradients. Define $D_i=\operatorname{diag}(\mathbf1[z_i&gt;0])$ and assume no preactivation is zero.</p><details class="ans"><summary>Work it out, then reveal the answer</summary>
+<div class="ans-body"><p>Start with $g_3=h_3-y$. The learned branch contributes $W_2^\top D_2g_3$ to $h_1$, and the identity path contributes $g_3$. Thus $g_1=g_3+W_2^\top D_2g_3$ and</p>$$\nabla_xJ=W_1^\top D_1(I+W_2^\top D_2)(h_3-y).$$<p>The direct term avoids multiplication by $W_2^\top D_2$, but it still passes through $W_1^\top D_1$. Residuals do not remove every possible source of attenuation. The sample solution uses row sensitivities; these transposes implement this handout’s column convention.</p></div></details></div></div>
+<h2 id="s5"><span class="hd-secnum">5</span>Initialization: break symmetry without losing scale</h2>
+<p class="hd-srcline">Slides 179–180</p>
+<p>If hidden units start with identical incoming weights and biases and identical outgoing
+connections, they receive identical gradients and remain interchangeable. Random weights break
+this symmetry. Zero biases can be fine when the weights already distinguish the units; the warning
+is about initializing the whole network symmetrically.</p>
+<p>The noise scale matters too: large weights can saturate activations or amplify gradients, while
+very small weights can weaken signals. Fan-in-aware initializations such as Xavier and Kaiming aim
+to preserve useful scales under simplifying assumptions. Their derivations are beyond this slide
+range; use an initialization compatible with the activation rather than arbitrary unit-variance noise.</p>
+<div class="ex"><div class="ex-head"><span>Two identical hidden units</span><span class="ex-src">Adapted from Quiz 1, sp2025, Q1.15; HW3, sp2025, §1.1 and §1.6</span></div><div class="ex-body"><p>
+Two tanh units have identical incoming weights and biases, and the same scalar output weight.
+Will ordinary deterministic gradient descent make them learn different features?</p>
+<details class="ans"><summary>Answer</summary><div class="ans-body">No. They have the same activation,
+the same upstream sensitivity, and the same local derivative. Their incoming gradients match on
+every example, so identical updates preserve the symmetry.</div></details></div></div>
+
+<h2 id="s6"><span class="hd-secnum">6</span>Validation, early stopping, and dropout</h2>
+<p class="hd-srcline">Slides 181–185</p>
+<p>Training loss measures fit to the data used for updates. Validation loss helps choose stopping
+time and hyperparameters. Save the parameters with the best validation score and restore that
+checkpoint; a patience window avoids reacting to a single noisy epoch. Keep the test set for the
+final evaluation.</p>
+<p>Dropout randomly removes activation contributions during training. Let $p$ be the probability
+of dropping and $m\sim\operatorname{Bernoulli}(1-p)$. PyTorch uses <strong>inverted dropout</strong>:</p>
+$$\widetilde h=\frac{m\odot h}{1-p}\quad\text{during training},\qquad
+\widetilde h=h\quad\text{during evaluation},\qquad 0\leq p&lt;1.$$
+<p>Since $\mathbb E[m]=1-p$, $\mathbb E[\widetilde h\mid h]=h$. For an unscaled training mask,
+the alternative is multiplying activations by the keep probability at evaluation. Do not apply both
+conventions. Expectation matching is exact for the activation and a following affine operation;
+a nonlinear whole network is not exactly the average of all masked networks.</p>
+<pre><code class="language-python">import torch
+from torch import nn
+
+torch.manual_seed(2)
+drop = nn.Dropout(p=0.25)
+x = torch.ones(10000)
+drop.train()
+y = drop(x)
+assert torch.all((y == 0) | torch.isclose(y, torch.full_like(y, 4 / 3)))
+assert abs(y.mean().item() - 1) &lt; 0.03
+# Disabling graph recording does not turn dropout off.
+with torch.no_grad():
+    assert (drop(x) == 0).any()
+drop.eval()
+torch.testing.assert_close(drop(x), x)
+print("Training mean:", y.mean().item(), "; eval is identity")</code></pre>
+<div class="ex"><div class="ex-head"><span>Keep versus drop probability</span><span class="ex-src">Extension of Quiz 1, sp2024, Q1.19–20; sp2025, Q1.10</span></div><div class="ex-body"><p>
+With $p=0.2$, what happens to a retained activation of 3 during training? During evaluation?</p>
+<details class="ans"><summary>Answer</summary><div class="ans-body">During training a retained value
+becomes $3/0.8=3.75$; otherwise it becomes zero. During evaluation it is 3. Multiplying by 0.8
+again at evaluation would incorrectly shrink the signal.</div></details></div></div>
+
+
+<div class="ex" id="sample-validation-choice"><div class="ex-head"><span>Respond to a training–validation gap</span>
+<span class="ex-src">Adapted from Quiz 1, sp2024, Q1.24; HW3, sp2025, §1.4–5</span></div><div class="ex-body">
+<p>Training loss is much lower than validation loss. Which are reasonable experiments: fewer layers, narrower hidden layers, less dropout, or more hidden units? What would you inspect before concluding that capacity is the cause?</p><details class="ans"><summary>Work it out, then reveal the answer</summary>
+<div class="ans-body"><p>Fewer or narrower layers can reduce capacity and help if overfitting is the issue. Less dropout weakens that regularizer, while more hidden units increases capacity; neither is the natural first response to this diagnosis. Also inspect split quality, distribution differences, training/evaluation modes, and the loss calculation. Use validation results to compare experiments; no architectural change guarantees improvement.</p></div></details></div></div>
+<h2 id="s7"><span class="hd-secnum">7</span>First debug on a tiny dataset</h2>
+<p class="hd-srcline">Slides 186–188</p>
+<p>Before a long training run, ask whether a sufficiently expressive model can fit a handful of
+consistent examples. Disable dropout and other regularization for this check, use a fixed seed,
+and inspect the loss. Success checks that some parts work together; it does not prove labels,
+data splits, or evaluation are correct. Failure can mean a bug, unsuitable learning rate, too little
+capacity, or contradictory labels.</p>
+<pre><code class="language-python">import torch
+from torch import nn
+
+torch.manual_seed(3)
+X = torch.tensor([[0., 0.], [0., 1.], [1., 0.], [1., 1.]])
+y = torch.tensor([0, 1, 1, 0])  # XOR: requires nonlinear features
+model = nn.Sequential(nn.Linear(2, 16), nn.Tanh(), nn.Linear(16, 2))
+optimizer = torch.optim.Adam(model.parameters(), lr=0.05)
+model.train()
+for step in range(300):
+    optimizer.zero_grad(set_to_none=True)
+    loss = nn.functional.cross_entropy(model(X), y)
+    assert torch.isfinite(loss)
+    loss.backward()
+    assert all(p.grad is not None and torch.isfinite(p.grad).all()
+               for p in model.parameters())
+    optimizer.step()
+model.eval()
+with torch.no_grad():
+    logits = model(X)
+    accuracy = (logits.argmax(-1) == y).float().mean().item()
+    final_loss = nn.functional.cross_entropy(logits, y).item()
+assert accuracy == 1.0 and final_loss &lt; 0.02
+print("Tiny-data accuracy:", accuracy, "; loss:", final_loss)</code></pre>
+<p>If loss is nonfinite, find the first nonfinite intermediate. If gradients are missing, check
+whether the parameter participates in the loss and whether an operation detached it. If gradients
+are zero, inspect activation saturation and masks. If gradients are finite but parameters do not
+change, check the optimizer's parameter list, learning rate, and call to <code>step()</code>.
+A low training loss with worsening validation loss instead calls for checking generalization.</p>
+<div class="ex"><div class="ex-head"><span>A diagnostic experiment</span><span class="ex-src">Extension of Quiz 1, sp2024, Q1.13; sp2025, Q1.20</span></div><div class="ex-body"><p>
+Change the learning rate in the tiny-data lab to zero. Which checks still pass, and what fails?</p>
+<details class="ans"><summary>Answer</summary><div class="ans-body">The forward loss and gradients
+can remain finite, but parameter updates are zero. For this seeded example the final fit assertion
+fails. Finite gradients alone do not establish that learning occurs.</div></details></div></div>
+
+<h2 id="s8"><span class="hd-secnum">8</span>Reading real code: PyTorch dropout</h2>
+<p class="hd-srcline">Companion to slide 185 · torch/nn/modules/dropout.py · Dropout.forward</p>
+<p>This method from the installed PyTorch 2.12.0 source delegates to the functional operation. The excerpt
+below preserves its executable lines and omits only the docstring:</p>
+<pre><code class="language-python">    def forward(self, input: Tensor) -&gt; Tensor:
+        return F.dropout(input, self.p, self.training, self.inplace)</code></pre>
+<p>Trace <code>self.p</code> to the drop probability, <code>self.training</code> to the mode toggled by
+<code>train()</code> and <code>eval()</code>, and <code>self.inplace</code> to whether storage may be
+modified in place. No check of gradient recording appears here: that is why <code>no_grad()</code>
+and evaluation mode have distinct jobs. See the
+<a href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Dropout.html">Dropout documentation and source link</a>.
+The normalization axes used above are documented in
+<a href="https://docs.pytorch.org/docs/stable/generated/torch.nn.LayerNorm.html">LayerNorm</a>.</p>
+<div class="ex"><div class="ex-head"><span>Read, change, explain</span></div><div class="ex-body"><p>
+In a local copy of this method, replace <code>self.training</code> with <code>True</code>. Which
+assertion in §6's lab would fail, and why?</p><details class="ans"><summary>Answer</summary><div class="ans-body">
+The evaluation identity check fails: calling <code>eval()</code> no longer controls the dropout
+operation. The layer still randomly zeroes values and scales retained ones during evaluation.</div></details></div></div>
+        <h2 id="s9"><span class="hd-secnum">9</span>Optional application: the language-model loss</h2>
+
+        <p class="hd-srcline">Optional extension beyond slides 156–188, applying batching and evaluation to language models.</p>
+        <p>
+            <a href="05.backprop-in-practice.html#s3-loop">Handout #5 §3.1</a> gave us a training loop with a <code>loss</code> in it. For a language model that loss
+            is cross-entropy, and <a href="02.language-modeling.html#s5-worked">Handout #2 §5.4</a>
+            computed it by hand. You will never do that again — but you <em>will</em> compute it in
+            PyTorch constantly, and there are three ways to get it wrong that are worth inoculating
+            against before you write your own loop.
+        </p>
+
+        <h3 id="s9-oneline">9.1 &nbsp;It is one line — and it is already the loss</h3>
+
+        <p>
+            Handout #1 §1.5 established that <code>F.cross_entropy(logits, target)</code>
+            <em>is</em> $-\log p(\text{target})$. Handout #2 §5.1 established that perplexity is
+            $2^H$ where $H$ is that quantity averaged. Put them together:
+        </p>
+
+        <p class="hd-srcline">API sketch: assumes a model, inputs, and targets from your training loop.</p>
+<pre><code class="language-python">import torch
+import torch.nn.functional as F
+
+logits  = model(inputs)                     # (T, V) -- one row of scores per position
+targets = ...                               # (T,)   -- the word that actually came next
+
+loss = F.cross_entropy(logits, targets)     # mean negative log-probability
+ppl  = torch.exp(loss)                      # perplexity
+
+# Verify the identity by hand:
+logp   = F.log_softmax(logits, dim=-1).gather(1, targets[:, None]).squeeze(1)
+assert torch.allclose(loss, -logp.mean())   # cross_entropy IS mean -log p</code></pre>
+
+        <div class="callout warn">
+            <span class="callout-label">Trap: <code>torch.exp</code>, not <code>2 **</code></span>
+            <code>F.cross_entropy</code> returns <strong>nats</strong> — it uses the natural log. So
+            perplexity is $e^{H}$, computed as <code>torch.exp(loss)</code>. Writing
+            <code>2 ** loss</code> mixes the bases from Handout #2 §5.1 and silently gives you a
+            different number: for a loss of $4.76$ nats, $e^{4.76} = 117.1$ but $2^{4.76} = 27.2$. If
+            you want bits, convert first — <code>loss / math.log(2)</code> gives $6.87$ bits, and
+            $2^{6.87} = 117.1$ again. Both routes must agree; that is your check.
+        </div>
+
+        <h3 id="s9-shift">9.2 &nbsp;Trap: the off-by-one</h3>
+
+        <p>
+            A causal model predicts token $t$ from tokens $&lt; t$, so the inputs and the targets are the
+            <em>same sequence, shifted by one</em>. This is the objective-constructor widget from
+            <a href="01.foundations.html#s2-labels">Handout #1 §2.1</a>, in two lines:
+        </p>
+
+        <pre><code class="language-python">x = torch.tensor([[5, 9, 2, 7, 4]])         # one sequence of 5 tokens
+
+inputs  = x[:, :-1]                         # [[5, 9, 2, 7]]  -- drop the last
+targets = x[:,  1:]                         # [[9, 2, 7, 4]]  -- drop the first
+
+logits = model(inputs)                      # (B, T-1, V)
+loss = F.cross_entropy(
+    logits.reshape(-1, logits.size(-1)),    # (B*(T-1), V) -- cross_entropy wants 2-D
+    targets.reshape(-1),                    # (B*(T-1),)
+)</code></pre>
+
+        <p>
+            A length-5 sequence yields <strong>4</strong> predictions, not 5 — there is nothing to
+            predict the first token from, and nothing after the last to predict. Forget the shift and
+            you are training the model to copy its input, which produces a beautifully low loss and a
+            completely useless model. Note also the <code>reshape</code>: <code>cross_entropy</code>
+            wants <code>(N, V)</code> and <code>(N,)</code>, so the batch and time axes get flattened
+            together. Perplexity does not care, because it averages over all positions anyway.
+        </p>
+
+        <h3 id="s9-pad">9.3 &nbsp;Trap: padding, and the flattering number it gives you</h3>
+
+        <p>
+            Real batches contain sequences of different lengths, padded to a common length. Padding
+            positions are trivially predictable — the model learns almost immediately that padding
+            follows padding — so if you leave them in the average, they contribute near-zero loss and
+            drag your reported perplexity down.
+        </p>
+
+        <pre><code class="language-python">PAD_ID = 0
+
+# 4 sequences padded to length 10; real lengths 10, 6, 4, 3 -> 23 real tokens of 40.
+masked   = F.cross_entropy(flat_logits, flat_targets, ignore_index=PAD_ID)
+unmasked = F.cross_entropy(flat_logits, flat_targets)
+
+torch.exp(masked)       # ~12.7  <- the truth: averaged over the 23 real predictions
+torch.exp(unmasked)     # ~ 4.3  <- flattering: 17 free wins mixed into the average</code></pre>
+
+        <p>
+            On that batch — 42% padding, and a model that has learned to predict padding almost
+            perfectly — the unmasked figure understates perplexity by about
+            <strong>two thirds</strong>. (The exact numbers depend on the model; the direction and
+            rough magnitude do not.) And nothing errors: you get a number, it looks good, and it is
+            wrong. Always pass <code>ignore_index</code>, and sanity-check the denominator:
+        </p>
+
+        <pre><code class="language-python">total = F.cross_entropy(flat_logits, flat_targets,
+                        ignore_index=PAD_ID, reduction="sum")
+n_real = (flat_targets != PAD_ID).sum()          # 23, not 40
+
+assert torch.allclose(total / n_real, masked)    # 58.449 / 23 == 2.541</code></pre>
+
+        <p>
+            This is the same averaged-versus-summed distinction as Handout #1 Exercise 1.5b, with a
+            subtler failure mode: there the risk was dividing by the wrong number, here it is
+            <em>counting the wrong tokens</em>. Whenever you see a perplexity, ask what $n$ was.
+        </p>
+
+        <h3 id="s9-pertoken">9.4 &nbsp;Finding the token that cost you</h3>
+
+        <p>
+            Because $H$ is an average of per-token surprisals, you can always break it back apart —
+            useful when a model is doing well overall and failing somewhere specific:
+        </p>
+
+        <pre><code class="language-python">import math
+
+logp = F.log_softmax(logits, dim=-1).gather(1, targets[:, None]).squeeze(1)
+bits = -logp / math.log(2)                  # surprisal per token, in bits
+
+worst = bits.argmax()
+print(f"token {worst.item()} cost {bits[worst]:.2f} bits")
+
+# and the average of those bars is exactly the loss:
+assert torch.allclose(2 ** bits.mean(), torch.exp(loss))</code></pre>
+
+        <p>
+            That last assertion is Handout #2 §5.1's two definitions meeting in code: the mean surprisal in bits,
+            exponentiated base 2, equals the mean loss in nats, exponentiated base $e$. If it ever
+            fails, you have mixed bases somewhere.
+        </p>
+
+
+        <!-- ================================================================ -->
+<h3 id="s9-check">9.5 &nbsp;Application questions</h3>
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q5.</strong> A batch of sequences is padded to length 128; the average real
+                    length is 40. You report perplexity without <code>ignore_index</code>. Is your
+                    number necessarily too high or too low? What if padding is predicted almost perfectly?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    <strong>It depends on the padding losses.</strong> If they are near zero, the reported perplexity is too low. About 69% of the positions are padding,
+                    and a trained model predicts padding almost perfectly (near-zero loss), so those
+                    positions drag the average down hard. You are averaging ~40 real predictions
+                    together with ~88 free wins. §9.3's smaller example understates by roughly two
+                    thirds at 42% padding; at 69% padding it would be worse. Nothing errors, the number
+                    looks good, and it is wrong.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q6.</strong> You compute <code>loss = F.cross_entropy(...)</code> and report
+                    perplexity as <code>2 ** loss</code>. Your model's true perplexity is 117. What do
+                    you report?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    About <strong>27</strong>. <code>F.cross_entropy</code> returns nats, so the loss
+                    behind a perplexity of 117 is $\ln 117 \approx 4.76$; computing $2^{4.76}$ gives
+                    $27.2$ instead of $e^{4.76} = 117$. You would be reporting a number roughly four
+                    times better than reality, in a plausible-looking range, with no error raised. Use
+                    <code>torch.exp</code>, or convert to bits first
+                    ($4.76 / \ln 2 = 6.87$ bits, and $2^{6.87} = 117$). §9.1.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q7.</strong> A classmate trains a language model without shifting the
+                    targets — they pass the same sequence as both input and target. The loss drops
+                    almost to zero within an epoch. What has the model learned, and what will
+                    generation look like?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    It has learned the identity function: at each position the correct answer is the
+                    token sitting at that position in the input, which is visible to the model, so the
+                    task is trivial and the loss collapses. Perplexity will look extraordinary. At
+                    generation time there is no "current token" to copy — you feed a prefix and ask for
+                    the <em>next</em> position — so it produces nonsense. A near-zero training loss is
+                    almost never good news; it usually means the label is reachable from the input by
+                    some route you did not intend. §9.2.
+                </div></details>
+            </div>
+        </div>
+
+<div class="hd-footer"><p><strong>Next session:</strong> tokenization and fixed-window neural language models.
+Bring your tensor-shape checks and a training loop that passes the tiny-data test.</p>
+<p>Questions or corrections? Post on <a href="https://piazza.com/jhu/fall2026/cs601471671">Piazza</a>.</p></div>
+    </main>
+</div>
+
+<script defer src="vendor/katex/katex.min.js"></script>
+<script defer src="vendor/katex/auto-render.min.js"></script>
+<script defer src="vendor/highlight/highlight.min.js"></script>
+<script defer src="handout.js"></script>
+
+</body>
+</html>

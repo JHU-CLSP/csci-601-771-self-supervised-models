@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Handout #3: From Counting to Learning — CS 601.471/671</title>
     <meta name="description"
-          content="Session 3 handout through slide 90: feedforward networks, expressivity, losses, optimization, Jacobians, and the chain rule before analytical backpropagation.">
+          content="Session 3 handout for Sept 8, slides 1–54: feedforward networks, expressivity, neural-network history, and perceptrons.">
 
     <link rel="shortcut icon" href="../favicon.ico">
     <link rel="stylesheet" href="../fonts.css">
@@ -37,35 +37,24 @@
 
     <main class="hd-body">
 
-<p class="lead">How can a collection of weighted sums learn to predict words? We need three ingredients:
-<strong>a function that can express useful patterns, a loss that says what counts as a good prediction,
-and derivatives that tell us how the loss changes.</strong> This handout builds those ingredients in the
-order of today's slides. By the end, the remaining question will be how to compute all the derivatives
-efficiently. That is where backpropagation begins.</p>
+<p class="lead">How can a collection of weighted sums represent useful patterns? Today we connect
+count-based language models to parameterized functions, build feedforward networks, and explore why
+nonlinear hidden layers matter. We finish with the history of neural networks and perceptron learning.</p>
 <div class="hd-glance"><dl>
-<dt>Reading for today</dt><dd>This handout accompanies slides 1–89 of
-<a href="../slides/03-4-5-6.feedforward-nets.pdf">Feedforward Nets</a>.
-Slide 90, “Training Neural Networks: Analytical Backprop,” is our stopping point.</dd>
-<dt>Time</dt><dd>About 75–100 minutes including the exercises; coding extensions can be done after class.</dd>
-<dt>By the end</dt><dd>Specify an MLP and count its parameters; explain nonlinearity and capacity;
-choose a loss; distinguish training from evaluation; take a gradient step; track derivative shapes;
-and apply the chain rule through more than one path.</dd>
+<dt>Reading for today</dt><dd>Tuesday, Sept 8: slides 1–54 of
+<a href="../slides/03-4-5-6.feedforward-nets.pdf">Feedforward Nets</a>.</dd>
+<dt>Time</dt><dd>About 35–45 minutes including the exercises.</dd>
+<dt>By the end</dt><dd>Specify an MLP and count its parameters; explain nonlinearity, XOR, width,
+and depth; distinguish capacity from learning; work through a perceptron update.</dd>
 <dt>Assumes</dt><dd><a href="01.foundations.html#s1-la">Handout #1: matrix algebra</a> and
-<a href="01.foundations.html#s1-calc">derivatives</a>, plus
-<a href="02.language-modeling.html#s3-sparsity">Handout #2: sparsity</a> and
-<a href="02.language-modeling.html#s5-def">cross-entropy and perplexity</a>.</dd>
-<dt>How to use it</dt><dd>Pause at each question before opening its answer. Code blocks are independent,
-runnable examples using Python and PyTorch, unless explicitly labeled as a sketch.</dd>
+<a href="02.language-modeling.html#s3-sparsity">Handout #2: sparsity</a>.</dd>
+<dt>How to use it</dt><dd>Try each question before opening its answer. The XOR code is a runnable Python example.</dd>
 </dl></div>
-<div class="tbl-scroll"><table class="tbl"><thead><tr><th>Slides</th><th>Reading route</th><th>Question to answer</th></tr></thead><tbody>
-<tr><td>1–2</td><td><a href="#s1">§1: From counting to functions</a></td><td>What changes in a neural LM?</td></tr>
-<tr><td>3–31</td><td><a href="#s2">§2: Networks and capacity</a></td><td>What can this architecture represent?</td></tr>
-<tr><td>32–55</td><td><a href="#s3">§3: History and perceptrons</a></td><td>Why was learning hidden layers a problem?</td></tr>
-<tr><td>56–75</td><td><a href="#s5">§4: Learning as optimization</a></td><td>What are we minimizing, and on which data?</td></tr>
-<tr><td>76–89</td><td><a href="#s4">§5: Algebra and calculus for backprop</a></td><td>How do changes propagate through a composition?</td></tr>
-<tr><td>90</td><td><a href="#s6">§6: Readiness check</a></td><td>What remains for backprop to compute?</td></tr>
+<div class="tbl-scroll"><table class="tbl"><thead><tr><th>Slides</th><th>Reading route</th></tr></thead><tbody>
+<tr><td>1–2</td><td><a href="#s1">§1: From counting to functions</a></td></tr>
+<tr><td>3–31</td><td><a href="#s2">§2: Networks and capacity</a></td></tr>
+<tr><td>32–54</td><td><a href="#s3">§3: History and perceptrons</a></td></tr>
 </tbody></table></div>
-
 <h2 id="s1"><span class="hd-secnum">1</span>Language modeling as a learning problem</h2>
 <p class="hd-srcline">Slides 1–2 · Connection to Handout #2</p>
 <p>A count-based language model stores statistics for discrete contexts. A neural language model
@@ -257,7 +246,7 @@ parameters (<strong>optimization</strong>)? Does the fitted function work on new
 (<strong>generalization</strong>)? A positive answer to one does not answer the others.</div>
 
 <h2 id="s3"><span class="hd-secnum">3</span>History: from fixed features to learned hidden layers</h2>
-<p class="hd-srcline">Slides 32–55</p>
+<p class="hd-srcline">Slides 32–54</p>
 <p>The biological analogy motivated simple computational units, but an MLP is not a detailed model
 of a biological brain. The historical thread to follow is the separation between representing a
 function and finding its parameters.</p>
@@ -282,229 +271,12 @@ can. Be careful with historical layer counts: the impossibility is about a linea
 an MLP with a nonlinear hidden layer. The next challenge is to learn those hidden features rather
 than supply their weights by hand.</p>
 
-<h2 id="s5"><span class="hd-secnum">4</span>Learning as optimization</h2>
-<p class="hd-srcline">Slides 56–75</p>
-<h3 id="s5-loss">4.1 &nbsp;Data, model, loss, objective</h3>
-<p>Let $D=\{(x_i,y_i)\}_{i=1}^{N}$ be training examples, $f_\theta$ the predictive function,
-and $\ell(f_\theta(x_i),y_i)$ the loss for one example. The <strong>empirical risk</strong> is</p>
-$$J(\theta)=\frac1N\sum_{i=1}^{N}\ell(f_\theta(x_i),y_i),\qquad
-\theta^*\in\operatorname*{argmin}_\theta J(\theta).$$
-<p>The loss is a scalar penalty; the objective averages it over the training data. The notation
-$\arg\min$ describes the desired parameters, not an algorithm or a promise that we can find a
-global minimum. During an update, the data and targets are fixed and the parameters change.</p>
-<div class="tbl-scroll"><table class="tbl"><thead><tr><th>Task</th><th>Per-example loss</th><th>What it penalizes</th></tr></thead><tbody>
-<tr><td>Scalar regression</td><td>Squared error $(\hat y-y)^2$</td><td>Large residuals quadratically; smooth in the prediction.</td></tr>
-<tr><td>Scalar regression</td><td>Absolute error $|\hat y-y|$</td><td>Residual magnitude linearly; has a kink at zero.</td></tr>
-<tr><td>Classification</td><td>Cross-entropy $-\sum_j y_j\log p_j$</td><td>Low probability on the correct class (one-hot $y$).</td></tr>
-</tbody></table></div>
-<div class="ex"><div class="ex-head"><span>Slides 60–62 · Squared versus absolute error</span></div><div class="ex-body"><p>Compare residuals of 1 and 10. How much does each loss increase? Does the kink in absolute error make optimization impossible?</p><details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body">Squared error grows from 1 to 100; absolute error from 1 to 10. Squared error is more sensitive to large residuals. Absolute error is differentiable away from zero; at zero one can use a subgradient (often 0). The kink requires a convention, not abandoning optimization.</div></details></div></div>
-
-<h3 id="s5-ce">4.2 &nbsp;Cross-entropy connects back to language modeling</h3>
-<p>If class $t$ is correct, its one-hot vector has $y_t=1$ and all other entries zero. Therefore</p>
-$$\ell=-\sum_j y_j\log p_j=-\log p_t.$$
-<p>Cross-entropy is the <strong>negative log</strong> of the correct-class probability, not that
-probability itself. The minus sign turns maximizing probability into minimizing loss. We use natural
-logs here: loss is in nats. At $p_t=1$ the loss is 0, and as $p_t\to0$ the loss tends to infinity.</p>
-<div class="ex"><div class="ex-head"><span>Slides 63–65 · Confidence matters</span></div><div class="ex-body"><p>Two models assign the target probabilities $0.8$ and $0.2$. What losses do they get? If their top-ranked class is the same, must their cross-entropies be equal?</p><details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body">The losses are $-\log0.8\approx0.2231$ and $-\log0.2\approx1.6094$ nats. Top-1 accuracy ignores probability magnitudes; cross-entropy measures them. Equal predicted classes need not mean equal losses.</div></details></div></div>
-
-<pre><code class="language-python">import torch
-import torch.nn.functional as F
-
-# Rows are examples; columns are classes. Targets are class indices.
-logits = torch.tensor([[2., 1., 0.], [0., 1., 2.]], dtype=torch.float64)
-target = torch.tensor([0, 2])
-log_probs = logits.log_softmax(dim=-1)
-per_example = -log_probs[torch.arange(2), target]
-loss = F.cross_entropy(logits, target)
-assert torch.allclose(loss, per_example.mean())
-print(per_example.tolist(), loss.item())  # both about 0.407606
-# Try target = torch.tensor([2, 0]): both losses become about 2.407606.</code></pre>
-<p>Pass <strong>logits</strong> to <code>F.cross_entropy</code>; it computes the log-softmax internally.
-Taking softmax first gives it different inputs and a different loss. The stable calculation uses
-$\log p_t=s_t-\log\sum_j e^{s_j}$, evaluating the log-sum-exp after subtracting the maximum logit.
-This avoids overflowing exponentials. Mathematical softmax positivity does not prevent numerical
-underflow in a naive implementation.</p>
-<h3 id="s5-gd">4.3 &nbsp;Why step against the gradient?</h3>
-<p>The gradient collects the sensitivities to all parameters. For a small change $\Delta\theta$,
-the first-order approximation is</p>
-$$J(\theta+\Delta\theta)\approx J(\theta)+\nabla J(\theta)^\top\Delta\theta.$$
-<p>Choosing $\Delta\theta=-\eta\nabla J(\theta)$ with $\eta&gt;0$ makes the predicted change
-$-\eta\|\nabla J(\theta)\|^2$. For a differentiable objective with nonzero gradient, a sufficiently
-small step decreases the loss. The negative gradient is the steepest local direction under a fixed
-Euclidean step length; a large finite step can still overshoot.</p>
-$$\theta_{k+1}=\theta_k-\eta\nabla J(\theta_k).$$
-        <div class="widget">
-            <div class="widget-head">
-                Learning-rate explorer
-                <span class="widget-hint">Drag the learning rate, then press Run. Find the value where
-                    descent stops converging.</span>
-            </div>
-            <div class="widget-body" id="w-gradient-descent"></div>
-        </div>
-
-<div class="ex"><div class="ex-head"><span>Learning-rate experiment</span></div><div class="ex-body"><p>On the convex bowl $J(\theta)=\tfrac12\theta^2$, try learning rates $0.04$, $1$, $1.5$, $2$, and $2.2$ (reset between runs). Derive the behavior before using Run 25.</p><details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body">The update is $\theta_{k+1}=(1-\eta)\theta_k$. At $0.04$ the magnitude shrinks by $0.96$ per step; at 1 it reaches zero in one step; at 1.5 it changes sign while shrinking by half. At 2 it alternates with constant magnitude; at 2.2 it alternates and grows. For nonzero initialization convergence holds exactly when $0&lt;\eta&lt;2$. The threshold is specific to this bowl: for $J=a\theta^2/2$ with $a&gt;0$, it is $2/a$.</div></details></div></div>
-
-<p>Switch the widget to <strong>Two minima</strong> to see why local progress need not find the best
-possible value. Neural-network objectives are generally nonconvex; the convex bowl explains step
-size, not a global convergence guarantee for a network.</p>
-<h3 id="s5-sgd">4.4 &nbsp;Minibatches: estimating the direction</h3>
-$$\widehat J_B(\theta)=\frac1B\sum_{i\in\mathcal B}\ell_i(\theta),\qquad
-\widehat g_B=\frac1B\sum_{i\in\mathcal B}\nabla_\theta\ell_i(\theta).$$
-<p>Full-batch gradient descent uses all $N$ examples per update. A minibatch uses $B$ examples;
-strictly, stochastic gradient descent uses one, though the name commonly includes minibatches.
-For uniformly sampled examples at fixed $\theta$, the batch-average gradient is an unbiased
-estimate of the full-data average gradient. One batch can point in a poor direction; unbiased
-means correct in expectation, not correct on every step.</p>
-<p>Smaller batches permit frequent updates with less activation memory, but introduce more noise.
-Bigger batches often use hardware efficiently. An <strong>epoch</strong> is one pass over the
-training set; with $N$ examples, batches of size $B$, and a retained final partial batch, it has
-$\lceil N/B\rceil$ updates. Noisy updates need not decrease the full-data loss at every step.</p>
-<div class="ex"><div class="ex-head"><span>Averaging matters</span></div><div class="ex-body"><p>At the current parameter, four example-gradients are $2,4,-2,0$. What is the full gradient? Is a one-example gradient of $-2$ a contradiction of unbiasedness?</p><details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body">The full gradient is $(2+4-2+0)/4=1$. A uniform one-example sample has expected gradient 1, but can equal $-2$. That step moves in the opposite direction from the full-gradient step. Summing instead of averaging a batch scales the gradient by $B$, changing the effective step size.</div></details></div></div>
-
-<h3 id="s5-eval">4.5 &nbsp;Fitting is not evaluation</h3>
-<p>Use the <strong>training set</strong> to update weights, a held-out <strong>validation set</strong>
-to choose architecture, learning rate, and stopping point, and a held-out <strong>test set</strong>
-for final evaluation after those choices. Repeatedly selecting models by their test scores turns
-the test set into another validation set.</p>
-<p>Low training loss with high validation loss suggests overfitting. High loss on both can reflect
-insufficient capacity, unsuccessful optimization, or a data/implementation problem. Split text at
-an appropriate document or source boundary before creating overlapping windows so near-duplicate
-contexts do not leak across splits.</p>
-<div class="ex"><div class="ex-head"><span>Slide 74 · Which split?</span></div><div class="ex-body"><p>You try ten learning rates and keep the one with the lowest test loss. What went wrong?</p><details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body">The test data influenced model selection, so its score is no longer an independent final estimate. Choose with validation data; reserve a separate untouched test set for the final model.</div></details></div></div>
-
-
-<h2 id="s4"><span class="hd-secnum">5</span>Algebra and calculus for backpropagation</h2>
-<p class="hd-srcline">Slides 76–89 · Shape bridge to the network equations</p>
-<h3 id="s4-batch">5.1 &nbsp;Forward shapes before derivative shapes</h3>
-<p>Our mathematical input $x$ is a column vector, so one layer computes $Wx+b$.
-In code we stack examples as <em>rows</em> of $X\in\mathbb R^{B\times d}$:</p>
-$$H=\sigma(XW^\top+b),\qquad W\in\mathbb R^{h\times d},\quad H\in\mathbb R^{B\times h}.$$
-<p>The bias $b\in\mathbb R^h$ is broadcast to every row. These are two conventions for the same
-operation, not different models. Each row uses the same parameters.</p>
-<pre><code class="language-python">import torch
-import torch.nn as nn
-
-torch.manual_seed(0)
-B, d, h, m = 5, 4, 6, 3
-x = torch.randn(B, d)
-first, second = nn.Linear(d, h), nn.Linear(h, m)
-hidden = torch.relu(first(x))
-logits = second(hidden)
-assert torch.allclose(first(x), x @ first.weight.T + first.bias)
-assert hidden.shape == (B, h) and logits.shape == (B, m)
-assert sum(p.numel() for layer in (first, second)
-           for p in layer.parameters()) == 51
-print(hidden.shape, logits.shape)  # (5, 6), (5, 3)</code></pre>
-<p>For $X$ of shape $(B,T,d)$, <code>nn.Linear(d,h)</code> maps the last dimension and produces
-$(B,T,h)$. The matrix work costs $BTdh$ multiply-accumulates. Broadcasting checks compatible
-sizes, not the intended meaning of an axis: write down and assert shapes.</p>
-<h3 id="s4-partials">5.2 &nbsp;Partial derivatives and gradients</h3>
-<p>A partial derivative changes one argument while holding the others fixed. For the example in
-slides 78–80, $z(x,y)=y^4x^5$:</p>
-$$\frac{\partial z}{\partial x}=5y^4x^4,\qquad
-\frac{\partial z}{\partial y}=4y^3x^5,\qquad
-\nabla z=\begin{bmatrix}5y^4x^4\\4y^3x^5\end{bmatrix}.$$
-<p>The gradient is a column vector in the declared input order $(x,y)$. A derivative is itself a
-function until we evaluate it at a point.</p>
-<div class="ex"><div class="ex-head"><span>Hold the other input fixed</span></div><div class="ex-body"><p>Evaluate $\nabla z$ at $(x,y)=(1,2)$. Use it to predict the change from increasing only $y$ by $0.001$.</p><details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body">The gradient is $(80,32)^\top$. The first-order prediction is $\Delta z\approx32(0.001)=0.032$. The actual change is $(2.001)^4-2^4\approx0.032024$, close but not identical because the linear approximation omits higher-order terms.</div></details></div></div>
-
-<h3 id="s4-jacobian">5.3 &nbsp;A Jacobian records every output–input sensitivity</h3>
-<p>For $f:\mathbb R^n\to\mathbb R^m$, the Jacobian has <strong>outputs as rows and inputs as
-columns</strong>:</p>
-$$[J_f(x)]_{ij}=\frac{\partial f_i}{\partial x_j},\qquad J_f(x)\in\mathbb R^{m\times n},
-\qquad f(x+\Delta x)\approx f(x)+J_f(x)\Delta x.$$
-<p>For $f(x_1,x_2)=(x_1^2+x_2,\ x_1x_2,\ 3x_2)^\top$,</p>
-$$J_f(x)=\begin{bmatrix}2x_1&amp;1\\x_2&amp;x_1\\0&amp;3\end{bmatrix},\qquad
-J_f(1,2)=\begin{bmatrix}2&amp;1\\2&amp;1\\0&amp;3\end{bmatrix}.$$
-<p>If $m=1$, the Jacobian is the row $\nabla f^\top$, not the gradient column itself. If $m=n=1$,
-it is the ordinary scalar derivative. This transpose convention matters in the chain rule.</p>
-<div class="ex"><div class="ex-head"><span>Slides 81–84 · Read the shape</span></div><div class="ex-body"><p>If $f:\mathbb R^4\to\mathbb R^3$, what is the shape of $J_f$? If a scalar loss depends on a parameter matrix $W\in\mathbb R^{3\times4}$, what shape should its stored gradient have?</p><details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body">$J_f$ is $3\times4$. The gradient $\nabla_W\ell$ is also $3\times4$, one derivative per weight, so it can be subtracted from $W$. These identical sizes arise for different reasons: output–input axes in the first case, parameter axes in the second.</div></details></div></div>
-
-<p>For a vector output $f(W)\in\mathbb R^m$ and a matrix input $W\in\mathbb R^{n\times p}$,
-the unflattened derivative has shape $(m,n,p)$ and entries $\partial f_i/\partial W_{jk}$.
-Flattening $W$ in a fixed order gives the equivalent $m\times(np)$ Jacobian. For a scalar loss,
-we conventionally store the derivatives with the original parameter shape $(n,p)$.</p>
-<h3 id="s4-chain">5.4 &nbsp;Composition: multiply along a path, add across paths</h3>
-<p>For a scalar chain $x\mapsto y(x)\mapsto z(y)$,</p>
-$$\frac{dz}{dx}=\frac{dz}{dy}\frac{dy}{dx}.$$
-<p>If $y=x^2$ and $z=3y+1$, then $dz/dx=3(2x)=6x$. The local derivative of the outer function
-is evaluated at the inner function's value.</p>
-<p>For $g:\mathbb R^d\to\mathbb R^n$ followed by $f:\mathbb R^n\to\mathbb R^m$, the same
-rule becomes a matrix product:</p>
-$$J_{f\circ g}(x)=\underbrace{J_f(g(x))}_{m\times n}
-\underbrace{J_g(x)}_{n\times d}\in\mathbb R^{m\times d}.$$
-<p>The order follows the dependencies and the shapes. Matrix multiplication automatically sums
-over the intermediate coordinates. In particular, if one scalar $x$ affects several intermediates
-$y_i$, which all affect a scalar $z$,</p>
-$$\frac{dz}{dx}=\sum_i\frac{\partial z}{\partial y_i}\frac{dy_i}{dx}.$$
-<div class="ex"><div class="ex-head"><span>Slide 88 · Two paths to the same output</span></div><div class="ex-body"><p>Let $y_1=x^2$, $y_2=3x$, and $z=y_1y_2$. Compute $dz/dx$ through both paths, then check by substitution.</p><details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body">The first path contributes $y_2(2x)=6x^2$; the second contributes $y_1(3)=3x^2$. Their sum is $9x^2$. Direct substitution gives $z=3x^3$, with the same derivative. At $x=2$, the path contributions are 24 and 12, totaling 36. Omitting a path gives the wrong derivative.</div></details></div></div>
-
-<h3 id="s4-numerical">5.5 &nbsp;Code lab: check the chain rule numerically</h3>
-<p>Finite differences estimate the effect of perturbing an input. The following uses only Python's
-standard library. Predict the row and column shapes before running it.</p>
-<pre><code class="language-python">from math import isclose
-
-def g(x):
-    return [x * x, 3 * x]          # R -> R^2
-
-def f(y):
-    return y[0] * y[1]            # R^2 -> R
-
-x = 2.0
-y = g(x)
-J_f = [y[1], y[0]]                # 1 x 2: [dz/dy1, dz/dy2]
-J_g = [2 * x, 3.0]               # 2 x 1: [dy1/dx, dy2/dx]^T
-contributions = [a * b for a, b in zip(J_f, J_g)]
-chain = sum(contributions)
-eps = 1e-5
-numeric = (f(g(x + eps)) - f(g(x - eps))) / (2 * eps)
-assert contributions == [24.0, 12.0]
-assert isclose(chain, numeric, rel_tol=1e-7)
-print(chain, numeric)             # both approximately 36
-# Try eps = 1.0, then 1e-14. Why can either hurt the comparison?</code></pre>
-<details class="ans"><summary>Why not make the perturbation arbitrarily small?</summary><div class="ans-body">
-A large perturbation measures behavior beyond the local linear approximation. A tiny one subtracts
-almost equal floating-point values and amplifies roundoff. At a nondifferentiable point such as
-ReLU's kink, a symmetric difference need not match a chosen implementation convention.</div></details>
-<p>One could perturb every parameter to estimate its derivative, but a central-difference gradient
-for $P$ parameters costs $2P$ loss evaluations. It is useful for checking tiny examples, not for
-training a large network. The chain rule gives the mathematical alternative; backprop will organize
-it so intermediate computations are reused.</p>
-
-<h2 id="s6"><span class="hd-secnum">6</span>Ready for analytical backprop?</h2>
-<p class="hd-srcline">Slide 89 recap · Slide 90 transition</p>
-<p>We can now specify the forward computation and the scalar objective. For one labeled example:</p>
-$$x\longrightarrow z_1=W_1x+b_1\longrightarrow h=\sigma(z_1)
-\longrightarrow s=W_2h+b_2\longrightarrow \ell(s,t).$$
-<p>Training needs $\nabla_{W_1}\ell$, $\nabla_{b_1}\ell$, $\nabla_{W_2}\ell$, and
-$\nabla_{b_2}\ell$. Backpropagation computes these gradients using the chain rule;
-gradient descent uses them to update the parameters. They are distinct jobs.</p>
-<p><button class="w-btn" type="button" data-toggle-answers="#s6-zone">Show all answers</button></p>
-<div id="s6-zone">
-<div class="ex"><div class="ex-head"><span>1 · Specify the model</span></div><div class="ex-body"><p>For $x\in\mathbb R^4$, hidden width 6, and three output classes, list the parameter shapes, logit shape, and total parameter count.</p><details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body">$W_1:6\times4$, $b_1:6$, $W_2:3\times6$, $b_2:3$; the logit vector has length 3. Total: $24+6+18+3=51$. Each parameter gradient has the same shape as its parameter.</div></details></div></div>
-<div class="ex"><div class="ex-head"><span>2 · Connect prediction to training</span></div><div class="ex-body"><p>The network gives the correct class probability $0.25$. What is the per-example loss? What changes when computing empirical risk over 20 examples?</p><details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body">The loss is $-\log0.25\approx1.3863$ nats. Compute one such loss per example and average all 20; do not take the negative log of the mean target probability, which is a different objective.</div></details></div></div>
-<div class="ex"><div class="ex-head"><span>3 · Read the derivative</span></div><div class="ex-body"><p>For $h:\mathbb R^4\to\mathbb R^6$ and a scalar $\ell(h)$, what are the shapes in $J_{\ell\circ h}=J_\ell J_h$? What is the corresponding gradient-column expression?</p><details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body">$(1\times6)(6\times4)=1\times4$. Transposing gives $\nabla_x\ell=J_h^\top\nabla_h\ell$, of shape $(4\times6)(6\times1)=4\times1$. This is the same chain rule under the column-gradient convention.</div></details></div></div>
-<div class="ex"><div class="ex-head"><span>4 · Name the missing computation</span></div><div class="ex-body"><p>If we already know the gradient-descent update and the chain rule, what remains to derive?</p><details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body">We need the local derivatives for each operation and an efficient way to combine contributions to every parameter. The next lecture derives those computations for a neural network and reuses intermediate results instead of separately expanding every derivative.</div></details></div></div>
-
-</div>
-<div class="callout"><span class="callout-label">Stop here</span>
-You should be able to evaluate a small network, choose and compute a loss, explain a gradient step,
-and multiply Jacobians with the correct shapes. Slide 90 opens the next topic: deriving the
-network's parameter gradients efficiently.</div>
-
-<h2 id="s7"><span class="hd-secnum">7</span>Review route</h2>
-<p>If one part felt unfamiliar, revisit the relevant worked example rather than memorizing all the
-notation at once:</p>
-<ul>
-<li>For dimensions and matrix multiplication, revisit <a href="01.foundations.html#s1-la">Handout #1's linear algebra review</a>, then redo §5.1 here.</li>
-<li>For log probabilities, revisit <a href="02.language-modeling.html#s5-def">Handout #2's cross-entropy and perplexity discussion</a>, then redo §4.2 here.</li>
-<li>For derivative notation, revisit <a href="01.foundations.html#s1-calc">Handout #1's calculus review</a>, then redo the two-path example in §5.4.</li>
-</ul>
-<div class="hd-footer"><p><strong>Next session:</strong> analytical backpropagation. Bring the
-forward equations, derivative shapes, and chain-rule questions from this handout.</p>
+<div class="hd-footer"><p><strong>Next session — Thursday, Sept 10:</strong>
+<a href="04.training-neural-nets.html">Handout #4: Losses, Gradients, and Analytical Backprop</a>
+continues from slide 55 with loss functions, optimization, and the calculus and derivation of analytical backpropagation.
+These topics were not covered on Sept 8.</p>
 <p>Found an error or an unclear passage? Post on
 <a href="https://piazza.com/jhu/fall2026/cs601471671">Piazza</a>.</p></div>
-
     </main>
 </div>
 
@@ -512,6 +284,5 @@ forward equations, derivative shapes, and chain-rule questions from this handout
 <script defer src="vendor/katex/auto-render.min.js"></script>
 <script defer src="vendor/highlight/highlight.min.js"></script>
 <script defer src="handout.js"></script>
-<script defer src="widgets/gradient-descent.js"></script>
 </body>
 </html>

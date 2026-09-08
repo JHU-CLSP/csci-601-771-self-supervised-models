@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Handout: Recurrent Neural LMs — CS 601.471/671</title>
+    <meta name="description"
+          content="Reading handout: why a fixed window is not enough, the recurrence, backpropagation through time, truncation and clipping, gates, sampling, and a guided reading of PyTorch's word_language_model example.">
+
+    <link rel="shortcut icon" href="../favicon.ico">
+    <link rel="stylesheet" href="../fonts.css">
+    <link rel="stylesheet" href="vendor/katex/katex.min.css">
+    <link rel="stylesheet" href="vendor/highlight/github.min.css">
+    <link rel="stylesheet" href="handout.css">
+</head>
+
+<body class="handout" data-handout="rnn-language-models">
+
+<header class="hd-mast">
+    <div class="hd-wrap" style="display:block">
+        <div class="hd-course">CS 601.471/671 &nbsp;·&nbsp; NLP: Self-supervised Models &nbsp;·&nbsp; Fall 2026</div>
+        <h1>Handout — Recurrent Neural Language Models</h1>
+        <p class="hd-sub">
+            Session number TBD &nbsp;·&nbsp;
+            <a href="../../index.html">Course page</a>
+        </p>
+    </div>
+</header>
+
+<div class="hd-wrap">
+
+    <!-- TOC is populated by handout.js from the h2/h3 ids below -->
+    <nav class="hd-toc" aria-label="Contents">
+        <div class="hd-toc-title">On this page</div>
+    </nav>
+
+    <main class="hd-body">
+
+        <p class="lead">
+            Every model so far has looked at a fixed number of previous tokens: $n-1$ for an n-gram,
+            whatever the window is for a fixed-window neural LM. Both are the same admission — that
+            $p(x_t \mid x_{&lt;t})$ has been replaced by $p(x_t \mid x_{t-k}, \dots, x_{t-1})$ because
+            the real conditional has an argument of unbounded size. A recurrent network is the first
+            architecture in this course that does not make that concession.
+        </p>
+
+        <div class="hd-glance">
+            <dl>
+                <dt>Assigned papers</dt>
+                <dd>None. <strong>This handout is the reading for this session.</strong>
+                    §8 lists optional depth.</dd>
+
+                <dt>Time</dt>
+                <dd>60–80 minutes.</dd>
+
+                <dt>By the end you should be able to</dt>
+                <dd>
+                    <ul style="margin-bottom:0">
+                        <li>write down the recurrence and say what is shared and what is not;</li>
+                        <li>explain backpropagation through time as backprop on an unrolled graph, and
+                            why it is truncated in practice;</li>
+                        <li>say precisely where vanishing and exploding gradients come from, and which
+                            one clipping fixes;</li>
+                        <li>state the two structural costs that eventually cost RNNs the field;</li>
+                        <li>read PyTorch's official word-level LM example and account for every line of
+                            its <code>forward</code> and its sampling loop.</li>
+                    </ul>
+                </dd>
+
+                <dt>Assumes</dt>
+                <dd>
+                    <a href="03.neural-nets.html#s1">Handout #3 §1</a> (LM as a learning problem, the
+                    fixed-window model), <a href="04.training-neural-nets.html#s2">Handout #4 §2</a> (batched algebra), and
+                    <a href="05.backprop-in-practice.html#s1">Handout #5 §1–§4</a> (backprop, autograd,
+                    the LM loss in code) throughout.
+                </dd>
+            </dl>
+        </div>
+
+
+        <!-- ================================================================ -->
+        <h2 id="s1"><span class="hd-secnum">1</span>What a fixed window cannot do</h2>
+
+        <p>
+            Handout #3's fixed-window model concatenates the embeddings of the previous $k$ tokens and
+            pushes them through an MLP. It fixed the n-gram model's sparsity problem — similar contexts
+            now share parameters — but it inherited the Markov assumption unchanged, and with it three
+            separate defects.
+        </p>
+
+        <p>
+            <strong>Information older than $k$ is gone.</strong> Not down-weighted, not
+            approximated — structurally unavailable. In
+            <em>"The keys that I left on the kitchen counter yesterday afternoon, next to the mail,
+            are&nbsp;…"</em>, the number of the verb is determined by <em>keys</em>, thirteen tokens
+            back. Any $k \le 13$ cannot get this right for the right reason.
+        </p>
+
+        <p>
+            <strong>Every position gets its own parameters.</strong> The input layer is
+            $W \in \mathbb{R}^{d \times kd}$, so the weights that read the token at distance 1 are
+            entirely separate from those that read distance 2. Nothing forces the model to learn "a
+            noun three back" as the same kind of thing as "a noun two back"; it must learn each
+            $k$ times over.
+        </p>
+
+        <p>
+            <strong>$k$ is a hyperparameter, and the cost of raising it is linear in parameters.</strong>
+            Doubling the window doubles the first layer. Handling a document means a window of thousands.
+        </p>
+
+        <div class="callout">
+            <span class="callout-label">The idea</span>
+            Instead of widening the window, keep a <strong>summary</strong> of everything seen so far
+            in a fixed-size vector, and update it one token at a time with the <em>same</em> update rule
+            at every step. The context is then unbounded while the parameter count is constant.
+        </div>
+
+
+        <!-- ================================================================ -->
+        <h2 id="s2"><span class="hd-secnum">2</span>The recurrence</h2>
+
+        <h3 id="s2-eq">2.1 &nbsp;Three equations</h3>
+
+        <p>
+            Let $e_t = E\,x_t$ be the embedding of token $t$ (a row lookup, as in Handout #3 §1). The
+            hidden state $h_t \in \mathbb{R}^{d_h}$ evolves as
+        </p>
+
+        $$ h_t = \tanh\!\big(W_{hh}\, h_{t-1} + W_{eh}\, e_t + b_h\big), \qquad h_0 = \mathbf{0} $$
+
+        <p>and the prediction at each step reads off that state:</p>
+
+        $$ z_t = W_{ho}\, h_t + b_o, \qquad p(\cdot \mid x_{&lt;t+1}) = \operatorname{softmax}(z_t) $$
+
+        <p>and the training objective is the same one it has been since Handout #2:</p>
+
+        $$ \mathcal{L} = -\frac{1}{T}\sum_{t=1}^{T} \log p_\theta\big(x_{t+1} \mid x_{\le t}\big) $$
+
+        <p>
+            The parameters are $E, W_{hh}, W_{eh}, W_{ho}, b_h, b_o$ — and that is the entire model,
+            <em>for any sequence length</em>. Compare the fixed-window model, whose first layer grows
+            with $k$.
+        </p>
+
+        <div class="tbl-scroll">
+        <table class="tbl">
+            <thead><tr><th>Quantity</th><th>Shape</th><th>Depends on $T$?</th></tr></thead>
+            <tbody>
+                <tr><td>$E$</td><td>$|\Sigma| \times d_e$</td><td>no</td></tr>
+                <tr><td>$W_{hh}$</td><td>$d_h \times d_h$</td><td>no</td></tr>
+                <tr><td>$W_{eh}$</td><td>$d_h \times d_e$</td><td>no</td></tr>
+                <tr><td>$W_{ho}$</td><td>$|\Sigma| \times d_h$</td><td>no</td></tr>
+                <tr><td>$h_t$ (activations kept for backprop)</td><td>$T \times d_h$</td><td><strong>yes</strong></td></tr>
+            </tbody>
+        </table>
+        </div>
+
+        <p>
+            The last row is the one that bites, and Handout #5 §2 already explained why: reverse-mode
+            differentiation must keep every intermediate activation until the backward pass reaches it.
+            Parameters are constant in $T$; <em>memory</em> is not.
+        </p>
+
+        <h3 id="s2-shared">2.2 &nbsp;What "recurrent" buys, stated carefully</h3>
+
+        <p>
+            Two distinct wins, often run together, and they are worth separating because only one of
+            them survives into the Transformer.
+        </p>
+
+        <ol>
+            <li><strong>Unbounded context, in principle.</strong> $h_t$ is a function of every token up
+                to $t$. There is no $k$. "In principle" is load-bearing — §3 is about how much of that
+                reach is real.</li>
+            <li><strong>Weight sharing across time.</strong> One $W_{hh}$ applies at every step, so
+                whatever the model learns about "how to update a summary given a new word" is learned
+                once and used everywhere. This is the same argument as convolutional weight sharing
+                across space, and it is the part the Transformer keeps: its per-position feed-forward
+                and attention parameters are also shared across all positions.</li>
+        </ol>
+
+        <h3 id="s2-unroll">2.3 &nbsp;An RNN is a deep net with tied weights</h3>
+
+        <p>
+            There is nothing new to learn about training it. Write out the recurrence for $T$ steps:
+        </p>
+
+        <pre><code class="language-python">h1 = tanh(W_hh @ h0 + W_eh @ e1 + b)
+h2 = tanh(W_hh @ h1 + W_eh @ e2 + b)      # same W_hh
+h3 = tanh(W_hh @ h2 + W_eh @ e3 + b)      # same W_hh
+...</code></pre>
+
+        <p>
+            That is a $T$-layer feed-forward network in which every layer uses the same weight matrix.
+            <strong>Unrolling</strong> is the name for taking that view, and it means backpropagation
+            applies with zero modification: it is Handout #5 §1's computation graph, just a very deep
+            and narrow one. The special name — <strong>backpropagation through time</strong> — describes
+            no new algorithm. It describes reverse-mode autodiff over the unrolled graph.
+        </p>
+
+        <p>
+            One consequence follows immediately from Handout #5 §5.2's gradient accumulation:
+            $W_{hh}$ appears at every one of the $T$ steps, so its gradient is a <em>sum</em> of $T$
+            contributions. That single fact is the source of everything in §3.
+        </p>
+
+        <div class="hd-check" data-key="rnn-unroll">
+            <input type="checkbox" id="chk-rnn-unroll">
+            <label for="chk-rnn-unroll">I can explain BPTT to someone who knows backprop, in one
+                sentence, without introducing anything new.</label>
+        </div>
+
+
+        <!-- ================================================================ -->
+        <h2 id="s3"><span class="hd-secnum">3</span>Why training them is hard</h2>
+
+        <h3 id="s3-vanish">3.1 &nbsp;Vanishing and exploding gradients</h3>
+
+        <p>
+            Trace one gradient path back through $T$ steps. By the chain rule, the contribution of
+            $h_1$ to a loss at step $T$ is a product of $T-1$ Jacobians:
+        </p>
+
+        $$ \frac{\partial \mathcal{L}_T}{\partial h_1}
+           = \frac{\partial \mathcal{L}_T}{\partial h_T} \prod_{t=2}^{T} \frac{\partial h_t}{\partial h_{t-1}},
+           \qquad \frac{\partial h_t}{\partial h_{t-1}} = \operatorname{diag}\!\big(1 - h_t^2\big)\, W_{hh} $$
+
+        <p>
+            The same matrix appears in every factor. A repeated product of one matrix is governed by its
+            largest singular value $\sigma$: the norm behaves like $\sigma^{T}$, and there are only
+            three regimes. Strip it to a scalar and the numbers are unignorable:
+        </p>
+
+        <pre><code class="language-python">for w in (0.9, 1.0, 1.1):
+    W = torch.tensor(w, requires_grad=True)
+    h = torch.tensor(1.0)
+    for _ in range(50):
+        h = h * W                 # a 50-step linear "RNN"
+    h.backward()
+    print(f"w={w}: h_50={h.item():.6g}  dh/dW={W.grad.item():.6g}")
+
+# w=0.9: h_50=0.00515377  dh/dW=0.28632
+# w=1.0: h_50=1           dh/dW=50
+# w=1.1: h_50=117.391     dh/dW=5335.95</code></pre>
+
+        <p>
+            A 10% change in one number moves the gradient by four orders of magnitude over 50 steps.
+            $0.9^{50} \approx 0.005$; $1.1^{50} \approx 117$. Only $\sigma$ exactly $1$ is stable, and
+            nothing keeps it there during training.
+        </p>
+
+        <p>
+            Now note the $\operatorname{diag}(1 - h_t^2)$ factor, which is $\tanh'$. Handout #5 §6 Q2
+            made the point in the abstract: $\tanh' \le 1$, with equality only at $h = 0$, so the
+            nonlinearity multiplies the gradient by <em>at most</em> one at every step and typically by
+            much less. The architecture is biased toward vanishing.
+        </p>
+
+        <div class="callout warn">
+            <span class="callout-label">The two failures are not symmetric</span>
+            <p>
+                <strong>Exploding</strong> gradients are loud and easy to fix: the loss becomes
+                <code>inf</code> or <code>nan</code>, you notice within seconds, and rescaling any
+                gradient whose norm exceeds a threshold — <code>clip_grad_norm_</code> — solves it. The
+                direction is preserved; only the step length is capped.
+            </p>
+            <p style="margin-bottom:0">
+                <strong>Vanishing</strong> gradients are silent. Nothing crashes. The model trains,
+                the loss falls, and it simply never learns any dependency longer than ~10 steps,
+                because the gradient signal from distance 30 arrives multiplied by $10^{-4}$ and is
+                swamped by the short-range signal. You cannot fix it by rescaling, because the
+                <em>relative</em> sizes of the long- and short-range contributions are what is wrong.
+                This asymmetry is why the fix had to be architectural.
+            </p>
+        </div>
+
+        <h3 id="s3-tbptt">3.2 &nbsp;Truncation: BPTT is never actually run to $t=1$</h3>
+
+        <p>
+            Even setting gradients aside, full BPTT over a corpus is impossible: the unrolled graph
+            would be as deep as the dataset is long, and §2.1's last table row says you would have to
+            hold every activation. So implementations chop the stream into segments of some fixed length
+            (in the code we will read, the flag is called <code>bptt</code>, typically 35), and
+            backpropagate only within a segment.
+        </p>
+
+        <p>
+            The trick that makes this more than a crude approximation: <strong>carry the hidden state
+            forward across segments, but not the gradient.</strong> The next segment starts from the
+            state the previous one ended in, so the model's <em>forward</em> context is still unbounded;
+            only the <em>credit assignment</em> is truncated at 35 steps. §7.3 shows the four lines that
+            do this, and they are the ones students most often misread.
+        </p>
+
+        <h3 id="s3-gates">3.3 &nbsp;Gates: LSTM and GRU in one idea</h3>
+
+        <p>
+            The architectural fix for vanishing gradients is to give the state a path through time that
+            is <em>additive</em> rather than multiplicative. An LSTM keeps a cell state $c_t$ updated as
+        </p>
+
+        $$ c_t = f_t \odot c_{t-1} + i_t \odot \tilde{c}_t $$
+
+        <p>
+            where $f_t, i_t \in (0,1)^{d}$ are learned, input-dependent <strong>gates</strong>. Compare
+            $\partial c_t / \partial c_{t-1} = \operatorname{diag}(f_t)$ with the vanilla RNN's
+            $\operatorname{diag}(1-h_t^2)W_{hh}$. If the forget gate stays near 1, the product of
+            Jacobians is near the identity for as long as it does — the gradient can travel a long way
+            without being repeatedly multiplied by a learned matrix. The gate <em>can</em> also close,
+            which is the point: the network learns per-dimension, per-timestep how long to preserve
+            information.
+        </p>
+
+        <p>
+            A GRU merges the input and forget gates into one and drops the separate cell state — fewer
+            parameters, usually comparable quality. The details of which gate is which matter far less
+            than the shared idea: <strong>an additive path through time, with learned control over
+            it.</strong> That same idea is the residual connection you will meet in the Transformer, and
+            it is not a coincidence.
+        </p>
+
+        <div class="callout aside">
+            <span class="callout-label">Worth keeping in perspective</span>
+            LSTMs (1997) predate their own success by fifteen years, and were the state of the art in
+            language modeling and translation until roughly 2017. Handout #1 §4's claim that the
+            <em>inputs</em> changed more than the algorithms is visible here in miniature.
+        </div>
+
+
+        <!-- ================================================================ -->
+        <h2 id="s4"><span class="hd-secnum">4</span>Generating text</h2>
+
+        <p>
+            Scoring runs the whole sequence at once. Generation cannot: token $t+1$ depends on token
+            $t$, which you just sampled. The loop is
+        </p>
+
+        <ol>
+            <li>feed the current token, get $p(\cdot)$ and the new state;</li>
+            <li>sample a token from $p$;</li>
+            <li>make it the current token, and repeat.</li>
+        </ol>
+
+        <p>
+            The important structural point — and it is the reason RNNs look so good next to Transformers
+            at inference time — is that <strong>step 1 costs the same at position 10,000 as at position
+            3</strong>. The entire past is in $h_t$, a fixed-size vector, so generation is $O(1)$ per
+            token and $O(T)$ overall, with $O(1)$ memory. §7.4 puts this side by side with the
+            Transformer branch of the very same file, which is $O(T^2)$.
+        </p>
+
+        <p>
+            <strong>Temperature.</strong> Sampling is usually done from a rescaled distribution
+            $p_\tau(i) \propto \exp(z_i / \tau)$. As $\tau \to 0$ this concentrates on the argmax
+            (greedy, repetitive); $\tau = 1$ is the model's actual distribution; $\tau > 1$ flattens it
+            (more diverse, more incoherent). Because it is applied in the exponent, it is a
+            one-parameter knob on the entropy of the next-token distribution and costs nothing.
+        </p>
+
+
+        <!-- ================================================================ -->
+        <h2 id="s5"><span class="hd-secnum">5</span>What RNNs cannot fix</h2>
+
+        <p>
+            Two costs are structural — no gate solves them — and together they are why the field moved.
+        </p>
+
+        <p>
+            <strong>1. No parallelism over time.</strong> $h_t$ requires $h_{t-1}$. On a training
+            sequence of length 1000, an RNN must perform 1000 dependent steps, each too small to fill a
+            GPU. A Transformer computes all positions simultaneously, because attention looks at the
+            whole prefix at once instead of threading a state through it. This is not a constant-factor
+            difference; it changes what is trainable at all at scale, which — per Handout #1 §4 — is the
+            currency that matters.
+        </p>
+
+        <p>
+            <strong>2. A fixed-size bottleneck.</strong> Everything about the past must fit in $h_t$,
+            a $d_h$-vector, regardless of how long the past is. Attention removes exactly this
+            constraint by keeping every past position addressable.
+        </p>
+
+        <p>
+            Neither is a claim that RNNs do not work — they worked well enough to run production
+            translation systems. Both are claims about how they scale, and scaling was the thing.
+            <a href="transformers.html">The Transformer handout</a> starts from exactly these two
+            complaints.
+        </p>
+
+
+        <!-- ================================================================ -->
+        <h2 id="s6"><span class="hd-secnum">6</span>Reading real code: PyTorch's word-level LM</h2>
+
+        <p>
+            The example we will read is not a teaching toy — it is the official
+            <code>pytorch/examples</code> word-level language model, which has been the reference
+            implementation people copy for years. It is worth reading precisely because it is
+            <em>ordinary production-adjacent code</em>: terse, slightly dated in places, with a couple
+            of decisions that will look wrong until you work out why they are not.
+        </p>
+
+        <div class="callout try">
+            <div class="callout-label">Try it</div>
+            <p>Open these beside this page:</p>
+            <ul style="margin-bottom:0">
+                <li><a href="https://github.com/pytorch/examples/blob/main/word_language_model/model.py" target="_blank" rel="noopener noreferrer"><code>word_language_model/model.py</code></a>
+                    — 144 lines. Read <code>RNNModel</code> (the first 64); the
+                    <code>TransformerModel</code> below it is a bonus for later.</li>
+                <li><a href="https://github.com/pytorch/examples/blob/main/word_language_model/generate.py" target="_blank" rel="noopener noreferrer"><code>word_language_model/generate.py</code></a>
+                    — 96 lines, mostly argument parsing. The sampling loop is the last 20.</li>
+                <li>Optional but illuminating:
+                    <a href="https://github.com/pytorch/examples/blob/main/word_language_model/main.py" target="_blank" rel="noopener noreferrer"><code>main.py</code></a>
+                    for <code>batchify</code>, <code>get_batch</code> and
+                    <code>repackage_hidden</code> — §7.3 is about those.</li>
+            </ul>
+        </div>
+
+        <p>
+            <strong>What to assess as you read.</strong> Whether you can follow the hidden state as it
+            is threaded through time and across batches; whether you can name every tensor shape in
+            <code>forward</code>; whether you can explain the weight tying; and whether you notice what
+            the sampling loop does differently in its two branches.
+        </p>
+
+
+        <!-- ================================================================ -->
+        <h2 id="s7"><span class="hd-secnum">7</span>Four things to find in that code</h2>
+
+        <h3 id="s7-forward">7.1 &nbsp;<code>forward</code>, one line at a time</h3>
+
+        <p class="hd-srcline"><code>model.py</code> · <code>RNNModel.forward</code> (verbatim)</p>
+        <pre><code class="language-python">def forward(self, input, hidden):
+    emb = self.drop(self.encoder(input))
+    output, hidden = self.rnn(emb, hidden)
+    output = self.drop(output)
+    decoded = self.decoder(output)
+    decoded = decoded.view(-1, self.ntoken)
+    return F.log_softmax(decoded, dim=1), hidden</code></pre>
+
+        <p>
+            Six lines, and all of §2 is in the second one. Note first what is <em>not</em> here: no loop
+            over time. <code>self.rnn</code> is <code>nn.LSTM</code> (or <code>nn.GRU</code>,
+            <code>nn.RNN</code>), and PyTorch runs the recurrence internally in optimized code. The
+            $T$-step loop from §2.3 exists — it is simply not written in Python.
+        </p>
+
+        <p>
+            The shapes, which the file does not document and which you should verify yourself:
+        </p>
+
+        <div class="tbl-scroll">
+        <table class="tbl">
+            <thead><tr><th>Tensor</th><th>Shape</th><th>Note</th></tr></thead>
+            <tbody>
+                <tr><td><code>input</code></td><td><code>(T, B)</code></td><td><strong>time first</strong>, not batch first</td></tr>
+                <tr><td><code>emb</code></td><td><code>(T, B, ninp)</code></td><td></td></tr>
+                <tr><td><code>output</code></td><td><code>(T, B, nhid)</code></td><td>the state at <em>every</em> step, not just the last</td></tr>
+                <tr><td><code>hidden</code></td><td><code>(nlayers, B, nhid)</code></td><td>a 2-tuple of these for LSTM (state + cell)</td></tr>
+                <tr><td><code>decoded</code></td><td><code>(T*B, ntoken)</code></td><td>after the <code>view</code></td></tr>
+            </tbody>
+        </table>
+        </div>
+
+        <p>
+            <code>(T, B)</code> rather than <code>(B, T)</code> is the single most common source of
+            confusion in this file. <code>nn.RNN</code> and friends default to
+            <code>batch_first=False</code>, a historical choice that persists because changing it would
+            break everyone. If your tensor is batch-first you must transpose or pass
+            <code>batch_first=True</code>; getting this wrong does not crash, it silently treats your
+            batch dimension as time.
+        </p>
+
+        <p>
+            The <code>view(-1, ntoken)</code> flattens $(T, B)$ into $T \cdot B$ rows in row-major
+            order — all $B$ positions of timestep 0, then all of timestep 1, and so on. That ordering
+            has to match the targets, which is §7.3's business.
+        </p>
+
+        <div class="callout warn">
+            <span class="callout-label">The trap Handout #5 §4.1 warned about, live</span>
+            This <code>forward</code> returns <code>log_softmax</code>, <em>not</em> logits. So
+            <code>main.py</code> pairs it with <code>criterion = nn.NLLLoss()</code> and not
+            <code>cross_entropy</code>. Both routes give the identical number —
+            <code>F.cross_entropy</code> <em>is</em> <code>log_softmax</code> followed by
+            <code>NLLLoss</code> — but applying <code>cross_entropy</code> to this output would take a
+            second log-softmax of something already normalized, and you would train a subtly wrong model
+            with no error message:
+            <pre style="margin:10px 0 0"><code class="language-python">a = nn.NLLLoss()(F.log_softmax(logits, dim=1), targets)
+b = F.cross_entropy(logits, targets)
+assert torch.allclose(a, b)     # 2.309767 == 2.309767</code></pre>
+            Whenever you adopt someone's model class, check which of the two it hands back.
+        </div>
+
+        <h3 id="s7-tying">7.2 &nbsp;Weight tying, and the constraint it imposes</h3>
+
+        <p class="hd-srcline"><code>model.py</code> · <code>RNNModel.__init__</code> (verbatim; a second paper citation elided)</p>
+        <pre><code class="language-python">        # Optionally tie weights as in:
+        # "Using the Output Embedding to Improve Language Models" (Press & Wolf 2016)
+        # https://arxiv.org/abs/1608.05859
+        if tie_weights:
+            if nhid != ninp:
+                raise ValueError('When using the tied flag, nhid must be equal to emsize')
+            self.decoder.weight = self.encoder.weight</code></pre>
+
+        <p>
+            One assignment, and it is worth pausing on how much it does. <code>self.encoder</code> is
+            the $|\Sigma| \times d$ input embedding; <code>self.decoder</code> is the
+            $d \to |\Sigma|$ output layer, whose weight is also $|\Sigma| \times d$. Making them the
+            <em>same tensor object</em> means:
+        </p>
+
+        <ul>
+            <li><strong>Parameters drop by $|\Sigma| \cdot d$</strong> — on a realistic vocabulary this
+                is often the largest single matrix in the model, so this is not a marginal saving.</li>
+            <li><strong>Gradients from both uses accumulate into one <code>.grad</code></strong>, by
+                exactly the mechanism of Handout #5 §5.2. One tensor, two consumers, contributions
+                summed. Nothing special was needed to make this work — it is why <code>+=</code> is the
+                right default.</li>
+            <li><strong>The two spaces are forced to coincide</strong>, which is the actual modeling
+                claim: the vector that <em>represents</em> a word and the vector that <em>predicts</em>
+                it should be the same vector. Empirically this helps, especially on smaller datasets.</li>
+        </ul>
+
+        <p>
+            And the <code>raise</code> explains itself now: the shapes only match if $d_h = d_e$. A
+            capability constrains an unrelated-looking hyperparameter — the kind of coupling you only
+            see by reading the code.
+        </p>
+
+        <h3 id="s7-state">7.3 &nbsp;The hidden state across batches — the subtle part</h3>
+
+        <p>
+            This is where most readers of this example go wrong, and the three functions live in
+            <code>main.py</code>. Start with the data layout:
+        </p>
+
+        <p class="hd-srcline"><code>main.py</code> · <code>batchify</code> (verbatim)</p>
+        <pre><code class="language-python">def batchify(data, bsz):
+    # Work out how cleanly we can divide the dataset into bsz parts.
+    nbatch = data.size(0) // bsz
+    # Trim off any extra elements that wouldn't cleanly fit (remainders).
+    data = data.narrow(0, 0, nbatch * bsz)
+    # Evenly divide the data across the bsz batches.
+    data = data.view(bsz, -1).t().contiguous()
+    return data.to(device)</code></pre>
+
+        <p>
+            Run it on the integers 1–24 with <code>bsz=4</code> and the layout becomes obvious:
+        </p>
+
+        <pre><code class="language-python">batchify(torch.arange(1, 25), 4)
+# tensor([[ 1,  7, 13, 19],
+#         [ 2,  8, 14, 20],
+#         [ 3,  9, 15, 21],
+#         [ 4, 10, 16, 22],
+#         [ 5, 11, 17, 23],
+#         [ 6, 12, 18, 24]])</code></pre>
+
+        <p>
+            Each <em>column</em> is a contiguous stream: 1–6, then 7–12, and so on. The corpus was cut
+            into $B$ long strips laid side by side. So reading down the rows walks forward in time in
+            all $B$ streams at once — which is exactly the <code>(T, B)</code> convention from §7.1, and
+            now it is clear that convention is not arbitrary.
+        </p>
+
+        <p>
+            Consequently consecutive batches are <em>continuations</em> of each other, not independent
+            samples:
+        </p>
+
+        <pre><code class="language-python">def get_batch(source, i):
+    seq_len = min(args.bptt, len(source) - 1 - i)
+    data = source[i:i+seq_len]
+    target = source[i+1:i+1+seq_len].view(-1)
+    return data, target
+
+# with bptt=3, on the tensor above:
+# get_batch(source, 0) -> data rows [1,7,13,19], [2,8,14,20], [3,9,15,21]
+#                         target    [2,8,14,20, 3,9,15,21, 4,10,16,22]
+# get_batch(source, 3) -> data rows [4,10,16,22], [5,11,17,23]   <- continues</code></pre>
+
+        <p>
+            Two things to see. First, <code>target</code> is the input shifted by one and flattened
+            row-major, which is precisely the alignment Handout #5 §4.2 spent a subsection on — here it
+            is a slice offset instead of a slice-off-the-ends, and it must match
+            <code>decoded.view(-1, ntoken)</code>'s row-major flattening. Second, batch $i{+}1$ picks up
+            where batch $i$ stopped, so throwing away the hidden state between batches would discard
+            real context. It is kept. And that creates the problem:
+        </p>
+
+        <p class="hd-srcline"><code>main.py</code> · <code>repackage_hidden</code> (verbatim)</p>
+        <pre><code class="language-python">def repackage_hidden(h):
+    """Wraps hidden states in new Tensors, to detach them from their history."""
+
+    if isinstance(h, torch.Tensor):
+        return h.detach()
+    else:
+        return tuple(repackage_hidden(v) for v in h)</code></pre>
+
+        <p>
+            <strong>This function is §3.2's truncation, and it is four lines.</strong> The hidden state
+            carried into the next batch is a tensor with a <code>grad_fn</code> pointing back through
+            the previous batch's graph. If you call <code>.backward()</code> on the next batch's loss
+            without detaching, autograd tries to walk back into a graph that was already freed:
+        </p>
+
+        <pre><code class="language-python">RuntimeError: Trying to backward through the graph a second time (or directly access
+saved tensors after they have already been freed)</code></pre>
+
+        <p>
+            — the exact error from Handout #5 §5.5 Q3, arising here for a structural reason rather than
+            a mistake. <code>.detach()</code> returns the same numbers with the history cut, so the
+            <em>values</em> flow forward forever while <em>gradients</em> stop at the segment boundary.
+            The recursion into a tuple is there because an LSTM's state is <code>(h, c)</code>, not a
+            single tensor.
+        </p>
+
+        <p>
+            One more line from the same file, whose presence you can now predict:
+        </p>
+
+        <pre><code class="language-python"># `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
+torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)</code></pre>
+
+        <p>
+            §3.1's fix, in the training loop, with a comment that names the problem. Note where it sits:
+            after <code>loss.backward()</code> and before <code>optimizer.step()</code> — it has to
+            operate on gradients that exist and have not yet been applied. Feed-forward examples rarely
+            include this line; this one does, because it must.
+        </p>
+
+        <h3 id="s7-sample">7.4 &nbsp;The sampling loop, and a free lesson about Transformers</h3>
+
+        <p class="hd-srcline"><code>generate.py</code> · the generation loop (verbatim)</p>
+        <pre><code class="language-python">with torch.no_grad():  # no tracking history
+    for i in range(args.words):
+        if is_transformer_model:
+            output = model(input, False)
+            word_weights = output[-1].squeeze().div(args.temperature).exp().cpu()
+            word_idx = torch.multinomial(word_weights, 1)[0]
+            word_tensor = torch.Tensor([[word_idx]]).long().to(device)
+            input = torch.cat([input, word_tensor], 0)
+        else:
+            output, hidden = model(input, hidden)
+            word_weights = output.squeeze().div(args.temperature).exp().cpu()
+            word_idx = torch.multinomial(word_weights, 1)[0]
+            input.fill_(word_idx)</code></pre>
+
+        <p>
+            Four things, in order of how much they are worth.
+        </p>
+
+        <p>
+            <strong>1. The two branches have different complexity, and you can see it.</strong> The RNN
+            branch ends with <code>input.fill_(word_idx)</code>: the input stays a single
+            <code>(1,1)</code> tensor and the entire past lives in <code>hidden</code>. The Transformer
+            branch ends with <code>input = torch.cat([input, word_tensor], 0)</code>: the input
+            <em>grows</em>, and the next call re-runs the model over the whole prefix from scratch.
+            Generating $T$ tokens is $O(T)$ work in the first branch and $O(T^2)$ (with quadratic
+            attention inside, worse still) in the second. This snippet is the clearest statement of the
+            RNN/Transformer trade-off in this handout — the architecture that won training lost
+            inference, and the <a href="transformers.html#s5">KV cache</a> exists to buy this back.
+        </p>
+
+        <p>
+            <strong>2. <code>.div(temperature).exp()</code> on <em>log-probabilities</em>.</strong>
+            §7.1 established that <code>forward</code> returns <code>log_softmax</code>. So
+            <code>.div(τ).exp()</code> computes $\exp(\log p_i / \tau) = p_i^{1/\tau}$ — which is the
+            temperature-rescaled distribution up to a constant. No renormalization is performed, and
+            none is needed: <code>torch.multinomial</code> accepts unnormalized non-negative weights and
+            normalizes internally. At $\tau = 0.5$ the weights above sum to 0.879, not 1, and the
+            sampling is still correct.
+        </p>
+
+        <p>
+            <strong>3. <code>torch.no_grad()</code>.</strong> Handout #5 §3's warning, applied
+            correctly. Without it, this loop would build a graph 1000 tokens deep and hold every
+            activation, for gradients no one will ever use.
+        </p>
+
+        <p>
+            <strong>4. The <code>safe_globals</code> list at the top of the file.</strong> Skim it. It
+            is there because <code>torch.load</code> of a pickled model is arbitrary code execution
+            unless you restrict what may be unpickled, and PyTorch tightened this default. It has
+            nothing to do with language modeling and everything to do with reading real code:
+            production files carry scars from problems outside the subject matter, and recognizing that
+            a block is <em>not</em> about your topic is part of reading fluently.
+        </p>
+
+        <h3 id="s7-yours">7.5 &nbsp;Now do something to it</h3>
+
+        <p>
+            <button class="w-btn" type="button" data-toggle-answers="#s7-zone">Show all answers</button>
+        </p>
+
+        <div id="s7-zone">
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q1.</strong> Delete the <code>repackage_hidden</code> call from the training
+                    loop. Predict exactly what happens — and what happens instead if you keep the call
+                    but pass <code>retain_graph=True</code> to <code>backward()</code>.</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    Without the call, the second batch's <code>backward()</code> raises
+                    <em>"Trying to backward through the graph a second time"</em> (verified above),
+                    because the carried state still references the freed graph.
+                    With <code>retain_graph=True</code> and no detach, it "works" — and is far worse
+                    than an error: the graph now grows without bound, so memory climbs every batch
+                    until the process dies, and each batch backpropagates through <em>all</em>
+                    preceding batches, making step time grow linearly too. That is untruncated BPTT
+                    over the entire corpus, and you would have arrived at it by silencing an error
+                    message. §3.2.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q2.</strong> The model's <code>forward</code> returns
+                    <code>log_softmax</code>. You reuse the class in your own trainer and write
+                    <code>loss = F.cross_entropy(output, targets)</code>. Does it crash? What do you
+                    observe?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    No crash — shapes are fine and the number is finite, so nothing warns you. You are
+                    computing $-\log \operatorname{softmax}(\log p)$, a softmax over values that are
+                    all negative and already normalized. The result is a valid-looking loss that is
+                    wrong: it is much flatter than the true objective, so gradients are attenuated and
+                    the model trains slowly toward the wrong optimum. And your reported perplexity is
+                    meaningless. The diagnostic habit that catches it: for an untrained model over
+                    $|\Sigma|$ tokens, the loss should start near $\ln |\Sigma|$ (Handout #2 §5.2's
+                    baseline). A double-softmaxed loss starts far below that.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q3.</strong> Add <code>--tied</code> and the run dies with
+                    <em>"nhid must be equal to emsize"</em>. Why can't the library just insert a
+                    projection?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    It could, and some implementations do — but then the tied matrix is no longer the
+                    output layer, it is an output layer composed with a learned $d_h \times d_e$ map,
+                    and you have reintroduced parameters and broken the modeling claim that the input
+                    and output representations of a word are <em>the same vector</em> (§7.2). The
+                    explicit <code>raise</code> is the better engineering choice: it refuses to
+                    silently give you something adjacent to what you asked for. Note this is a real
+                    design pattern worth copying — fail loudly on an incoherent configuration rather
+                    than papering over it.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q4.</strong> In the sampling loop, replace <code>multinomial</code> with
+                    <code>argmax</code>. What does the output look like, and what does temperature do
+                    then?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    Greedy decoding: fluent for a few words, then almost always a short repeating
+                    cycle, because the argmax is a deterministic function of the state and RNN states
+                    drift into attractors. Temperature becomes a <strong>no-op</strong> — dividing all
+                    logits by a positive constant is monotone, so it cannot change which is largest.
+                    That is a good sanity check on your understanding of what temperature is: a knob on
+                    the <em>sampling</em> distribution, not on the model.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q5.</strong> <code>batchify</code> lays the corpus out in $B$ parallel
+                    streams rather than shuffling sentences into batches, as you would for
+                    classification. Why? And what is lost?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    Because the hidden state is only meaningful if the next batch continues the same
+                    text (§7.3); shuffled independent sentences would force a state reset every batch
+                    and cap the effective context at <code>bptt</code>. What is lost is that the
+                    batches are no longer i.i.d. samples — the $B$ streams are fixed for the whole
+                    epoch, and the model sees the corpus in a fixed order (which is why the boundary
+                    positions of each segment get systematically less context). It also means
+                    <code>bsz</code> changes the data layout, so validation with a different batch size
+                    is scoring slightly different context boundaries. All tolerable, all worth knowing
+                    before you compare two numbers produced with different <code>bsz</code>.
+                </div></details>
+            </div>
+        </div>
+
+        </div><!-- /#s7-zone -->
+
+        <div class="hd-check" data-key="wlm">
+            <input type="checkbox" id="chk-wlm">
+            <label for="chk-wlm">I can name every tensor shape in <code>RNNModel.forward</code>, and
+                explain <code>repackage_hidden</code> to someone who has not seen it.</label>
+        </div>
+
+
+        <!-- ================================================================ -->
+        <h2 id="s8"><span class="hd-secnum">8</span>Check yourself</h2>
+
+        <p>
+            <button class="w-btn" type="button" data-toggle-answers="#s8-zone">Show all answers</button>
+        </p>
+
+        <div id="s8-zone">
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q1.</strong> True or false: an RNN language model has more parameters when
+                    trained on longer sequences.</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    <strong>False</strong> — and the contrast with the fixed-window model is the point.
+                    Parameters are independent of $T$ (§2.1). What grows with $T$ is the <em>memory</em>
+                    needed for the backward pass, because every $h_t$ must be retained; that is a
+                    property of reverse-mode autodiff (Handout #5 §2), not of the model.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q2.</strong> Gradient clipping is applied and training stabilizes, but the
+                    model still cannot resolve agreement across 40 tokens. What is happening?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    Clipping fixed <em>exploding</em> gradients; the long-range failure is
+                    <em>vanishing</em> gradients, plus possibly truncation. Clipping rescales a gradient
+                    that is too large and can do nothing about a long-range contribution that arrived
+                    multiplied by $\sigma^{40}$ — rescaling the sum does not change the ratio between
+                    its terms. Also check <code>bptt</code>: if it is 35, no gradient path of length 40
+                    exists at all. Fixes are architectural (gates, §3.3) or a longer truncation window.
+                    §3.1's callout.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q3.</strong> Why is $\partial c_t / \partial c_{t-1} = \operatorname{diag}(f_t)$
+                    a better situation than $\operatorname{diag}(1-h_t^2)W_{hh}$, given that both can
+                    shrink the gradient?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    Both can shrink it; the difference is <em>who decides</em>. The vanilla RNN's factor
+                    is a fixed learned matrix applied identically at every step, so its spectral
+                    radius sets a single global decay rate for all dimensions and all inputs — and
+                    $\tanh'\le 1$ biases it downward. The LSTM's factor is an input-dependent gate the
+                    network computes per dimension per step, so it can hold $f \approx 1$ on the
+                    dimensions carrying long-range information while forgetting elsewhere. Same
+                    mathematical form, but one is a fixed decay and the other is a learned, selective
+                    one. §3.3.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q4.</strong> An RNN generates token 10,000 as cheaply as token 3, while a
+                    Transformer's cost grows. Why did the Transformer win anyway?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    Because the binding constraint was <em>training</em>, not inference. The RNN's
+                    sequential dependency means a length-1000 sequence is 1000 dependent steps that
+                    cannot be parallelized, leaving GPUs idle; a Transformer processes all positions at
+                    once and turns training into large matmuls. Given Handout #1 §4's account — data and
+                    compute as the driving forces — the architecture that converts compute into
+                    progress most efficiently wins, even at a worse asymptotic inference cost. The
+                    inference cost was then attacked separately (KV caching, and a current revival of
+                    recurrent-style models for exactly this reason). §5, §7.4.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q5.</strong> You set <code>bptt=35</code> and carry the hidden state across
+                    segments. Is the model's context 35 tokens, or unbounded?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    Its <strong>forward</strong> context is unbounded — $h_t$ has seen every previous
+                    token in its stream. Its <strong>gradient</strong> context is 35: no parameter
+                    update can be attributed to anything older. So the model can <em>use</em> long
+                    context but can only <em>learn to use</em> dependencies within 35 steps. The honest
+                    answer to "what is the context length" is therefore "which one do you mean", and
+                    that distinction is the whole content of §3.2.
+                </div></details>
+            </div>
+        </div>
+
+        <div class="ex">
+            <div class="ex-body">
+                <p><strong>Q6.</strong> Handout #2 measured n-gram models with perplexity. Can you
+                    compare an RNN's perplexity to the trigram's from that handout?</p>
+                <details class="ans"><summary>Answer</summary><div class="ans-body">
+                    Only if they share a vocabulary <em>and</em> a tokenization, and only if the n-gram's
+                    zeros were handled so its perplexity is finite. Both conditions are easy to violate:
+                    a word-level RNN with a truncated vocabulary and <code>&lt;UNK&gt;</code> is scoring
+                    a different set of events than a subword model on the same text. This is the
+                    tokenization handout's §4.1 in a different costume — perplexity is only comparable
+                    within a fixed event space.
+                </div></details>
+            </div>
+        </div>
+
+        </div><!-- /#s8-zone -->
+
+
+        <!-- ================================================================ -->
+        <h2 id="s9"><span class="hd-secnum">9</span>Optional further reading</h2>
+
+        <p>Strictly optional — nothing here is assumed in class or on a quiz.</p>
+
+        <ul>
+            <li>
+                <a href="https://karpathy.github.io/2015/05/21/rnn-effectiveness/" target="_blank" rel="noopener noreferrer">Karpathy,
+                <em>The Unreasonable Effectiveness of Recurrent Neural Networks</em></a> (2015) — the
+                post that convinced a lot of people this worked. Historically valuable: read it knowing
+                what came two years later.
+            </li>
+            <li>
+                <a href="https://colah.github.io/posts/2015-08-Understanding-LSTMs/" target="_blank" rel="noopener noreferrer">Olah,
+                <em>Understanding LSTM Networks</em></a> — the diagrams everyone uses. If §3.3 was too
+                compressed, this is the expansion.
+            </li>
+            <li>
+                <a href="https://arxiv.org/abs/1211.5063" target="_blank" rel="noopener noreferrer">Pascanu,
+                Mikolov &amp; Bengio, <em>On the difficulty of training recurrent neural networks</em></a>
+                (2013) — where the clipping-and-spectral-radius analysis of §3.1 is done properly.
+            </li>
+            <li>
+                <a href="https://arxiv.org/abs/1409.3215" target="_blank" rel="noopener noreferrer">Sutskever,
+                Vinyals &amp; Le, <em>Sequence to Sequence Learning with Neural Networks</em></a> (2014)
+                — the fixed-size-bottleneck architecture whose failure mode motivated attention. Read
+                it before the attention material and the next step will feel inevitable.
+            </li>
+        </ul>
+
+        <div class="hd-footer">
+            <p>
+                <strong>Session number to be assigned.</strong> This handout is written for the
+                recurrent-neural-LM session; the masthead and the schedule link will be filled in once
+                the ordering is fixed.
+            </p>
+            <p>
+                Found an error, or a passage that doesn't land? Post on
+                <a href="https://piazza.com/jhu/fall2026/cs601471671">Piazza</a> — corrections to these
+                handouts are welcome and useful.
+            </p>
+        </div>
+
+    </main>
+</div>
+
+<script defer src="vendor/katex/katex.min.js"></script>
+<script defer src="vendor/katex/auto-render.min.js"></script>
+<script defer src="vendor/highlight/highlight.min.js"></script>
+<script defer src="handout.js"></script>
+
+</body>
+</html>
