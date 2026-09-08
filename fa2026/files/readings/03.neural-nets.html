@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Handout #3: From Counting to Learning — CS 601.471/671</title>
     <meta name="description"
-          content="Session 3 reading handout: language modeling as function fitting, what a neural network is, and the algebra and optimization behind training one.">
+          content="Session 3 handout through slide 90: feedforward networks, expressivity, losses, optimization, Jacobians, and the chain rule before analytical backpropagation.">
 
     <link rel="shortcut icon" href="../favicon.ico">
     <link rel="stylesheet" href="../fonts.css">
@@ -22,7 +22,7 @@
         <h1>Handout #3 — From Counting to Learning</h1>
         <p class="hd-sub">
             Session 3 (Tue, Sept 8) &nbsp;·&nbsp;
-            <a href="../slides/03-4-5.feedforward-nets.pdf">Slides: Feedforward Nets</a> &nbsp;·&nbsp;
+            <a href="../slides/03-4-5-6.feedforward-nets.pdf">Slides: Feedforward Nets</a> &nbsp;·&nbsp;
             <a href="../../index.html">Course page</a>
         </p>
     </div>
@@ -37,76 +37,45 @@
 
     <main class="hd-body">
 
-                <p class="lead">
-            <a href="02.language-modeling.html">Handout #2</a> ended at a wall: counting gives you an
-            excellent estimate for contexts you have seen and nothing at all for the rest, and every
-            repair was a rule someone designed by hand. This handout takes the way out. Stop counting;
-            fit a function instead — and then work out what kind of function, and how you fit it.
-        </p>
+<p class="lead">How can a collection of weighted sums learn to predict words? We need three ingredients:
+<strong>a function that can express useful patterns, a loss that says what counts as a good prediction,
+and derivatives that tell us how the loss changes.</strong> This handout builds those ingredients in the
+order of today's slides. By the end, the remaining question will be how to compute all the derivatives
+efficiently. That is where backpropagation begins.</p>
+<div class="hd-glance"><dl>
+<dt>Reading for today</dt><dd>This handout accompanies slides 1–89 of
+<a href="../slides/03-4-5-6.feedforward-nets.pdf">Feedforward Nets</a>.
+Slide 90, “Training Neural Networks: Analytical Backprop,” is our stopping point.</dd>
+<dt>Time</dt><dd>About 75–100 minutes including the exercises; coding extensions can be done after class.</dd>
+<dt>By the end</dt><dd>Specify an MLP and count its parameters; explain nonlinearity and capacity;
+choose a loss; distinguish training from evaluation; take a gradient step; track derivative shapes;
+and apply the chain rule through more than one path.</dd>
+<dt>Assumes</dt><dd><a href="01.foundations.html#s1-la">Handout #1: matrix algebra</a> and
+<a href="01.foundations.html#s1-calc">derivatives</a>, plus
+<a href="02.language-modeling.html#s3-sparsity">Handout #2: sparsity</a> and
+<a href="02.language-modeling.html#s5-def">cross-entropy and perplexity</a>.</dd>
+<dt>How to use it</dt><dd>Pause at each question before opening its answer. Code blocks are independent,
+runnable examples using Python and PyTorch, unless explicitly labeled as a sketch.</dd>
+</dl></div>
+<div class="tbl-scroll"><table class="tbl"><thead><tr><th>Slides</th><th>Reading route</th><th>Question to answer</th></tr></thead><tbody>
+<tr><td>1–2</td><td><a href="#s1">§1: From counting to functions</a></td><td>What changes in a neural LM?</td></tr>
+<tr><td>3–31</td><td><a href="#s2">§2: Networks and capacity</a></td><td>What can this architecture represent?</td></tr>
+<tr><td>32–55</td><td><a href="#s3">§3: History and perceptrons</a></td><td>Why was learning hidden layers a problem?</td></tr>
+<tr><td>56–75</td><td><a href="#s5">§4: Learning as optimization</a></td><td>What are we minimizing, and on which data?</td></tr>
+<tr><td>76–89</td><td><a href="#s4">§5: Algebra and calculus for backprop</a></td><td>How do changes propagate through a composition?</td></tr>
+<tr><td>90</td><td><a href="#s6">§6: Readiness check</a></td><td>What remains for backprop to compute?</td></tr>
+</tbody></table></div>
 
-        <div class="hd-glance">
-            <dl>
-                <dt>Assigned papers</dt>
-                <dd>None. <strong>This handout is the reading for Session 3.</strong>
-                    §7 lists optional depth if you want it.</dd>
-
-                <dt>Time</dt>
-                <dd>50–70 minutes.</dd>
-
-                <dt>By the end you should be able to</dt>
-                <dd>
-                    <ul style="margin-bottom:0">
-                        <li>reframe language modeling as supervised function fitting, and draw a
-                            fixed-window neural language model;</li>
-                        <li>say what a neural network is in one sentence, and prove why the
-                            nonlinearity is not optional;</li>
-                        <li>track shapes through a batched layer, and count what it costs;</li>
-                        <li>write the gradient descent update, and derive when it diverges;</li>
-                        <li>explain why we use minibatches instead of the true gradient.</li>
-                    </ul>
-                </dd>
-
-                <dt>Assumes</dt>
-                <dd>
-                    <a href="01.foundations.html#s1-la">Handout #1 §1.1</a> (matrix products, shapes),
-                    <a href="01.foundations.html#s1-calc">§1.3</a> (gradients),
-                    <a href="01.foundations.html#s1-algo">§1.4</a> (cost), and
-                    <a href="02.language-modeling.html#s3-sparsity">Handout #2 §3.2</a> (sparsity —
-                    the problem this handout solves).
-                </dd>
-
-                <dt>Note</dt>
-                <dd><strong>Quiz #1 is the next session</strong> (Thu, Sept 10), covering everything up
-                    to that point — this handout included.</dd>
-            </dl>
-        </div>
-
-        <!-- ================================================================ -->
-        <h2 id="s1"><span class="hd-secnum">1</span>Language modeling as a learning problem</h2>
-
-        <p>
-            Here is the reframing that opens the rest of the course. Everything so far treated
-            estimation as <em>counting</em>. Treat it instead as <em>fitting a function</em>.
-        </p>
-
-        <p>
-            We want a function $f_\theta$ that maps a context to a distribution over the vocabulary.
-            The training data is free — <a href="01.foundations.html#s2-labels">Handout #1 §2.1</a> — one example per position
-            in the corpus. The
-            loss is cross-entropy, which §5 just told us is the thing we want to minimize anyway. That
-            is an ordinary supervised learning problem.
-        </p>
-
-        <h3 id="s1-window">1.1 &nbsp;A fixed-window neural language model</h3>
-
-        <p>
-            The simplest version keeps the Markov assumption and changes only how the conditional is
-            computed. Fix a window — say four words. Discard anything earlier. Look up a vector
-            (an <em>embedding</em>) for each of the four words, hand the collection to a neural network
-            with parameters $\Theta$, and have it emit a distribution over the whole vocabulary.
-            Train $\Theta$ to put high probability on the word that actually came next.
-        </p>
-
+<h2 id="s1"><span class="hd-secnum">1</span>Language modeling as a learning problem</h2>
+<p class="hd-srcline">Slides 1–2 · Connection to Handout #2</p>
+<p>A count-based language model stores statistics for discrete contexts. A neural language model
+instead computes a distribution with a parameterized function $p_\theta(w\mid c)$. The corpus still
+supplies the examples: a context $c$ is the input and its next word is the target. Self-supervision
+provides the labels; supervised learning machinery fits the resulting input–target pairs.</p>
+<h3 id="s1-window">1.1 &nbsp;A fixed-window example</h3>
+<p>Keep the previous four words, look up a learned vector for each word, concatenate the vectors,
+and feed them to a network. The network produces one <strong>logit</strong> (an unrestricted score)
+per vocabulary item. Softmax turns the logits into a probability distribution.</p>
         <figure>
             <svg viewBox="0 0 660 330" width="100%" role="img"
                  aria-label="A fixed-window neural language model: four context words are looked up as embedding vectors, concatenated, passed through a network f with parameters Theta, and produce a probability distribution over the vocabulary.">
@@ -204,352 +173,166 @@
                 trigram; entirely different way of computing the conditional.
             </figcaption>
         </figure>
-
-        <p>
-            Note what has and has not changed. The window is still finite, so long-range dependencies
-            are still invisible — this model does not solve
-            <a href="02.language-modeling.html#s1-markov">Handout #2 §1.3</a>'s
-            <code>computer &hellip; crashed</code> problem. What it solves is sparsity.
-        </p>
-
-        <h3 id="s1-why">1.2 &nbsp;Why representations beat counting</h3>
-
-        <div class="tbl-scroll">
-        <table class="tbl">
-            <thead><tr><th>Ingredient</th><th>Counting</th><th>Learning</th></tr></thead>
-            <tbody>
-            <tr>
-                <td>Input</td>
-                <td>the previous $n-1$ words, as a table key</td>
-                <td>the previous $n-1$ words, as vectors</td>
-            </tr>
-            <tr>
-                <td>Parameters</td>
-                <td>$V^n$ counts, one per n-gram</td>
-                <td>a fixed set of weights, independent of $V^n$</td>
-            </tr>
-            <tr>
-                <td>Fitting</td>
-                <td>one pass; closed-form MLE</td>
-                <td>gradient descent on cross-entropy</td>
-            </tr>
-            <tr>
-                <td>Unseen context</td>
-                <td>zero — patched by hand-designed smoothing</td>
-                <td>a prediction, from contexts the model considers similar</td>
-            </tr>
-            </tbody>
-        </table>
-        </div>
-
-        <p>
-            That last row is the whole argument. A count table has no notion that
-            <code>the dog slept</code> resembles <code>the cat slept</code>: they are different keys,
-            and what you learn about one tells you nothing about the other. Represent words as vectors
-            and the context as a function of those vectors, and similarity comes for free — if
-            <code>dog</code> and <code>cat</code> end up with nearby vectors because they occur in
-            similar places, a prediction learned for one context transfers to the other automatically.
-        </p>
-
-        <p>
-            <strong>Generalization replaces smoothing.</strong> Not as a patch, but as a structural
-            property. And notice the parameter count: a neural LM's size does not grow with $V^n$, so
-            the exponential wall in <a href="02.language-modeling.html#s3-sparsity">Handout #2 §3.2</a>
-            simply is not there. That is why the 2003 paper mattered, and
-            why every model in this course descends from it.
-        </p>
-
-        <div class="callout aside">
-            <span class="callout-label">One thing counting still does better</span>
-            Interpretability, completely. Every probability an n-gram model produces is a ratio of two
-            integers you can look up, and if it is wrong you can see exactly which counts made it
-            wrong. Nothing in the remainder of this course will be so transparent again. Keep the
-            comparison in mind when we discuss interpretability later — n-grams are the baseline for
-            what "understanding a model" could mean.
-        </div>
+<p>The embeddings and the network weights are shared across contexts. Training on one context can
+therefore change predictions for another. We still have a finite context window; we have changed
+how the conditional distribution is estimated, not removed the Markov assumption.</p>
+<h3 id="s1-why">1.2 &nbsp;Parameter sharing and generalization</h3>
+<p>If “dog” and “cat” acquire similar embeddings, the network can make similar predictions after
+“the dog slept” and “the cat slept.” This gives a way to transfer evidence to unseen contexts.
+Useful similarity has to be learned: a neural network is not guaranteed to generalize well merely
+because it outputs a distribution.</p>
+<p>For vocabulary size $V$, embedding size $d$, window size $k$, and one hidden layer of width $h$,
+a simple untied model has $Vd+(kd)h+h+hV+V$ parameters. This grows linearly in $V$ and $k$ when
+$d,h$ are fixed, unlike the $V^{k+1}$ possible entries in a dense count table. Sparse tables store
+only observed entries, but still face the problem of estimating unseen combinations.</p>
+<div class="ex"><div class="ex-head"><span>Quick check · What did we gain?</span></div><div class="ex-body"><p>A model has never seen the exact context “the cat slept.” Why can it still produce a prediction? Does that prediction have to be good?</p><details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body">The embedding lookup and shared network define a function on every in-vocabulary context. Training may transfer useful patterns from related contexts, but a defined prediction is not a guarantee of accuracy. Held-out evaluation checks whether this sharing helped.</div></details></div></div>
 
 
+<h2 id="s2"><span class="hd-secnum">2</span>What a feedforward neural network is</h2>
+<p class="hd-srcline">Slides 3–31</p>
+<p>A feedforward network is a parameterized computation with no directed cycles: information flows
+from inputs through intermediate values to outputs. Here we study an <strong>MLP</strong>, built
+from fully connected affine layers and nonlinear activations. MLPs are one kind of feedforward
+network. Hidden values are learned features; they need not be probabilities or class predictions.</p>
+<h3 id="s2-unit">2.1 &nbsp;One unit: score, shift, activate</h3>
+$$z=w^\top x+b=\sum_{i=1}^{d}w_i x_i+b,\qquad a=\sigma(z).$$
+<p>The weights select and combine input features. The bias shifts the threshold independently of
+the input. The activation changes how the score is passed onward. The map $w^\top x+b$ is
+<strong>affine</strong>; it is linear in $x$ only when $b=0$. We often call the module a “linear
+layer” even when it includes a bias.</p>
+<div class="ex"><div class="ex-head"><span>Try one neuron</span></div><div class="ex-body"><p>Let $x=(2,-1)^\top$, $w=(1,3)^\top$, and $b=2$. Find the preactivation $z$, the ReLU output, and the sigmoid output.</p><details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body">$z=2-3+2=1$. ReLU gives $1$; sigmoid gives $1/(1+e^{-1})\approx0.7311$. A hidden ReLU value is not restricted to the probability range.</div></details></div></div>
 
-        <!-- ================================================================ -->
-        <h2 id="s2"><span class="hd-secnum">2</span>What a neural network is</h2>
+<h3 id="s2-layer">2.2 &nbsp;From units to layers, from layers to an architecture</h3>
+<p>Stack $h$ weight vectors as rows of $W_1$. For a two-layer MLP with input dimension $d$ and
+output dimension $m$:</p>
+$$h_1=\sigma(W_1x+b_1),\qquad s=W_2h_1+b_2,$$
+$$W_1\in\mathbb R^{h\times d},\quad b_1\in\mathbb R^h,\quad
+W_2\in\mathbb R^{m\times h},\quad b_2\in\mathbb R^m.$$
+<p>We count layers with trainable weights, excluding the input: this is two layers, one of them
+hidden. <strong>Architecture</strong> specifies the connectivity, dimensions, and activations;
+<strong>parameters</strong> specify the numerical weights and biases. Both are needed to determine
+a particular function. Width is the size of a hidden layer; depth is the number of successive layers.</p>
+<div class="ex"><div class="ex-head"><span>Slides 21–23 · Parameters and computation</span></div><div class="ex-body"><p>Compare networks $4\to6\to3$ and $4\to3\to3\to3$, with a bias in every layer. How many parameters and forward multiply-accumulates does each use per example? Can you infer wall-clock speed from depth alone?</p><details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body"><p>The first has $(4\cdot6+6)+(6\cdot3+3)=51$ parameters and $24+18=42$ matrix multiply-accumulates. The second has $(4\cdot3+3)+2(3\cdot3+3)=39$ parameters and $12+9+9=30$ multiply-accumulates. These counts exclude bias additions and activations.</p><p>Depth alone does not determine cost. Actual speed also depends on matrix sizes, batching, hardware, and the extra sequential operations in the deeper model.</p></div></details></div></div>
 
-        <p>
-            §1 left a box in the diagram labelled "neural network" and an obligation to explain it.
-            Strip away the mystique and the object is unglamorous: <strong>a neural network is a
-            function built by alternating matrix multiplications with a simple nonlinear
-            function.</strong> That is the whole definition. Everything else — depth, architecture,
-            attention — is a choice about which matrices and in what order.
-        </p>
+<h3 id="s2-activations">2.3 &nbsp;Nonlinearity is essential</h3>
+<div class="tbl-scroll"><table class="tbl"><thead><tr><th>Function</th><th>Definition</th><th>Interpretation</th></tr></thead><tbody>
+<tr><td>Sigmoid</td><td>$\sigma(z)=1/(1+e^{-z})$</td><td>Smoothly maps a scalar into $(0,1)$; saturates near either end.</td></tr>
+<tr><td>Tanh</td><td>$\tanh(z)$</td><td>Maps a scalar into $(-1,1)$; also saturates.</td></tr>
+<tr><td>ReLU</td><td>$\max(0,z)$</td><td>Zero on the negative side; unbounded on the positive side. Derivative is 0 or 1 away from zero.</td></tr>
+<tr><td>Softmax</td><td>$p_j=e^{s_j}/\sum_r e^{s_r}$</td><td>A vector map: outputs are positive and sum to 1 for finite logits in exact arithmetic.</td></tr>
+</tbody></table></div>
+<p>Sigmoid, tanh, and ReLU act elementwise in a layer. Softmax couples the coordinates. Several
+sigmoids need not sum to one; use softmax for a choice among mutually exclusive classes.
+ReLU avoids saturation on its positive side, but inactive units have zero derivative and networks
+using ReLU can still have vanishing or exploding gradients.</p>
+<div class="callout"><span class="callout-label">Derive the collapse</span>
+$$W_2(W_1x+b_1)+b_2=(W_2W_1)x+(W_2b_1+b_2).$$
+<p>Without an intervening nonlinearity, multiple affine layers collapse to one affine map.
+Extra depth cannot introduce a nonlinear decision boundary. A narrow intermediate layer may
+also constrain the rank of the effective weight matrix.</p></div>
+<h3 id="s2-capacity">2.4 &nbsp;Expressivity: XOR, width, and depth</h3>
+<p>XOR labels $(0,0)$ and $(1,1)$ as 0, and $(0,1)$ and $(1,0)$ as 1. A single affine threshold
+cannot separate the two diagonals. Nonlinear hidden features can: for binary inputs, take
+$h_1=\operatorname{ReLU}(x_1-x_2)$, $h_2=\operatorname{ReLU}(x_2-x_1)$, and output $h_1+h_2$.</p>
+<pre><code class="language-python">import torch
 
-        <h3 id="s2-unit">2.1 &nbsp;One unit</h3>
+x = torch.tensor([[0., 0.], [0., 1.], [1., 0.], [1., 1.]])
+W = torch.tensor([[1., -1.], [-1., 1.]])
+h = torch.relu(x @ W.T)
+y = h.sum(dim=1)
+assert y.tolist() == [0., 1., 1., 0.]
+print(h, y)
+# Experiment: remove torch.relu. Predict the outputs before running.</code></pre>
+<div class="ex"><div class="ex-head"><span>Code check · Remove the activation</span></div><div class="ex-body"><p>What happens when the two hidden coordinates above are added without ReLU?</p><details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body">Every output becomes zero: the two linear scores are opposites and cancel. With ReLU, each hidden unit detects one direction of disagreement, and their sum represents XOR on these four inputs.</div></details></div></div>
 
-        <p>
-            Start with a single unit. It takes a vector $x \in \mathbb{R}^d$, scores it against a
-            weight vector $w$, adds a bias $b$, and passes the result through a nonlinear
-            <em>activation</em> $\sigma$:
-        </p>
-        $$
-        a = \sigma\!\left(w^\top x + b\right) = \sigma\!\left(\sum_{i=1}^{d} w_i x_i + b\right).
-        $$
-        <p>
-            The inner product is the operation from
-            <a href="01.foundations.html#s1-la">Handout #1 §1.1</a>, doing exactly what §1.2 said an
-            inner product does: measuring alignment. A unit asks "how much does this input look like
-            the pattern $w$?", shifts the answer by $b$, and squashes it.
-        </p>
+<p>The <strong>universal approximation</strong> idea in slides 24–31 is an expressivity statement:
+with a suitable activation and enough hidden units, a one-hidden-layer MLP can approximate any
+continuous function on a compact domain to arbitrary accuracy. It does not say a fixed small
+network represents every function, that gradient descent will find the needed weights, or that the
+result generalizes from finite data. Some function families admit much more compact deep
+representations than shallow ones; this does not mean deeper is always better.</p>
+<div class="callout try"><span class="callout-label">Three separate questions</span>
+Can the architecture represent the target (<strong>capacity</strong>)? Can our algorithm find good
+parameters (<strong>optimization</strong>)? Does the fitted function work on new examples
+(<strong>generalization</strong>)? A positive answer to one does not answer the others.</div>
 
-        <h3 id="s2-layer">2.2 &nbsp;A layer is a matrix</h3>
+<h2 id="s3"><span class="hd-secnum">3</span>History: from fixed features to learned hidden layers</h2>
+<p class="hd-srcline">Slides 32–55</p>
+<p>The biological analogy motivated simple computational units, but an MLP is not a detailed model
+of a biological brain. The historical thread to follow is the separation between representing a
+function and finding its parameters.</p>
+<div class="tbl-scroll"><table class="tbl"><thead><tr><th>Period</th><th>Idea in the slides</th><th>Lesson for today</th></tr></thead><tbody>
+<tr><td>1940s–1960s</td><td>Threshold logic units; perceptron learning</td><td>Simple units compute logic, and an error-driven rule can fit a linear separator.</td></tr>
+<tr><td>1970s–early 1980s</td><td>Limitations of perceptrons; symbolic approaches</td><td>A single linear boundary is limited; useful hidden features raise a training problem.</td></tr>
+<tr><td>Mid-1980s–1990s</td><td>Renewed interest in multilayer learning and backprop</td><td>Efficient derivatives make it possible to adjust hidden-layer weights.</td></tr>
+<tr><td>Mid-1990s–2000s</td><td>Strong probabilistic and kernel methods</td><td>Optimization, data, computation, and generalization all affect practical success.</td></tr>
+<tr><td>2010s onward</td><td>Deep learning and self-supervision</td><td>More data, faster hardware, and algorithmic improvements reinforce one another.</td></tr>
+</tbody></table></div>
+<h3 id="s3-perceptron">3.1 &nbsp;An update before gradients</h3>
+<p>A threshold perceptron predicts $o=\mathbf{1}[w^\top x+b&gt;0]$. For binary target $t$,
+the error-driven rule in the slides is</p>
+$$w\leftarrow w+\eta(t-o)x,\qquad b\leftarrow b+\eta(t-o).$$
+<p>A correct prediction causes no update. A missed positive increases the score on that example;
+a false positive decreases it. The classic perceptron convergence guarantee assumes linearly
+separable training data. This rule does not differentiate the discontinuous threshold function.</p>
+<div class="ex"><div class="ex-head"><span>Slides 39–40 · Does the prediction necessarily flip?</span></div><div class="ex-body"><p>Let $x=(1,0)^\top$, $w=(-3,2)^\top$, $b=0$, $t=1$, and $\eta=1$. Update both weights and bias. Is the new output necessarily correct?</p><details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body">The old score is $-3$ and $o=0$. The update gives $w=(-2,2)^\top$ and $b=1$, so the new score is $-1$ and the output is still 0. The score increased, but it did not cross the threshold. More generally its change on this same example is $\eta(t-o)(\|x\|^2+1)$ when the bias is updated.</div></details></div></div>
 
-        <p>
-            Now put $m$ units side by side. Each has its own weight vector, so stack them as rows of a
-            matrix $W \in \mathbb{R}^{m \times d}$, collect the biases into $b \in \mathbb{R}^m$, and
-            all $m$ units compute at once:
-        </p>
-        $$
-        h = \sigma(Wx + b), \qquad W \in \mathbb{R}^{m \times d},\; x \in \mathbb{R}^{d},\;
-        h \in \mathbb{R}^{m}.
-        $$
-        <p>
-            This is why the whole field runs on matrix multiplication, and why
-            <a href="01.foundations.html#s1-algo">Handout #1 §1.4</a> insisted you be able to count
-            its cost: a layer is $O(md)$, and $\sigma$ is applied element-wise, so it is free by
-            comparison. The hardware story in Handout #1 §4 is a story about making this one line
-            fast.
-        </p>
+<p>A single affine threshold cannot express XOR, whereas the hidden-layer construction in §2.4
+can. Be careful with historical layer counts: the impossibility is about a linear separator, not
+an MLP with a nonlinear hidden layer. The next challenge is to learn those hidden features rather
+than supply their weights by hand.</p>
 
-        <p>
-            A <strong>feedforward network</strong> (or multi-layer perceptron, MLP) is that line
-            repeated, each layer feeding the next:
-        </p>
-        $$
-        h_1 = \sigma(W_1 x + b_1), \quad
-        h_2 = \sigma(W_2 h_1 + b_2), \quad \ldots, \quad
-        \hat{y} = W_L h_{L-1} + b_L.
-        $$
-        <p>
-            Note the last layer usually has no activation — for language modeling its output is the
-            logits, and softmax comes after. The vector $\theta = \{W_1, b_1, \ldots, W_L, b_L\}$ is
-            everything the model has learned, and "a model with 7 billion parameters" is a statement
-            about the total size of these matrices.
-        </p>
+<h2 id="s5"><span class="hd-secnum">4</span>Learning as optimization</h2>
+<p class="hd-srcline">Slides 56–75</p>
+<h3 id="s5-loss">4.1 &nbsp;Data, model, loss, objective</h3>
+<p>Let $D=\{(x_i,y_i)\}_{i=1}^{N}$ be training examples, $f_\theta$ the predictive function,
+and $\ell(f_\theta(x_i),y_i)$ the loss for one example. The <strong>empirical risk</strong> is</p>
+$$J(\theta)=\frac1N\sum_{i=1}^{N}\ell(f_\theta(x_i),y_i),\qquad
+\theta^*\in\operatorname*{argmin}_\theta J(\theta).$$
+<p>The loss is a scalar penalty; the objective averages it over the training data. The notation
+$\arg\min$ describes the desired parameters, not an algorithm or a promise that we can find a
+global minimum. During an update, the data and targets are fixed and the parameters change.</p>
+<div class="tbl-scroll"><table class="tbl"><thead><tr><th>Task</th><th>Per-example loss</th><th>What it penalizes</th></tr></thead><tbody>
+<tr><td>Scalar regression</td><td>Squared error $(\hat y-y)^2$</td><td>Large residuals quadratically; smooth in the prediction.</td></tr>
+<tr><td>Scalar regression</td><td>Absolute error $|\hat y-y|$</td><td>Residual magnitude linearly; has a kink at zero.</td></tr>
+<tr><td>Classification</td><td>Cross-entropy $-\sum_j y_j\log p_j$</td><td>Low probability on the correct class (one-hot $y$).</td></tr>
+</tbody></table></div>
+<div class="ex"><div class="ex-head"><span>Slides 60–62 · Squared versus absolute error</span></div><div class="ex-body"><p>Compare residuals of 1 and 10. How much does each loss increase? Does the kink in absolute error make optimization impossible?</p><details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body">Squared error grows from 1 to 100; absolute error from 1 to 10. Squared error is more sensitive to large residuals. Absolute error is differentiable away from zero; at zero one can use a subgradient (often 0). The kink requires a convention, not abandoning optimization.</div></details></div></div>
 
-        <div class="callout warn">
-            <span class="callout-label">Why the nonlinearity is not optional</span>
-            Suppose we drop $\sigma$ and stack two linear layers. Then
-            $$
-            h_2 = W_2(W_1 x + b_1) + b_2 = (W_2 W_1)x + (W_2 b_1 + b_2) = W' x + b',
-            $$
-            which is <em>a single linear layer</em>. Composing linear maps gives a linear map, so
-            without $\sigma$ a thousand-layer network has exactly the expressive power of one layer —
-            and no linear function can separate points that are not linearly separable.
-            <strong>The nonlinearity is the only reason depth buys anything.</strong> This is worth
-            being able to derive on the spot; it uses nothing but the associativity of matrix
-            multiplication from Handout #1 §1.1b.
-        </div>
+<h3 id="s5-ce">4.2 &nbsp;Cross-entropy connects back to language modeling</h3>
+<p>If class $t$ is correct, its one-hot vector has $y_t=1$ and all other entries zero. Therefore</p>
+$$\ell=-\sum_j y_j\log p_j=-\log p_t.$$
+<p>Cross-entropy is the <strong>negative log</strong> of the correct-class probability, not that
+probability itself. The minus sign turns maximizing probability into minimizing loss. We use natural
+logs here: loss is in nats. At $p_t=1$ the loss is 0, and as $p_t\to0$ the loss tends to infinity.</p>
+<div class="ex"><div class="ex-head"><span>Slides 63–65 · Confidence matters</span></div><div class="ex-body"><p>Two models assign the target probabilities $0.8$ and $0.2$. What losses do they get? If their top-ranked class is the same, must their cross-entropies be equal?</p><details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body">The losses are $-\log0.8\approx0.2231$ and $-\log0.2\approx1.6094$ nats. Top-1 accuracy ignores probability magnitudes; cross-entropy measures them. Equal predicted classes need not mean equal losses.</div></details></div></div>
 
-        <h3 id="s2-activations">2.3 &nbsp;The activations you will meet</h3>
+<pre><code class="language-python">import torch
+import torch.nn.functional as F
 
-        <div class="tbl-scroll">
-        <table class="tbl">
-            <thead><tr><th>Name</th><th>Definition</th><th>Range</th><th>Where you see it</th></tr></thead>
-            <tbody>
-            <tr>
-                <td><strong>ReLU</strong></td>
-                <td>$\max(0, z)$</td>
-                <td>$[0, \infty)$</td>
-                <td>The default inside modern networks. Cheap, and its gradient is 1 or 0 — which is
-                    exactly why it does not suffer the vanishing-gradient problem the others do.</td>
-            </tr>
-            <tr>
-                <td><strong>Sigmoid</strong></td>
-                <td>$\dfrac{1}{1+e^{-z}}$</td>
-                <td>$(0, 1)$</td>
-                <td>Historically the default; now mostly used to produce a single probability. You
-                    already differentiated it in
-                    <a href="01.foundations.html#s1-calc">Handout #1 §1.3a</a>.</td>
-            </tr>
-            <tr>
-                <td><strong>Tanh</strong></td>
-                <td>$\dfrac{e^{z}-e^{-z}}{e^{z}+e^{-z}}$</td>
-                <td>$(-1, 1)$</td>
-                <td>A zero-centred sigmoid. Standard inside recurrent networks (Sessions 8–9).</td>
-            </tr>
-            <tr>
-                <td><strong>Softmax</strong></td>
-                <td>$\dfrac{e^{z_i}}{\sum_j e^{z_j}}$</td>
-                <td>simplex</td>
-                <td>Not really an activation — it is the last step, turning logits into the
-                    distribution over the vocabulary that §1 needs. Vector in, vector out.</td>
-            </tr>
-            </tbody>
-        </table>
-        </div>
-
-        <div class="callout aside">
-            <span class="callout-label">Sigmoid vs. softmax</span>
-            A common confusion. Sigmoid maps <em>one</em> number to <em>one</em> probability, and $k$
-            sigmoids give $k$ independent probabilities that need not sum to 1. Softmax maps a
-            <em>vector</em> to a distribution that does. Use sigmoid for "is this true?", softmax for
-            "which one of these?". Predicting the next word is emphatically the second.
-        </div>
-
-
-        <!-- ================================================================ -->
-        <h2 id="s3"><span class="hd-secnum">3</span>A brief history</h2>
-
-        <p>
-            Handout #1 §4 asked why, if neural networks are so old, almost everything happened
-            recently. Here is the same story at closer range — and note the shape of it: two long
-            winters, each ended by a technical fix that had been available for years.
-        </p>
-
-        <div class="tbl-scroll">
-        <table class="tbl">
-            <thead><tr><th>When</th><th>What</th><th>Why it mattered</th></tr></thead>
-            <tbody>
-            <tr>
-                <td>1943</td>
-                <td>McCulloch &amp; Pitts propose a mathematical model of a neuron.</td>
-                <td>Establishes that a network of simple threshold units can compute logical
-                    functions. The unit in §2.1 is recognizably theirs.</td>
-            </tr>
-            <tr>
-                <td>1958</td>
-                <td>Rosenblatt's <strong>perceptron</strong> — a single unit, with a learning rule
-                    that provably converges when the data is linearly separable.</td>
-                <td>The first system that <em>learned</em> its weights from examples rather than
-                    having them set by hand. Enormous excitement followed.</td>
-            </tr>
-            <tr>
-                <td>1969</td>
-                <td>Minsky &amp; Papert show a single-layer perceptron cannot learn XOR.</td>
-                <td>Correct, and widely over-read. The limitation is exactly the one in §2.2's
-                    callout — one linear boundary — and it does not apply to multi-layer networks.
-                    But nobody could train those yet, and funding collapsed. First AI winter.</td>
-            </tr>
-            <tr>
-                <td>1986</td>
-                <td>Rumelhart, Hinton &amp; Williams popularize <strong>backpropagation</strong>.</td>
-                <td>The missing piece: an efficient way to get gradients for every layer, so depth
-                    becomes trainable. (The underlying idea — reverse-mode differentiation — predates
-                    this by years in other fields.) This is Session 4.</td>
-            </tr>
-            <tr>
-                <td>1989–98</td>
-                <td>LeCun's convolutional networks read handwritten digits in production.</td>
-                <td>Proof that deep networks work on real problems. Yet the field stayed narrow —
-                    data and compute were not there, and support-vector machines were easier to get
-                    working. Second winter.</td>
-            </tr>
-            <tr>
-                <td>2003</td>
-                <td>Bengio et al.: the neural language model of §1.1.</td>
-                <td>The idea that distributed representations solve sparsity, stated cleanly. Ahead
-                    of the hardware that would vindicate it.</td>
-            </tr>
-            <tr>
-                <td>2012</td>
-                <td>AlexNet wins ImageNet by a wide margin, trained on two GPUs.</td>
-                <td>The moment the field turned. Nothing in it would have surprised a 1986
-                    researcher conceptually; what was new was the data and the GPUs, exactly as
-                    Handout #1 §4 argued.</td>
-            </tr>
-            </tbody>
-        </table>
-        </div>
-
-        <p>
-            The pattern worth extracting: twice, the ideas were sound and the field concluded they
-            were not, because the surrounding conditions were missing. That is a reason to be careful
-            about what you infer from a method's current failure — and equally, a reason not to assume
-            every currently-failing method is merely waiting for more compute.
-        </p>
-
-
-        <!-- ================================================================ -->
-        <h2 id="s4"><span class="hd-secnum">4</span>Background: the algebra you will actually use</h2>
-
-        <p>
-            Handout #1 §1.1 covered the operations. This section is about the one thing that trips
-            everyone up in practice: <strong>shapes</strong>.
-        </p>
-
-        <h3 id="s4-batch">4.1 &nbsp;Batching, and why everything has a leading dimension</h3>
-
-        <p>
-            §2.2 wrote a layer as $h = \sigma(Wx + b)$ for a single input $x$. You never do that. GPUs
-            are efficient because they do the same operation to many inputs at once, so we stack $B$
-            examples into a matrix $X \in \mathbb{R}^{B \times d}$ and compute
-        </p>
-        $$
-        H = \sigma\!\left(X W^\top + b\right), \qquad
-        X \in \mathbb{R}^{B \times d},\;
-        W \in \mathbb{R}^{m \times d},\;
-        H \in \mathbb{R}^{B \times m}.
-        $$
-        <p>
-            Note the transpose, and note that $b \in \mathbb{R}^m$ is added to every row by
-            broadcasting. In this course activations almost always carry the shape
-            <code>(batch, sequence, dim)</code>: $B$ independent documents, $T$ positions each, $d$
-            numbers per position.
-        </p>
-
-        <pre><code class="language-python">import torch
-import torch.nn as nn
-
-B, T, d_in, d_out = 32, 128, 768, 3072
-
-x = torch.randn(B, T, d_in)          # (32, 128, 768)
-layer = nn.Linear(d_in, d_out)       # holds W: (3072, 768) and b: (3072,)
-h = torch.relu(layer(x))             # (32, 128, 3072)
-
-print(layer.weight.shape, layer.bias.shape, h.shape)
-# nn.Linear applies to the LAST dimension and leaves the leading ones alone,
-# so the same layer works for (d_in,), (B, d_in), or (B, T, d_in).</code></pre>
-
-        <div class="callout warn">
-            <span class="callout-label">The bug you will actually write</span>
-            Broadcasting does not error when it should. Handout #1 §1.5 flagged this; here is the
-            version that will cost you an afternoon:
-            <pre style="margin:10px 0 0"><code class="language-python">scores = torch.randn(32, 128)     # (batch, sequence) -- one score per position
-mask   = torch.randn(128)         # (sequence,)
-scores + mask                     # fine: broadcasts over batch
-
-bad = scores + torch.randn(32)    # RuntimeError -- 128 vs 32
-worse = scores + torch.randn(32, 1)   # NO ERROR. Broadcast over sequence.
-                                      # Every position in a document got the
-                                      # same value. Trains, silently worse.</code></pre>
-            <p style="margin:8px 0 0">
-                Print shapes. Assert them if it matters:
-                <code>assert h.shape == (B, T, d_out)</code>.
-            </p>
-        </div>
-
-
-        <!-- ================================================================ -->
-        <h2 id="s5"><span class="hd-secnum">5</span>Background: optimization</h2>
-
-        <p>
-            We have a function $f_\theta$ and a loss. Training means finding $\theta$ that makes the
-            loss small. There is no closed form — unlike the counting in Handout #2 §3, where the
-            answer was a ratio of integers — so we search, by repeatedly taking a small step downhill.
-        </p>
-
-        <h3 id="s5-gd">5.1 &nbsp;Gradient descent</h3>
-
-        <p>
-            The gradient $\nabla_\theta \mathcal{L}$ points in the direction of steepest
-            <em>increase</em>. So step the other way:
-        </p>
-        $$
-        \theta \leftarrow \theta - \eta \, \nabla_\theta \mathcal{L}(\theta)
-        $$
-        <p>
-            That single line is the whole algorithm, and $\eta$ — the <strong>learning rate</strong> —
-            is the most consequential number you will choose. The widget below is a 1-D loss surface
-            with one parameter, which is enough to see everything that matters.
-        </p>
-
+# Rows are examples; columns are classes. Targets are class indices.
+logits = torch.tensor([[2., 1., 0.], [0., 1., 2.]], dtype=torch.float64)
+target = torch.tensor([0, 2])
+log_probs = logits.log_softmax(dim=-1)
+per_example = -log_probs[torch.arange(2), target]
+loss = F.cross_entropy(logits, target)
+assert torch.allclose(loss, per_example.mean())
+print(per_example.tolist(), loss.item())  # both about 0.407606
+# Try target = torch.tensor([2, 0]): both losses become about 2.407606.</code></pre>
+<p>Pass <strong>logits</strong> to <code>F.cross_entropy</code>; it computes the log-softmax internally.
+Taking softmax first gives it different inputs and a different loss. The stable calculation uses
+$\log p_t=s_t-\log\sum_j e^{s_j}$, evaluating the log-sum-exp after subtracting the maximum logit.
+This avoids overflowing exponentials. Mathematical softmax positivity does not prevent numerical
+underflow in a naive implementation.</p>
+<h3 id="s5-gd">4.3 &nbsp;Why step against the gradient?</h3>
+<p>The gradient collects the sensitivities to all parameters. For a small change $\Delta\theta$,
+the first-order approximation is</p>
+$$J(\theta+\Delta\theta)\approx J(\theta)+\nabla J(\theta)^\top\Delta\theta.$$
+<p>Choosing $\Delta\theta=-\eta\nabla J(\theta)$ with $\eta&gt;0$ makes the predicted change
+$-\eta\|\nabla J(\theta)\|^2$. For a differentiable objective with nonzero gradient, a sufficiently
+small step decreases the loss. The negative gradient is the steepest local direction under a fixed
+Euclidean step length; a large finite step can still overshoot.</p>
+$$\theta_{k+1}=\theta_k-\eta\nabla J(\theta_k).$$
         <div class="widget">
             <div class="widget-head">
                 Learning-rate explorer
@@ -559,265 +342,168 @@ worse = scores + torch.randn(32, 1)   # NO ERROR. Broadcast over sequence.
             <div class="widget-body" id="w-gradient-descent"></div>
         </div>
 
-        <div class="callout try">
-            <span class="callout-label">Work through these</span>
-            <ol style="margin-bottom:0">
-                <li>
-                    Set $\eta = 0.04$ and press <strong>Run 25</strong>. It converges, but barely
-                    moves. A too-small learning rate does not fail — it just costs more steps than you
-                    can afford. At the scale of a real model, "more steps" means weeks of GPU time.
-                </li>
-                <li>
-                    Raise $\eta$ toward $1.0$. Convergence gets faster, then starts overshooting and
-                    zig-zagging across the minimum while still making progress.
-                </li>
-                <li>
-                    Now cross $\eta = 2$. The loss <em>increases</em> every step and runs away. For
-                    this surface, $\mathcal{L} = \tfrac{1}{2}\theta^2$, the update is
-                    $\theta \leftarrow \theta(1 - \eta)$, so the distance from the minimum is
-                    multiplied by $|1 - \eta|$ each step: convergent exactly when
-                    $|1-\eta| &lt; 1$, i.e. $0 &lt; \eta &lt; 2$. Divergence is not bad luck; it is
-                    arithmetic. (Try to derive this before reading it again.)
-                </li>
-                <li>
-                    Switch to <strong>Two minima</strong>. Gradient descent finds <em>a</em> minimum —
-                    whichever one it happens to fall into. It has no way to know a better one exists
-                    elsewhere. Real loss surfaces have enormously many, which sounds fatal and turns
-                    out not to be; why is a question the field is still arguing about.
-                </li>
-            </ol>
-        </div>
+<div class="ex"><div class="ex-head"><span>Learning-rate experiment</span></div><div class="ex-body"><p>On the convex bowl $J(\theta)=\tfrac12\theta^2$, try learning rates $0.04$, $1$, $1.5$, $2$, and $2.2$ (reset between runs). Derive the behavior before using Run 25.</p><details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body">The update is $\theta_{k+1}=(1-\eta)\theta_k$. At $0.04$ the magnitude shrinks by $0.96$ per step; at 1 it reaches zero in one step; at 1.5 it changes sign while shrinking by half. At 2 it alternates with constant magnitude; at 2.2 it alternates and grows. For nonzero initialization convergence holds exactly when $0&lt;\eta&lt;2$. The threshold is specific to this bowl: for $J=a\theta^2/2$ with $a&gt;0$, it is $2/a$.</div></details></div></div>
 
-        <h3 id="s5-sgd">5.2 &nbsp;Stochastic gradient descent</h3>
+<p>Switch the widget to <strong>Two minima</strong> to see why local progress need not find the best
+possible value. Neural-network objectives are generally nonconvex; the convex bowl explains step
+size, not a global convergence guarantee for a network.</p>
+<h3 id="s5-sgd">4.4 &nbsp;Minibatches: estimating the direction</h3>
+$$\widehat J_B(\theta)=\frac1B\sum_{i\in\mathcal B}\ell_i(\theta),\qquad
+\widehat g_B=\frac1B\sum_{i\in\mathcal B}\nabla_\theta\ell_i(\theta).$$
+<p>Full-batch gradient descent uses all $N$ examples per update. A minibatch uses $B$ examples;
+strictly, stochastic gradient descent uses one, though the name commonly includes minibatches.
+For uniformly sampled examples at fixed $\theta$, the batch-average gradient is an unbiased
+estimate of the full-data average gradient. One batch can point in a poor direction; unbiased
+means correct in expectation, not correct on every step.</p>
+<p>Smaller batches permit frequent updates with less activation memory, but introduce more noise.
+Bigger batches often use hardware efficiently. An <strong>epoch</strong> is one pass over the
+training set; with $N$ examples, batches of size $B$, and a retained final partial batch, it has
+$\lceil N/B\rceil$ updates. Noisy updates need not decrease the full-data loss at every step.</p>
+<div class="ex"><div class="ex-head"><span>Averaging matters</span></div><div class="ex-body"><p>At the current parameter, four example-gradients are $2,4,-2,0$. What is the full gradient? Is a one-example gradient of $-2$ a contradiction of unbiasedness?</p><details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body">The full gradient is $(2+4-2+0)/4=1$. A uniform one-example sample has expected gradient 1, but can equal $-2$. That step moves in the opposite direction from the full-gradient step. Summing instead of averaging a batch scales the gradient by $B$, changing the effective step size.</div></details></div></div>
 
-        <p>
-            One problem remains. $\mathcal{L}$ is a sum over the whole training set, so one exact
-            gradient step requires a pass over every token you have. At web scale that is absurd —
-            you would get a handful of steps per week.
-        </p>
-
-        <p>
-            The fix is to estimate the gradient from a random <strong>minibatch</strong> of $B$
-            examples instead of all $N$:
-        </p>
-        $$
-        \nabla_\theta \mathcal{L} \;\approx\;
-        \frac{1}{B}\sum_{i \in \text{batch}} \nabla_\theta \ell_i(\theta).
-        $$
-        <p>
-            This is the same Monte Carlo move as Handout #2 §5's cross-entropy question: replace an
-            expectation with an average over a sample. The estimate is noisy, and that is an
-            acceptable trade — a slightly wrong direction computed a thousand times faster wins
-            easily. The noise even helps, by shaking the optimizer out of the shallow minima §5.1
-            warned about.
-        </p>
-
-        <pre><code class="language-python">optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
-
-for x_batch, y_batch in dataloader:      # each pass = one minibatch
-    optimizer.zero_grad()                # .grad accumulates -- clear it first
-    logits = model(x_batch)              # forward
-    loss = F.cross_entropy(logits, y_batch)
-    loss.backward()                      # gradients into every .grad  (Session 4)
-    optimizer.step()                     # theta <- theta - lr * grad</code></pre>
-
-        <p>
-            Those five lines are the training loop for every model in this course. What changes later
-            is the model, the optimizer (<code>SGD</code> becomes <code>Adam</code>), and the scale —
-            never the shape of the loop. The one line not yet explained is
-            <code>loss.backward()</code>, which is Session 4's entire subject.
-        </p>
+<h3 id="s5-eval">4.5 &nbsp;Fitting is not evaluation</h3>
+<p>Use the <strong>training set</strong> to update weights, a held-out <strong>validation set</strong>
+to choose architecture, learning rate, and stopping point, and a held-out <strong>test set</strong>
+for final evaluation after those choices. Repeatedly selecting models by their test scores turns
+the test set into another validation set.</p>
+<p>Low training loss with high validation loss suggests overfitting. High loss on both can reflect
+insufficient capacity, unsuccessful optimization, or a data/implementation problem. Split text at
+an appropriate document or source boundary before creating overlapping windows so near-duplicate
+contexts do not leak across splits.</p>
+<div class="ex"><div class="ex-head"><span>Slide 74 · Which split?</span></div><div class="ex-body"><p>You try ten learning rates and keep the one with the lowest test loss. What went wrong?</p><details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body">The test data influenced model selection, so its score is no longer an independent final estimate. Choose with validation data; reserve a separate untouched test set for the final model.</div></details></div></div>
 
 
-        <!-- ================================================================ -->
-        <h2 id="s6"><span class="hd-secnum">6</span>Check yourself</h2>
+<h2 id="s4"><span class="hd-secnum">5</span>Algebra and calculus for backpropagation</h2>
+<p class="hd-srcline">Slides 76–89 · Shape bridge to the network equations</p>
+<h3 id="s4-batch">5.1 &nbsp;Forward shapes before derivative shapes</h3>
+<p>Our mathematical input $x$ is a column vector, so one layer computes $Wx+b$.
+In code we stack examples as <em>rows</em> of $X\in\mathbb R^{B\times d}$:</p>
+$$H=\sigma(XW^\top+b),\qquad W\in\mathbb R^{h\times d},\quad H\in\mathbb R^{B\times h}.$$
+<p>The bias $b\in\mathbb R^h$ is broadcast to every row. These are two conventions for the same
+operation, not different models. Each row uses the same parameters.</p>
+<pre><code class="language-python">import torch
+import torch.nn as nn
 
-        <div class="callout warn">
-            <span class="callout-label">Quiz #1 is next session (Thu, Sept 10)</span>
-            It covers everything up to that point — Handouts #1, #2 and #3 included. The questions
-            below are for this handout only; do not treat them as the scope.
-        </div>
+torch.manual_seed(0)
+B, d, h, m = 5, 4, 6, 3
+x = torch.randn(B, d)
+first, second = nn.Linear(d, h), nn.Linear(h, m)
+hidden = torch.relu(first(x))
+logits = second(hidden)
+assert torch.allclose(first(x), x @ first.weight.T + first.bias)
+assert hidden.shape == (B, h) and logits.shape == (B, m)
+assert sum(p.numel() for layer in (first, second)
+           for p in layer.parameters()) == 51
+print(hidden.shape, logits.shape)  # (5, 6), (5, 3)</code></pre>
+<p>For $X$ of shape $(B,T,d)$, <code>nn.Linear(d,h)</code> maps the last dimension and produces
+$(B,T,h)$. The matrix work costs $BTdh$ multiply-accumulates. Broadcasting checks compatible
+sizes, not the intended meaning of an axis: write down and assert shapes.</p>
+<h3 id="s4-partials">5.2 &nbsp;Partial derivatives and gradients</h3>
+<p>A partial derivative changes one argument while holding the others fixed. For the example in
+slides 78–80, $z(x,y)=y^4x^5$:</p>
+$$\frac{\partial z}{\partial x}=5y^4x^4,\qquad
+\frac{\partial z}{\partial y}=4y^3x^5,\qquad
+\nabla z=\begin{bmatrix}5y^4x^4\\4y^3x^5\end{bmatrix}.$$
+<p>The gradient is a column vector in the declared input order $(x,y)$. A derivative is itself a
+function until we evaluate it at a point.</p>
+<div class="ex"><div class="ex-head"><span>Hold the other input fixed</span></div><div class="ex-body"><p>Evaluate $\nabla z$ at $(x,y)=(1,2)$. Use it to predict the change from increasing only $y$ by $0.001$.</p><details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body">The gradient is $(80,32)^\top$. The first-order prediction is $\Delta z\approx32(0.001)=0.032$. The actual change is $(2.001)^4-2^4\approx0.032024$, close but not identical because the linear approximation omits higher-order terms.</div></details></div></div>
 
-        <p>
-            <button class="w-btn" type="button" data-toggle-answers="#s6-zone">Show all answers</button>
-        </p>
+<h3 id="s4-jacobian">5.3 &nbsp;A Jacobian records every output–input sensitivity</h3>
+<p>For $f:\mathbb R^n\to\mathbb R^m$, the Jacobian has <strong>outputs as rows and inputs as
+columns</strong>:</p>
+$$[J_f(x)]_{ij}=\frac{\partial f_i}{\partial x_j},\qquad J_f(x)\in\mathbb R^{m\times n},
+\qquad f(x+\Delta x)\approx f(x)+J_f(x)\Delta x.$$
+<p>For $f(x_1,x_2)=(x_1^2+x_2,\ x_1x_2,\ 3x_2)^\top$,</p>
+$$J_f(x)=\begin{bmatrix}2x_1&amp;1\\x_2&amp;x_1\\0&amp;3\end{bmatrix},\qquad
+J_f(1,2)=\begin{bmatrix}2&amp;1\\2&amp;1\\0&amp;3\end{bmatrix}.$$
+<p>If $m=1$, the Jacobian is the row $\nabla f^\top$, not the gradient column itself. If $m=n=1$,
+it is the ordinary scalar derivative. This transpose convention matters in the chain rule.</p>
+<div class="ex"><div class="ex-head"><span>Slides 81–84 · Read the shape</span></div><div class="ex-body"><p>If $f:\mathbb R^4\to\mathbb R^3$, what is the shape of $J_f$? If a scalar loss depends on a parameter matrix $W\in\mathbb R^{3\times4}$, what shape should its stored gradient have?</p><details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body">$J_f$ is $3\times4$. The gradient $\nabla_W\ell$ is also $3\times4$, one derivative per weight, so it can be subtracted from $W$. These identical sizes arise for different reasons: output–input axes in the first case, parameter axes in the second.</div></details></div></div>
 
-        <div id="s6-zone">
+<p>For a vector output $f(W)\in\mathbb R^m$ and a matrix input $W\in\mathbb R^{n\times p}$,
+the unflattened derivative has shape $(m,n,p)$ and entries $\partial f_i/\partial W_{jk}$.
+Flattening $W$ in a fixed order gives the equivalent $m\times(np)$ Jacobian. For a scalar loss,
+we conventionally store the derivatives with the original parameter shape $(n,p)$.</p>
+<h3 id="s4-chain">5.4 &nbsp;Composition: multiply along a path, add across paths</h3>
+<p>For a scalar chain $x\mapsto y(x)\mapsto z(y)$,</p>
+$$\frac{dz}{dx}=\frac{dz}{dy}\frac{dy}{dx}.$$
+<p>If $y=x^2$ and $z=3y+1$, then $dz/dx=3(2x)=6x$. The local derivative of the outer function
+is evaluated at the inner function's value.</p>
+<p>For $g:\mathbb R^d\to\mathbb R^n$ followed by $f:\mathbb R^n\to\mathbb R^m$, the same
+rule becomes a matrix product:</p>
+$$J_{f\circ g}(x)=\underbrace{J_f(g(x))}_{m\times n}
+\underbrace{J_g(x)}_{n\times d}\in\mathbb R^{m\times d}.$$
+<p>The order follows the dependencies and the shapes. Matrix multiplication automatically sums
+over the intermediate coordinates. In particular, if one scalar $x$ affects several intermediates
+$y_i$, which all affect a scalar $z$,</p>
+$$\frac{dz}{dx}=\sum_i\frac{\partial z}{\partial y_i}\frac{dy_i}{dx}.$$
+<div class="ex"><div class="ex-head"><span>Slide 88 · Two paths to the same output</span></div><div class="ex-body"><p>Let $y_1=x^2$, $y_2=3x$, and $z=y_1y_2$. Compute $dz/dx$ through both paths, then check by substitution.</p><details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body">The first path contributes $y_2(2x)=6x^2$; the second contributes $y_1(3)=3x^2$. Their sum is $9x^2$. Direct substitution gives $z=3x^3$, with the same derivative. At $x=2$, the path contributions are 24 and 12, totaling 36. Omitting a path gives the wrong derivative.</div></details></div></div>
 
-        <div class="ex">
-            <div class="ex-body">
-                <p><strong>Q1.</strong> A colleague builds a 20-layer network and uses no activation
-                    function, reasoning that ReLU "throws away information." What have they actually
-                    built, and what would you tell them?</p>
-                <details class="ans"><summary>Answer</summary><div class="ans-body">
-                    A single linear layer, with 20 layers' worth of compute and memory. Composing
-                    linear maps yields a linear map: $W_{20}\cdots W_1 x + b'$ collapses to
-                    $W'x + b'$. So the network cannot represent anything a one-layer linear model
-                    cannot, while costing twenty times as much. ReLU does discard information — that
-                    is the point. Without some nonlinearity, depth is free of benefit and not free of
-                    cost.
-                </div></details>
-            </div>
-        </div>
+<h3 id="s4-numerical">5.5 &nbsp;Code lab: check the chain rule numerically</h3>
+<p>Finite differences estimate the effect of perturbing an input. The following uses only Python's
+standard library. Predict the row and column shapes before running it.</p>
+<pre><code class="language-python">from math import isclose
 
-        <div class="ex">
-            <div class="ex-body">
-                <p><strong>Q2.</strong> A fixed-window neural LM with window 4 and a trigram model both
-                    condition on a bounded context. Why is the neural one not just a slower trigram?</p>
-                <details class="ans"><summary>Answer</summary><div class="ans-body">
-                    Because of how it stores what it learns. A trigram model keeps one independent
-                    number per context; <code>the dog slept</code> and <code>the cat slept</code> are
-                    unrelated table keys, so evidence about one says nothing about the other. The
-                    neural model represents words as vectors and computes the conditional as a
-                    function of them, so if <code>dog</code> and <code>cat</code> acquire similar
-                    vectors, a prediction learned for one context transfers to the other for free.
-                    Same Markov assumption, entirely different generalization behaviour — §1.2's
-                    table, in one sentence.
-                </div></details>
-            </div>
-        </div>
+def g(x):
+    return [x * x, 3 * x]          # R -> R^2
 
-        <div class="ex">
-            <div class="ex-body">
-                <p><strong>Q3.</strong> For $\mathcal{L}(\theta) = \tfrac{1}{2}\theta^2$ starting at
-                    $\theta_0 = 4$, write the value after $k$ steps of gradient descent with learning
-                    rate $\eta$. For which $\eta$ does it converge?</p>
-                <details class="ans"><summary>Answer</summary><div class="ans-body">
-                    <p>
-                        $\nabla \mathcal{L} = \theta$, so the update is
-                        $\theta \leftarrow \theta - \eta\theta = (1-\eta)\theta$, giving
-                    </p>
-                    $$\theta_k = 4\,(1-\eta)^k.$$
-                    <p>
-                        This tends to 0 exactly when $|1-\eta| &lt; 1$, i.e. $0 &lt; \eta &lt; 2$.
-                        At $\eta = 1$ it lands on the minimum in a single step; at $\eta = 2$ it
-                        oscillates between $\pm 4$ forever; above 2 it diverges geometrically. Two
-                        things to take away: there is a hard upper bound on the usable learning rate,
-                        and it is a property of the <em>surface</em> (here its curvature), not of your
-                        patience.
-                    </p>
-                </div></details>
-            </div>
-        </div>
+def f(y):
+    return y[0] * y[1]            # R^2 -> R
 
-        <div class="ex">
-            <div class="ex-body">
-                <p><strong>Q4.</strong> Minibatch gradients are noisy estimates of the true gradient.
-                    Name one way that hurts and one way it helps.</p>
-                <details class="ans"><summary>Answer</summary><div class="ans-body">
-                    <strong>Hurts:</strong> each step points in a slightly wrong direction, so the
-                    path to a minimum is longer and less direct than true gradient descent's, and near
-                    a minimum the noise prevents settling exactly. <strong>Helps:</strong> the same
-                    noise can push the optimizer out of a poor local minimum or a saddle point that
-                    exact gradient descent would sit in forever — and, far more importantly, it makes
-                    each step cheap enough that you can take millions of them. The decisive argument
-                    is throughput, not the noise's regularizing effect.
-                </div></details>
-            </div>
-        </div>
+x = 2.0
+y = g(x)
+J_f = [y[1], y[0]]                # 1 x 2: [dz/dy1, dz/dy2]
+J_g = [2 * x, 3.0]               # 2 x 1: [dy1/dx, dy2/dx]^T
+contributions = [a * b for a, b in zip(J_f, J_g)]
+chain = sum(contributions)
+eps = 1e-5
+numeric = (f(g(x + eps)) - f(g(x - eps))) / (2 * eps)
+assert contributions == [24.0, 12.0]
+assert isclose(chain, numeric, rel_tol=1e-7)
+print(chain, numeric)             # both approximately 36
+# Try eps = 1.0, then 1e-14. Why can either hurt the comparison?</code></pre>
+<details class="ans"><summary>Why not make the perturbation arbitrarily small?</summary><div class="ans-body">
+A large perturbation measures behavior beyond the local linear approximation. A tiny one subtracts
+almost equal floating-point values and amplifies roundoff. At a nondifferentiable point such as
+ReLU's kink, a symmetric difference need not match a chosen implementation convention.</div></details>
+<p>One could perturb every parameter to estimate its derivative, but a central-difference gradient
+for $P$ parameters costs $2P$ loss evaluations. It is useful for checking tiny examples, not for
+training a large network. The chain rule gives the mathematical alternative; backprop will organize
+it so intermediate computations are reused.</p>
 
-        <div class="ex">
-            <div class="ex-body">
-                <p><strong>Q5.</strong> You write
-                    <code>h = torch.relu(layer(x))</code> with <code>x</code> of shape
-                    <code>(32, 128, 768)</code> and <code>layer = nn.Linear(768, 3072)</code>. What
-                    shape is <code>h</code>, and how many multiply-accumulates did that cost?</p>
-                <details class="ans"><summary>Answer</summary><div class="ans-body">
-                    <p>
-                        Shape <code>(32, 128, 3072)</code> — <code>nn.Linear</code> maps the last
-                        dimension and leaves the leading ones untouched.
-                    </p>
-                    <p>
-                        Cost: one $768 \to 3072$ mat-vec per position, which is $768 \times 3072$
-                        multiply-accumulates, times $32 \times 128$ positions:
-                        $$32 \times 128 \times 768 \times 3072 \approx 9.7 \times 10^{9}.$$
-                        Ten billion operations for one layer, one batch, forward only. This is
-                        Handout #1 §1.4's $O(B\,T\,d_{\text{in}}\,d_{\text{out}})$ with numbers in it,
-                        and it is why the compute story in Handout #1 §4 is not a footnote.
-                    </p>
-                </div></details>
-            </div>
-        </div>
+<h2 id="s6"><span class="hd-secnum">6</span>Ready for analytical backprop?</h2>
+<p class="hd-srcline">Slide 89 recap · Slide 90 transition</p>
+<p>We can now specify the forward computation and the scalar objective. For one labeled example:</p>
+$$x\longrightarrow z_1=W_1x+b_1\longrightarrow h=\sigma(z_1)
+\longrightarrow s=W_2h+b_2\longrightarrow \ell(s,t).$$
+<p>Training needs $\nabla_{W_1}\ell$, $\nabla_{b_1}\ell$, $\nabla_{W_2}\ell$, and
+$\nabla_{b_2}\ell$. Backpropagation computes these gradients using the chain rule;
+gradient descent uses them to update the parameters. They are distinct jobs.</p>
+<p><button class="w-btn" type="button" data-toggle-answers="#s6-zone">Show all answers</button></p>
+<div id="s6-zone">
+<div class="ex"><div class="ex-head"><span>1 · Specify the model</span></div><div class="ex-body"><p>For $x\in\mathbb R^4$, hidden width 6, and three output classes, list the parameter shapes, logit shape, and total parameter count.</p><details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body">$W_1:6\times4$, $b_1:6$, $W_2:3\times6$, $b_2:3$; the logit vector has length 3. Total: $24+6+18+3=51$. Each parameter gradient has the same shape as its parameter.</div></details></div></div>
+<div class="ex"><div class="ex-head"><span>2 · Connect prediction to training</span></div><div class="ex-body"><p>The network gives the correct class probability $0.25$. What is the per-example loss? What changes when computing empirical risk over 20 examples?</p><details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body">The loss is $-\log0.25\approx1.3863$ nats. Compute one such loss per example and average all 20; do not take the negative log of the mean target probability, which is a different objective.</div></details></div></div>
+<div class="ex"><div class="ex-head"><span>3 · Read the derivative</span></div><div class="ex-body"><p>For $h:\mathbb R^4\to\mathbb R^6$ and a scalar $\ell(h)$, what are the shapes in $J_{\ell\circ h}=J_\ell J_h$? What is the corresponding gradient-column expression?</p><details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body">$(1\times6)(6\times4)=1\times4$. Transposing gives $\nabla_x\ell=J_h^\top\nabla_h\ell$, of shape $(4\times6)(6\times1)=4\times1$. This is the same chain rule under the column-gradient convention.</div></details></div></div>
+<div class="ex"><div class="ex-head"><span>4 · Name the missing computation</span></div><div class="ex-body"><p>If we already know the gradient-descent update and the chain rule, what remains to derive?</p><details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body">We need the local derivatives for each operation and an efficient way to combine contributions to every parameter. The next lecture derives those computations for a neural network and reuses intermediate results instead of separately expanding every derivative.</div></details></div></div>
 
-        <div class="ex">
-            <div class="ex-body">
-                <p><strong>Q6.</strong> Minsky and Papert's XOR result was correct. Why did it not
-                    actually refute neural networks?</p>
-                <details class="ans"><summary>Answer</summary><div class="ans-body">
-                    Because it is a theorem about a <em>single-layer</em> perceptron, whose decision
-                    boundary is one hyperplane, and XOR is not linearly separable. A two-layer network
-                    with a nonlinearity represents XOR without difficulty. The result was read as a
-                    verdict on the approach rather than on one instance of it — partly because the
-                    means to train multi-layer networks (backpropagation, §3) was not yet in general
-                    use. The transferable lesson: check whether a negative result constrains the class
-                    of models or just the member someone happened to test.
-                </div></details>
-            </div>
-        </div>
+</div>
+<div class="callout"><span class="callout-label">Stop here</span>
+You should be able to evaluate a small network, choose and compute a loss, explain a gradient step,
+and multiply Jacobians with the correct shapes. Slide 90 opens the next topic: deriving the
+network's parameter gradients efficiently.</div>
 
-        <div class="ex">
-            <div class="ex-body">
-                <p><strong>Q7.</strong> A neural LM needs no smoothing. What replaces it, and what has
-                    been given up?</p>
-                <details class="ans"><summary>Answer</summary><div class="ans-body">
-                    Learned representations replace it. Because words and contexts are vectors, similar
-                    contexts produce similar predictions automatically, so an unseen context still gets
-                    a sensible distribution — generalization is structural rather than patched on. A
-                    softmax also cannot output an exact zero, so the catastrophic-zero problem
-                    disappears outright. What is given up is transparency and guarantees: you can no
-                    longer point at the counts that produced a probability, the model may generalize in
-                    ways you did not intend, and fitting now requires an optimization procedure that
-                    can fail. We traded an interpretable model that could not generalize for a
-                    generalizing model we cannot interpret.
-                </div></details>
-            </div>
-        </div>
-
-        </div><!-- /#s6-zone -->
-
-
-        <!-- ================================================================ -->
-        <h2 id="s7"><span class="hd-secnum">7</span>Optional further reading</h2>
-
-        <p>
-            Strictly optional — nothing here is assumed in class or on a quiz.
-        </p>
-
-        <ul>
-            <li>
-                <a href="https://www.3blue1brown.com/topics/neural-networks">3Blue1Brown, <em>Neural
-                Networks</em></a> — the first two videos cover §2 and §5 visually and are the single
-                best use of forty minutes if this handout felt abstract. (The backpropagation videos
-                are assigned reading for Session 4.)
-            </li>
-            <li>
-                <a href="https://www.deeplearningbook.org/contents/mlp.html">Goodfellow, Bengio &amp;
-                Courville, <em>Deep Learning</em></a>, Ch. 6 "Deep Feedforward Networks" — the
-                textbook treatment of §2, including a proper discussion of why depth helps.
-            </li>
-            <li>
-                Bengio, Ducharme, Vincent &amp; Jauvin, <em>A Neural Probabilistic Language Model</em>
-                (2003) — the model in §1.1, in the authors' own words. Very readable, and short.
-            </li>
-            <li>
-                Rumelhart, Hinton &amp; Williams, <em>Learning representations by back-propagating
-                errors</em> (1986) — four pages that ended the first AI winter. Read it after
-                Session 4.
-            </li>
-        </ul>
-
-        <div class="hd-footer">
-            <p>
-                <strong>Next session.</strong> #4, Thu Sept 10 — more background (algebra and
-                optimization), then analytical backpropagation: how the gradients in §5 are actually
-                computed.
-            </p>
-            <p>
-                Found an error, or a passage that doesn't land? Post on
-                <a href="https://piazza.com/jhu/fall2026/cs601471671">Piazza</a> — corrections to these
-                handouts are welcome and useful.
-            </p>
-        </div>
+<h2 id="s7"><span class="hd-secnum">7</span>Review route</h2>
+<p>If one part felt unfamiliar, revisit the relevant worked example rather than memorizing all the
+notation at once:</p>
+<ul>
+<li>For dimensions and matrix multiplication, revisit <a href="01.foundations.html#s1-la">Handout #1's linear algebra review</a>, then redo §5.1 here.</li>
+<li>For log probabilities, revisit <a href="02.language-modeling.html#s5-def">Handout #2's cross-entropy and perplexity discussion</a>, then redo §4.2 here.</li>
+<li>For derivative notation, revisit <a href="01.foundations.html#s1-calc">Handout #1's calculus review</a>, then redo the two-path example in §5.4.</li>
+</ul>
+<div class="hd-footer"><p><strong>Next session:</strong> analytical backpropagation. Bring the
+forward equations, derivative shapes, and chain-rule questions from this handout.</p>
+<p>Found an error or an unclear passage? Post on
+<a href="https://piazza.com/jhu/fall2026/cs601471671">Piazza</a>.</p></div>
 
     </main>
 </div>

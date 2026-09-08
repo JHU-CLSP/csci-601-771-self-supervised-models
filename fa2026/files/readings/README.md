@@ -9,7 +9,7 @@ schedule in `fa2026/index.html`.
 |---|------|---------|
 | 1 | `01.foundations.html` | Foundations & prerequisites (math/CS review, what self-supervision is) |
 | 2 | `02.language-modeling.html` | Language modeling: formal setup, scoring/generation, n-grams, sparsity, smoothing, perplexity |
-| 3 | `03.neural-nets.html` | From counting to learning: fixed-window neural LM, what a neural net is, history, batched algebra, gradient descent |
+| 3 | `03.neural-nets.html` | From counting to learning (slides 1–89; slide 90 transition): MLPs, expressivity, perceptrons, losses, evaluation, gradient descent, batched algebra, Jacobians, chain rule |
 | 5 | `05.backprop-in-practice.html` | Backprop as chain rule on a graph, reverse mode, autograd, the LM loss in PyTorch, reading `micrograd` |
 
 (No Handout #4 yet — Session 4 is analytical backprop, currently covered only by the assigned
