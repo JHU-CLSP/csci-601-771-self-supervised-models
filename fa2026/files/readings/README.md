@@ -8,7 +8,7 @@ schedule in `fa2026/index.html`.
 | # | File | Session |
 |---|------|---------|
 | 1 | `01.foundations.html` | Foundations & prerequisites (math/CS review, what self-supervision is) |
-| 2 | `02.language-modeling.html` | Language modeling: formal setup, scoring/generation, n-grams, sparsity, smoothing, perplexity |
+| 2 | `02.language-modeling.html` | Language modeling: formal setup, scoring/generation, n-grams, sparsity, perplexity |
 | 3 | `03.neural-nets.html` | From counting to learning (Tue Sept 8, slides 1–54): MLPs, expressivity, history, perceptrons |
 | 4 | `04.training-neural-nets.html` | Losses, gradients, and analytical backprop (Thu Sept 10, slides 55–109): losses, optimization, calculus, layerwise derivatives, caching, and checked manual backprop |
 | 5 | `05.backprop-in-practice.html` | Backprop in practice (Tue Sept 15, slides 111–156): computation graphs, reverse mode, autograd, PyTorch, reading `micrograd` |
@@ -36,8 +36,8 @@ Renaming a file means fixing those hrefs — `grep -l 'rnn-language-models\|toke
 Widgets: `ssl-objective.js` (Handout #1), `next-token.js` (Handout #2 — order selector, per-model
 perplexity table, sampler), `gradient-descent.js` (Handout #4 — learning-rate explorer).
 
-Backoff is deliberately **not** covered: the course skips it, so `next-token.js` offers only fixed
-orders (unigram/bigram/trigram) and Handout #2 §4 covers add-$k$ smoothing and interpolation only.
+Smoothing and backoff methods are not covered in Handout #2. The `next-token.js` widget offers
+only fixed orders (unigram/bigram/trigram).
 
 ## Code-reading sections
 
@@ -81,7 +81,7 @@ Handouts #4–#6 include 15 additional adapted exercises from this collection:
 Solution clarifications in these adaptations: the softmax outer product for a column probability vector is `p p^T`, not `p^T p` (HW3 §3.6); memory-component rankings depend on model/batch/optimizer (Quiz 3 Q6.1); clearing gradients at the end of a step is valid when the first step starts clear (Quiz 1 sp2024 Q1.16); normalization does not force equal feature influence (Quiz 1 sp2024 Q1.18). Residual derivatives use column gradients consistently.
 
 Past quizzes and homeworks, with solutions. Source material for handout exercises — several are
-ported into Handout #1 §1.3/§1.5/§6 and Handout #2 §1.2/§5.2/§5.4, marked with an `ex-src`
+ported into Handout #1 §1.3/§1.5/§6 and Handout #2 §1.2/§4.2/§4.4, marked with an `ex-src`
 provenance label. Not linked from the schedule.
 
 Three arithmetic errors found in these while porting (handouts use corrected values):

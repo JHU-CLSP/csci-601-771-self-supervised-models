@@ -41,15 +41,15 @@
             <a href="01.foundations.html">Handout #1</a> ended with one line: a language model is a
             distribution over sequences, factored by the chain rule into one next-word prediction per
             position. This handout asks what that buys you, how to <em>estimate</em> those predictions
-            by counting, how to <em>measure</em> whether they are any good, and what to do when one of
-            them comes out as exactly zero.
+            by counting, how to <em>measure</em> whether they are any good, and why zero
+            probabilities are a problem.
         </p>
 
         <div class="hd-glance">
             <dl>
                 <dt>Assigned papers</dt>
                 <dd>None. <strong>This handout is the reading for Session 2.</strong>
-                    §7 lists optional depth if you want it.</dd>
+                    §6 lists optional depth if you want it.</dd>
 
                 <dt>Time</dt>
                 <dd>50–70 minutes.</dd>
@@ -105,7 +105,7 @@
             lets the total converge rather than leaking away into ever-longer strings. Second, the
             definition never says what the atomic unit <em>is</em>. Words, characters, bytes, subword
             pieces: all are legal choices of $\Sigma$, and the choice turns out to matter enormously
-            (both for the zero problem in §4 and for the numbers in §5).
+            (both for the zero problem in §3 and for the numbers in §4).
         </p>
 
         <h3 id="s1-marginal">1.2 &nbsp;Trained on conditionals, learning the joint</h3>
@@ -413,7 +413,7 @@ while True:
                     <code>dog slept</code> never occurs, so the model has <em>no estimate</em> — not a
                     bad one, none. Now switch to <strong>Bigram</strong>: the shorter context
                     <code>slept</code> <em>has</em> been seen, so an estimate reappears. Shorter
-                    contexts survive where longer ones do not, which is the observation §4.2 builds on.
+                    contexts survive where longer ones do not.
                 </li>
                 <li>
                     Watch the comparison table at the bottom. On <code>the student read the book</code>
@@ -512,7 +512,7 @@ p("on",    ("dog", "slept"))   # None  -- context never seen</code></pre>
             <li>
                 <code>return None</code>, not <code>return 0.0</code> — an unseen <em>context</em> has no
                 distribution, which is a different failure from an unseen <em>word</em> in a seen
-                context. §5.2's &ldquo;two different zeros&rdquo; keeps that distinction alive; conflating them
+                context. §4.2's &ldquo;two different zeros&rdquo; keeps that distinction alive; conflating them
                 is how you end up dividing
                 by zero.
             </li>
@@ -586,93 +586,7 @@ p("on",    ("dog", "slept"))   # None  -- context never seen</code></pre>
 
 
         <!-- ================================================================ -->
-        <h2 id="s4"><span class="hd-secnum">4</span>Filling the zeros</h2>
-
-        <p>
-            Three families of fix, in increasing order of sophistication. All of them are moving
-            probability mass from the things you saw to the things you did not.
-        </p>
-
-        <h3 id="s4-smoothing">4.1 &nbsp;Smoothing: pretend you saw a bit more</h3>
-
-        <p>
-            Add a constant $k$ to every count before normalizing (add-one smoothing is $k=1$, also
-            called Laplace smoothing):
-        </p>
-        $$
-        \hat{p}_{\text{add-}k}(x_t \mid c) = \frac{C(c, x_t) + k}{C(c) + kV}
-        $$
-        <p>
-            The $kV$ in the denominator is doing the accounting: we added $k$ to each of $V$ possible
-            next words, so the total went up by $kV$. Now nothing is zero.
-        </p>
-
-        <p>
-            It is also a rather bad estimator, and it is worth being clear about why. With $V$ large
-            and most counts zero, the $kV$ term dominates the denominator, so add-one smoothing takes
-            a great deal of mass away from the words you actually observed and spreads it thinly over
-            an enormous number of words you did not. It is the right first idea and the wrong final
-            answer — which is roughly its role in this course too.
-        </p>
-
-        <h3 id="s4-interp">4.2 &nbsp;Interpolation: ask a shorter question too</h3>
-
-        <p>
-            A better instinct than add-$k$: if you have never seen <code>the dog slept</code>, you have
-            probably seen <code>dog slept</code>, and you have certainly seen <code>slept</code>. The
-            shorter the context, the more evidence you have for it — exactly what item 3 of the widget
-            exercise showed. So rather than trusting one order, use them all at once.
-        </p>
-
-        <p>
-            <strong>Interpolation</strong> mixes the orders into a single estimate:
-        </p>
-        $$
-        \hat{p}(x_t \mid x_{t-2}, x_{t-1}) =
-        \lambda_3\, p_3(x_t \mid x_{t-2}, x_{t-1})
-        + \lambda_2\, p_2(x_t \mid x_{t-1})
-        + \lambda_1\, p_1(x_t),
-        \qquad \sum_i \lambda_i = 1.
-        $$
-        <p>
-            The weights $\lambda_i$ are fit on held-out data. Because the $\lambda$'s sum to one and
-            each $p_i$ is a distribution, the mixture is a valid distribution too — and because
-            $\lambda_1 > 0$ and the unigram is non-zero for any word in the vocabulary, no estimate is
-            ever exactly zero. The unseen-context problem is gone, and unlike add-$k$ the mass it moves
-            is small and tuned rather than proportional to $V$.
-        </p>
-
-        <p>
-            There is a second benefit worth noticing: even a <em>well</em>-observed trigram gains from
-            being pulled slightly toward the lower orders, because a ratio built from three
-            observations is noisy. Interpolation shrinks confident-but-thinly-evidenced estimates
-            toward more robust ones — which is the same complaint the check-yourself question about
-            $\hat{p} = 1$ raises in §6.
-        </p>
-
-        <p>
-            The best-known refinement is <strong>Kneser–Ney</strong> smoothing, and its central idea is
-            a genuinely clever one worth carrying with you. When you fall back on a lower order, do not
-            ask "how frequent is this word?" — ask "<em>in how many distinct contexts</em> does this
-            word appear?" The word <code>Francisco</code> is common, but almost exclusively after
-            <code>San</code>. A frequency-based lower-order estimate will happily predict
-            <code>Francisco</code> after anything; a diversity-based one will not. Kneser–Ney remained
-            the best-performing n-gram model for two decades.
-        </p>
-
-        <div class="callout aside">
-            <span class="callout-label">The pattern to notice</span>
-            Every one of these methods is a hand-designed rule for generalizing to unseen contexts.
-            Someone had to <em>decide</em> that a trigram should fall back to a bigram, and by how
-            much. The neural approach in <a href="03.neural-nets.html">Handout #3</a> does not smooth
-            at all — it makes generalization the model's job rather than the modeller's. That is the
-            shift, and it is the reason a two-decade smoothing literature stopped mattering rather
-            abruptly.
-        </div>
-
-
-        <!-- ================================================================ -->
-        <h2 id="s5"><span class="hd-secnum">5</span>Measuring quality</h2>
+        <h2 id="s5"><span class="hd-secnum">4</span>Measuring quality</h2>
 
         <p>
             We have models. Which is better? For a language model there is a natural answer:
@@ -681,7 +595,7 @@ p("on",    ("dog", "slept"))   # None  -- context never seen</code></pre>
             measures memorization, not modelling.
         </p>
 
-        <h3 id="s5-def">5.1 &nbsp;Perplexity, two ways</h3>
+        <h3 id="s5-def">4.1 &nbsp;Perplexity, two ways</h3>
 
         <p>
             Start from the obvious thing. Take a real sentence $w_1, \ldots, w_n$ from held-out data
@@ -734,7 +648,7 @@ p("on",    ("dog", "slept"))   # None  -- context never seen</code></pre>
             standard way to produce a number that is wrong by a factor of $\ln 2$.
         </div>
 
-        <h3 id="s5-branching">5.2 &nbsp;Perplexity is a branching factor</h3>
+        <h3 id="s5-branching">4.2 &nbsp;Perplexity is a branching factor</h3>
 
         <p>
             The interpretation that makes perplexity intuitive: <strong>it is the effective number of
@@ -817,7 +731,7 @@ p("on",    ("dog", "slept"))   # None  -- context never seen</code></pre>
                         <p style="margin:8px 0 0">
                             So read $V$ as the score to beat, not as a worst case. <strong>Being
                             confidently wrong is worse than being ignorant</strong> — an asymmetry that
-                            comes back in §5.5.
+                            comes back in §4.5.
                         </p>
                     </div>
                 </div></details>
@@ -882,8 +796,7 @@ p("on",    ("dog", "slept"))   # None  -- context never seen</code></pre>
             <ul style="margin-bottom:0">
                 <li>
                     An <strong>unseen n-gram</strong> of known words (<code>the dog slept</code>):
-                    lower orders still have an estimate, so smoothing and interpolation both rescue
-                    you. This is what §4 is about.
+                    a shorter context may still have an estimate, as the §3 widget demonstrates.
                 </li>
                 <li>
                     An <strong>unseen word</strong> (<code>purred</code>): <em>no</em> order helps —
@@ -897,7 +810,7 @@ p("on",    ("dog", "slept"))   # None  -- context never seen</code></pre>
             </ul>
         </div>
 
-        <h3 id="s5-real">5.3 &nbsp;What the numbers actually look like</h3>
+        <h3 id="s5-real">4.3 &nbsp;What the numbers actually look like</h3>
 
         <p>
             The canonical demonstration that order helps — trained on 38 million words of the
@@ -930,11 +843,11 @@ p("on",    ("dog", "slept"))   # None  -- context never seen</code></pre>
             anyone expected it to.
         </p>
 
-        <h3 id="s5-worked">5.4 &nbsp;A bigram model, end to end</h3>
+        <h3 id="s5-worked">4.4 &nbsp;A bigram model, end to end</h3>
 
         <p>
             This is the exercise that has appeared, in some form, on every Quiz 1 for the last three
-            years. It uses only §3's counting and §5.1's definition, and it is entirely doable by hand.
+            years. It uses only §3's counting and §4.1's definition, and it is entirely doable by hand.
             Do it by hand.
         </p>
 
@@ -1013,7 +926,7 @@ BOS Tianjian ran EOS</code></pre>
                             <code>cat</code>, and <code>jumped</code> never followed it.
                             $P(\texttt{EOS}\mid\texttt{jumped}) = 0/0$ is not even defined: we never saw
                             <code>jumped</code> at all, so there is no distribution to speak of. This is
-                            §5.2's "two different zeros" showing up in arithmetic — and the $\epsilon$
+                            §4.2's "two different zeros" showing up in arithmetic — and the $\epsilon$
                             convention is the crudest possible smoothing, papering over both.
                         </p>
 
@@ -1039,7 +952,7 @@ BOS Tianjian ran EOS</code></pre>
                         \;\Rightarrow\; \text{ppl}(s_2) = 2^{3.902} = \mathbf{14.95}
                         $$
                         <p class="w-note">
-                            Sanity check without a calculator: $\text{ppl} = P^{-1/n}$ from §5.1, so
+                            Sanity check without a calculator: $\text{ppl} = P^{-1/n}$ from §4.1, so
                             $\text{ppl}(s_1) = 0.2^{-1/4} \approx 1.50$ and
                             $\text{ppl}(s_2) = (2\times10^{-5})^{-1/4} \approx 14.95$. The two routes
                             must agree — if they do not, you have made an arithmetic slip.
@@ -1066,7 +979,7 @@ BOS Tianjian ran EOS</code></pre>
             the PyTorch mechanics in <a href="05.backprop-in-practice.html">Handout #5</a>, not here.
         </div>
 
-        <h3 id="s5-limits">5.5 &nbsp;What perplexity does not tell you</h3>
+        <h3 id="s5-limits">4.5 &nbsp;What perplexity does not tell you</h3>
 
         <p>
             Perplexity is the field's workhorse and it is genuinely load-bearing. It is also narrower
@@ -1106,14 +1019,14 @@ BOS Tianjian ran EOS</code></pre>
             <span class="callout-label">Where this goes next</span>
             We now have a target and a way to score it: fit the conditionals
             $p_\theta(x_t \mid x_{&lt;t})$, and measure the fit with perplexity. What we do not have is
-            a way to build $f_\theta$ that generalizes — every fix in §4 was a hand-designed rule.
+            a way to build $f_\theta$ that generalizes beyond the contexts seen in training.
             <a href="03.neural-nets.html">Handout #3</a> reframes the whole problem as function
             fitting and introduces the machinery that makes generalization the model's job.
         </div>
 
 
         <!-- ================================================================ -->
-        <h2 id="s6"><span class="hd-secnum">6</span>Check yourself</h2>
+        <h2 id="s6"><span class="hd-secnum">5</span>Check yourself</h2>
 
         <p>
             <button class="w-btn" type="button" data-toggle-answers="#s6-zone">Show all answers</button>
@@ -1185,7 +1098,7 @@ BOS Tianjian ran EOS</code></pre>
 
         <div class="ex">
             <div class="ex-body">
-                <p><strong>Q4.</strong> §5.1 calls $H$ a cross-entropy. But cross-entropy is
+                <p><strong>Q4.</strong> §4.1 calls $H$ a cross-entropy. But cross-entropy is
                     $\text{CE}(q, p) = -\sum_x q(x) \log p(x)$, an expectation under the true
                     distribution $q$ — and we never have $q$. In what sense is $H$ a cross-entropy?</p>
                 <details class="ans"><summary>Answer</summary><div class="ans-body">
@@ -1251,7 +1164,7 @@ BOS Tianjian ran EOS</code></pre>
 
         <div class="ex">
             <div class="ex-body">
-                <p><strong>Q7.</strong> §5.3's WSJ numbers go $962 \to 170 \to 109$ as order increases.
+                <p><strong>Q7.</strong> §4.3's WSJ numbers go $962 \to 170 \to 109$ as order increases.
                     Extrapolate: what would you predict for a four-gram model, and why should you not
                     trust the extrapolation?</p>
                 <details class="ans"><summary>Answer</summary><div class="ans-body">
@@ -1299,7 +1212,7 @@ BOS Tianjian ran EOS</code></pre>
 
 
         <!-- ================================================================ -->
-        <h2 id="s7"><span class="hd-secnum">7</span>Optional further reading</h2>
+        <h2 id="s7"><span class="hd-secnum">6</span>Optional further reading</h2>
 
         <p>
             Strictly optional — nothing here is assumed in class or on a quiz.
@@ -1335,7 +1248,7 @@ BOS Tianjian ran EOS</code></pre>
             <p>
                 <strong>Next session.</strong> #3, Tue Sept 8 — Neural nets: definitions, history,
                 and the algebra and optimization behind them. See
-                <a href="03.neural-nets.html">Handout #3</a>, which picks up exactly where §5 stops.
+                <a href="03.neural-nets.html">Handout #3</a>, which picks up exactly where §4 stops.
                 <em>Quiz #1 follows on Thu, Sept 10</em>, covering everything up to and including
                 that session.
             </p>

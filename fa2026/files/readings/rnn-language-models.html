@@ -728,7 +728,7 @@ torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)</code></pre>
                     wrong: it is much flatter than the true objective, so gradients are attenuated and
                     the model trains slowly toward the wrong optimum. And your reported perplexity is
                     meaningless. The diagnostic habit that catches it: for an untrained model over
-                    $|\Sigma|$ tokens, the loss should start near $\ln |\Sigma|$ (Handout #2 §5.2's
+                    $|\Sigma|$ tokens, the loss should start near $\ln |\Sigma|$ (Handout #2 §4.2's
                     baseline). A double-softmaxed loss starts far below that.
                 </div></details>
             </div>

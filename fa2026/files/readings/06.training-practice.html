@@ -321,7 +321,7 @@ operation. The layer still randomly zeroes values and scales retained ones durin
         <p class="hd-srcline">Optional extension beyond slides 156–188, applying batching and evaluation to language models.</p>
         <p>
             <a href="05.backprop-in-practice.html#s3-loop">Handout #5 §3.1</a> gave us a training loop with a <code>loss</code> in it. For a language model that loss
-            is cross-entropy, and <a href="02.language-modeling.html#s5-worked">Handout #2 §5.4</a>
+            is cross-entropy, and <a href="02.language-modeling.html#s5-worked">Handout #2 §4.4</a>
             computed it by hand. You will never do that again — but you <em>will</em> compute it in
             PyTorch constantly, and there are three ways to get it wrong that are worth inoculating
             against before you write your own loop.
@@ -331,7 +331,7 @@ operation. The layer still randomly zeroes values and scales retained ones durin
 
         <p>
             Handout #1 §1.5 established that <code>F.cross_entropy(logits, target)</code>
-            <em>is</em> $-\log p(\text{target})$. Handout #2 §5.1 established that perplexity is
+            <em>is</em> $-\log p(\text{target})$. Handout #2 §4.1 established that perplexity is
             $2^H$ where $H$ is that quantity averaged. Put them together:
         </p>
 
@@ -353,7 +353,7 @@ assert torch.allclose(loss, -logp.mean())   # cross_entropy IS mean -log p</code
             <span class="callout-label">Trap: <code>torch.exp</code>, not <code>2 **</code></span>
             <code>F.cross_entropy</code> returns <strong>nats</strong> — it uses the natural log. So
             perplexity is $e^{H}$, computed as <code>torch.exp(loss)</code>. Writing
-            <code>2 ** loss</code> mixes the bases from Handout #2 §5.1 and silently gives you a
+            <code>2 ** loss</code> mixes the bases from Handout #2 §4.1 and silently gives you a
             different number: for a loss of $4.76$ nats, $e^{4.76} = 117.1$ but $2^{4.76} = 27.2$. If
             you want bits, convert first — <code>loss / math.log(2)</code> gives $6.87$ bits, and
             $2^{6.87} = 117.1$ again. Both routes must agree; that is your check.
@@ -444,7 +444,7 @@ print(f"token {worst.item()} cost {bits[worst]:.2f} bits")
 assert torch.allclose(2 ** bits.mean(), torch.exp(loss))</code></pre>
 
         <p>
-            That last assertion is Handout #2 §5.1's two definitions meeting in code: the mean surprisal in bits,
+            That last assertion is Handout #2 §4.1's two definitions meeting in code: the mean surprisal in bits,
             exponentiated base 2, equals the mean loss in nats, exponentiated base $e$. If it ever
             fails, you have mixed bases somewhere.
         </p>

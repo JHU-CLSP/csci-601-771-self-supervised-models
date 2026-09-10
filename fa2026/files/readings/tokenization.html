@@ -70,7 +70,7 @@
                 <dd>
                     <a href="02.language-modeling.html#s1">Handout #2 §1</a> (the formal setup and
                     $\Sigma^*$), <a href="02.language-modeling.html#s3-sparsity">§3.3</a> (sparsity and
-                    <code>&lt;UNK&gt;</code>), and <a href="02.language-modeling.html#s5-def">§5.1</a>
+                    <code>&lt;UNK&gt;</code>), and <a href="02.language-modeling.html#s5-def">§4.1</a>
                     (perplexity).
                 </dd>
             </dl>
@@ -362,7 +362,7 @@ assert tokenizer.decode(tokenizer.encode("the cat sat")) == "the cat sat"</code>
         <h3 id="s4-ppl">4.1 &nbsp;Perplexity is not comparable across tokenizers</h3>
 
         <p>
-            Handout #2 §5.1 defined perplexity as $\exp\!\big(\tfrac{1}{N}\sum_{t} -\log
+            Handout #2 §4.1 defined perplexity as $\exp\!\big(\tfrac{1}{N}\sum_{t} -\log
             p(x_t \mid x_{&lt;t})\big)$ — an average <em>per token</em>. If two models tokenize the same
             text into different numbers of tokens, they are dividing the same total by different $N$.
         </p>
