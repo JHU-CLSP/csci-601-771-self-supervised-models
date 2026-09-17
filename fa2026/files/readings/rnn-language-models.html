@@ -71,7 +71,7 @@
                 <dd>
                     <a href="03.neural-nets.html#s1">Handout #3 §1</a> (LM as a learning problem, the
                     fixed-window model), <a href="04.training-neural-nets.html#s2">Handout #4 §2</a> (batched algebra), and
-                    <a href="05.backprop-in-practice.html#s1">Handout #5 §1–§4</a> (backprop, autograd,
+                    <a href="06.backprop-in-practice.html#s1">Handout #6 §1–§4</a> (backprop, autograd,
                     the LM loss in code) throughout.
                 </dd>
             </dl>
@@ -157,7 +157,7 @@
         </div>
 
         <p>
-            The last row is the one that bites, and Handout #5 §2 already explained why: reverse-mode
+            The last row is the one that bites, and Handout #6 §2 already explained why: reverse-mode
             differentiation must keep every intermediate activation until the backward pass reaches it.
             Parameters are constant in $T$; <em>memory</em> is not.
         </p>
@@ -194,13 +194,13 @@ h3 = tanh(W_hh @ h2 + W_eh @ e3 + b)      # same W_hh
         <p>
             That is a $T$-layer feed-forward network in which every layer uses the same weight matrix.
             <strong>Unrolling</strong> is the name for taking that view, and it means backpropagation
-            applies with zero modification: it is Handout #5 §1's computation graph, just a very deep
+            applies with zero modification: it is Handout #6 §1's computation graph, just a very deep
             and narrow one. The special name — <strong>backpropagation through time</strong> — describes
             no new algorithm. It describes reverse-mode autodiff over the unrolled graph.
         </p>
 
         <p>
-            One consequence follows immediately from Handout #5 §5.2's gradient accumulation:
+            One consequence follows immediately from Handout #6 §4.2's gradient accumulation:
             $W_{hh}$ appears at every one of the $T$ steps, so its gradient is a <em>sum</em> of $T$
             contributions. That single fact is the source of everything in §3.
         </p>
@@ -251,7 +251,7 @@ h3 = tanh(W_hh @ h2 + W_eh @ e3 + b)      # same W_hh
         </p>
 
         <p>
-            Now note the $\operatorname{diag}(1 - h_t^2)$ factor, which is $\tanh'$. Handout #5 §6 Q2
+            Now note the $\operatorname{diag}(1 - h_t^2)$ factor, which is $\tanh'$. Handout #6 §5 Q2
             made the point in the abstract: $\tanh' \le 1$, with equality only at $h = 0$, so the
             nonlinearity multiplies the gradient by <em>at most</em> one at every step and typically by
             much less. The architecture is biased toward vanishing.
@@ -478,7 +478,7 @@ h3 = tanh(W_hh @ h2 + W_eh @ e3 + b)      # same W_hh
         </p>
 
         <div class="callout warn">
-            <span class="callout-label">The trap Handout #5 §4.1 warned about, live</span>
+            <span class="callout-label">The trap Handout #7 §9.1 warned about, live</span>
             This <code>forward</code> returns <code>log_softmax</code>, <em>not</em> logits. So
             <code>main.py</code> pairs it with <code>criterion = nn.NLLLoss()</code> and not
             <code>cross_entropy</code>. Both routes give the identical number —
@@ -514,7 +514,7 @@ assert torch.allclose(a, b)     # 2.309767 == 2.309767</code></pre>
             <li><strong>Parameters drop by $|\Sigma| \cdot d$</strong> — on a realistic vocabulary this
                 is often the largest single matrix in the model, so this is not a marginal saving.</li>
             <li><strong>Gradients from both uses accumulate into one <code>.grad</code></strong>, by
-                exactly the mechanism of Handout #5 §5.2. One tensor, two consumers, contributions
+                exactly the mechanism of Handout #6 §4.2. One tensor, two consumers, contributions
                 summed. Nothing special was needed to make this work — it is why <code>+=</code> is the
                 right default.</li>
             <li><strong>The two spaces are forced to coincide</strong>, which is the actual modeling
@@ -582,7 +582,7 @@ assert torch.allclose(a, b)     # 2.309767 == 2.309767</code></pre>
 
         <p>
             Two things to see. First, <code>target</code> is the input shifted by one and flattened
-            row-major, which is precisely the alignment Handout #5 §4.2 spent a subsection on — here it
+            row-major, which is precisely the alignment Handout #7 §9.2 spent a subsection on — here it
             is a slice offset instead of a slice-off-the-ends, and it must match
             <code>decoded.view(-1, ntoken)</code>'s row-major flattening. Second, batch $i{+}1$ picks up
             where batch $i$ stopped, so throwing away the hidden state between batches would discard
@@ -609,7 +609,7 @@ assert torch.allclose(a, b)     # 2.309767 == 2.309767</code></pre>
 saved tensors after they have already been freed)</code></pre>
 
         <p>
-            — the exact error from Handout #5 §5.5 Q3, arising here for a structural reason rather than
+            — the exact error from Handout #6 §4.5 Q3, arising here for a structural reason rather than
             a mistake. <code>.detach()</code> returns the same numbers with the history cut, so the
             <em>values</em> flow forward forever while <em>gradients</em> stop at the segment boundary.
             The recursion into a tuple is there because an LSTM's state is <code>(h, c)</code>, not a
@@ -674,7 +674,7 @@ torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)</code></pre>
         </p>
 
         <p>
-            <strong>3. <code>torch.no_grad()</code>.</strong> Handout #5 §3's warning, applied
+            <strong>3. <code>torch.no_grad()</code>.</strong> Handout #6 §3's warning, applied
             correctly. Without it, this loop would build a graph 1000 tokens deep and hold every
             activation, for gradients no one will ever use.
         </p>
@@ -813,7 +813,7 @@ torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)</code></pre>
                     <strong>False</strong> — and the contrast with the fixed-window model is the point.
                     Parameters are independent of $T$ (§2.1). What grows with $T$ is the <em>memory</em>
                     needed for the backward pass, because every $h_t$ must be retained; that is a
-                    property of reverse-mode autodiff (Handout #5 §2), not of the model.
+                    property of reverse-mode autodiff (Handout #6 §2), not of the model.
                 </div></details>
             </div>
         </div>

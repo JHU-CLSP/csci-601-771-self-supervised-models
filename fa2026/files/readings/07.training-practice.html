@@ -3,9 +3,9 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Handout #6: Practical Neural Network Training — CS 601.471/671</title>
+    <title>Handout #7: Practical Neural Network Training — CS 601.471/671</title>
     <meta name="description"
-          content="Session 6, slides 156–188: batching, memory, normalization, activations, gradient stability, initialization, dropout, and debugging.">
+          content="Session 7, slides 156–188: batching, memory, normalization, activations, gradient stability, initialization, dropout, and debugging.">
 
     <link rel="shortcut icon" href="../favicon.ico">
     <link rel="stylesheet" href="../fonts.css">
@@ -14,14 +14,14 @@
     <link rel="stylesheet" href="handout.css">
 </head>
 
-<body class="handout" data-handout="06.training-practice">
+<body class="handout" data-handout="07.training-practice">
 
 <header class="hd-mast">
     <div class="hd-wrap" style="display:block">
         <div class="hd-course">CS 601.471/671 &nbsp;·&nbsp; NLP: Self-supervised Models &nbsp;·&nbsp; Fall 2026</div>
-        <h1>Handout #6 — Practical Neural Network Training</h1>
+        <h1>Handout #7 — Practical Neural Network Training</h1>
         <p class="hd-sub">
-            Session 6 (Thu, Sept 17) &nbsp;·&nbsp;
+            Session 7 (Tue, Sept 22) &nbsp;·&nbsp;
             <a href="../slides/03-4-5-6.feedforward-nets.pdf">Slides: Feedforward Nets</a> &nbsp;·&nbsp;
             <a href="../../index.html">Course page</a>
         </p>
@@ -42,13 +42,13 @@ practical choices to the quantities we derived: tensor shapes, activation values
 validation loss. Diagnose what changed before changing another hyperparameter.</p>
 <div class="hd-glance"><dl>
 <dt>Slides</dt><dd><strong>156–188</strong> of <a href="../slides/03-4-5-6.feedforward-nets.pdf">Feedforward Nets</a>.
-Slide 156 recaps automatic differentiation and bridges Handouts #5 and #6.</dd>
-<dt>Session</dt><dd>Thursday, Sept 17. About 70–90 minutes for the core material and exercises;
+Slide 156 recaps automatic differentiation and bridges Handouts #6 and #7.</dd>
+<dt>Session</dt><dd>Tuesday, Sept 22. About 70–90 minutes for the core material and exercises;
 the language-model application at the end is optional.</dd>
 <dt>By the end</dt><dd>Batch examples with explicit axes; account for training memory; choose normalization
 axes; diagnose gradient problems; explain initialization and dropout; run a tiny-data training check.</dd>
-<dt>Assumes</dt><dd><a href="04.training-neural-nets.html#s4">Handout #4: analytical backprop</a> and
-<a href="05.backprop-in-practice.html#s3">Handout #5: autograd and the training loop</a>.</dd>
+<dt>Assumes</dt><dd><a href="05.analytical-backprop.html#s1">Handout #5: analytical backprop</a> and
+<a href="06.backprop-in-practice.html#s3">Handout #6: autograd and the training loop</a>.</dd>
 </dl></div>
 <div class="tbl-scroll"><table class="tbl"><thead><tr><th>Slides</th><th>Reading route</th></tr></thead><tbody>
 <tr><td>156–163</td><td><a href="#s1">Batching and memory</a></td></tr>
@@ -173,15 +173,15 @@ the layer's effect.</div></details></div></div>
 <div class="ans-body"><p>$\sigma\prime(10)=\sigma(10)(1-\sigma(10))\approx4.54\times10^{-5}$, compared with $1/4$ at zero. The incoming value 1 becomes about $4.54\times10^{-5}$. Large weights can cause this saturation, depending on the inputs and cancellations; positive weights alone do not guarantee large preactivations on every example.</p></div></details></div></div>
 <h2 id="s4"><span class="hd-secnum">4</span>Vanishing gradients, exploding gradients, and residuals</h2>
 <p class="hd-srcline">Slides 175–178</p>
-<p>Handout #4 derived $g_i=A_i^\top g_{i+1}$. Repeating that rule multiplies many Jacobians.
+<p>Handout #5 derived $g_i=A_i^\top g_{i+1}$. Repeating that rule multiplies many Jacobians.
 For a scalar illustration, twenty factors of $0.5$ give about $9.54\times10^{-7}$; twenty factors
 of 2 give $1{,}048{,}576$. In multiple dimensions, amplification depends on directions and singular
 values, not just whether individual matrix entries exceed 1.</p>
 $$\|g_i\|\leq\left(\prod_{j=i}^{L-1}\|A_j\|\right)\|g_L\|.$$
 <p>This is an upper bound, not a prediction that every direction grows at that rate. Monitor
 activation and gradient norms at several layers. Nonfinite gradients, nearly zero gradients, and
-large but finite gradients require different diagnoses. Gradient clipping limits a large finite
-update; it cannot repair a NaN already produced in the forward pass.</p>
+large but finite gradients require different diagnoses. Gradient clipping limits the gradient norm before the optimizer uses it; it does not directly
+bound every optimizer’s parameter update, and it cannot repair a NaN already produced in the forward pass.</p>
 <p>A residual block computes $h_{i+1}=h_i+F(h_i)$, so its backward rule is</p>
 $$g_i=(I+J_F(h_i))^\top g_{i+1}=g_{i+1}+J_F(h_i)^\top g_{i+1}.$$
 <p>The identity path supplies a direct gradient contribution alongside the learned branch. Shapes
@@ -320,7 +320,7 @@ operation. The layer still randomly zeroes values and scales retained ones durin
 
         <p class="hd-srcline">Optional extension beyond slides 156–188, applying batching and evaluation to language models.</p>
         <p>
-            <a href="05.backprop-in-practice.html#s3-loop">Handout #5 §3.1</a> gave us a training loop with a <code>loss</code> in it. For a language model that loss
+            <a href="06.backprop-in-practice.html#s3-loop">Handout #6 §3.1</a> gave us a training loop with a <code>loss</code> in it. For a language model that loss
             is cross-entropy, and <a href="02.language-modeling.html#s5-worked">Handout #2 §4.4</a>
             computed it by hand. You will never do that again — but you <em>will</em> compute it in
             PyTorch constantly, and there are three ways to get it wrong that are worth inoculating
@@ -391,33 +391,42 @@ loss = F.cross_entropy(
 
         <p>
             Real batches contain sequences of different lengths, padded to a common length. Padding
-            positions are trivially predictable — the model learns almost immediately that padding
-            follows padding — so if you leave them in the average, they contribute near-zero loss and
-            drag your reported perplexity down.
+            positions can become easy to predict. If their losses are lower than those of real targets,
+            including them drags reported perplexity down. If their losses are higher, it pushes
+            perplexity up. Either way, padding is not part of the intended evaluation target set.
         </p>
 
-        <pre><code class="language-python">PAD_ID = 0
+        <pre><code class="language-python">import torch
+import torch.nn.functional as F
 
-# 4 sequences padded to length 10; real lengths 10, 6, 4, 3 -> 23 real tokens of 40.
-masked   = F.cross_entropy(flat_logits, flat_targets, ignore_index=PAD_ID)
+PAD_ID, V = 0, 16
+# Already aligned target positions: 23 real targets and 17 padding targets.
+flat_targets = torch.tensor([1] * 23 + [PAD_ID] * 17)
+# Construct probabilities so real-target perplexity is 12.7,
+# while padding is predicted with probability 0.999.
+correct_p = torch.tensor([1 / 12.7] * 23 + [0.999] * 17, dtype=torch.float64)
+probs = ((1 - correct_p) / (V - 1))[:, None].repeat(1, V)
+probs[torch.arange(40), flat_targets] = correct_p
+flat_logits = probs.log()  # log probabilities are valid logits
+masked = F.cross_entropy(flat_logits, flat_targets, ignore_index=PAD_ID)
 unmasked = F.cross_entropy(flat_logits, flat_targets)
-
-torch.exp(masked)       # ~12.7  <- the truth: averaged over the 23 real predictions
-torch.exp(unmasked)     # ~ 4.3  <- flattering: 17 free wins mixed into the average</code></pre>
+assert abs(torch.exp(masked).item() - 12.7) &lt; 1e-10
+assert 4.3 &lt; torch.exp(unmasked).item() &lt; 4.4
+print(torch.exp(masked).item(), torch.exp(unmasked).item())  # 12.7, about 4.31</code></pre>
 
         <p>
             On that batch — 42% padding, and a model that has learned to predict padding almost
             perfectly — the unmasked figure understates perplexity by about
-            <strong>two thirds</strong>. (The exact numbers depend on the model; the direction and
-            rough magnitude do not.) And nothing errors: you get a number, it looks good, and it is
-            wrong. Always pass <code>ignore_index</code>, and sanity-check the denominator:
+            <strong>two thirds</strong>. (The direction and size of the bias depend on the losses on padding versus real targets.) And nothing errors: you get a number, it looks good, and it is
+            wrong. Exclude padding targets with <code>ignore_index</code> or an explicit mask, and
+            sanity-check the denominator. Continue the example above:
         </p>
 
         <pre><code class="language-python">total = F.cross_entropy(flat_logits, flat_targets,
                         ignore_index=PAD_ID, reduction="sum")
 n_real = (flat_targets != PAD_ID).sum()          # 23, not 40
 
-assert torch.allclose(total / n_real, masked)    # 58.449 / 23 == 2.541</code></pre>
+assert torch.allclose(total / n_real, masked)    # summed real-target loss / 23</code></pre>
 
         <p>
             This is the same averaged-versus-summed distinction as Handout #1 Exercise 1.5b, with a
@@ -432,7 +441,8 @@ assert torch.allclose(total / n_real, masked)    # 58.449 / 23 == 2.541</code></
             useful when a model is doing well overall and failing somewhere specific:
         </p>
 
-        <pre><code class="language-python">import math
+        <p class="hd-srcline">Continue the unpadded 2-D logits, targets, and loss from §9.1; use the same evaluated positions in both averages.</p>
+<pre><code class="language-python">import math
 
 logp = F.log_softmax(logits, dim=-1).gather(1, targets[:, None]).squeeze(1)
 bits = -logp / math.log(2)                  # surprisal per token, in bits
@@ -446,7 +456,7 @@ assert torch.allclose(2 ** bits.mean(), torch.exp(loss))</code></pre>
         <p>
             That last assertion is Handout #2 §4.1's two definitions meeting in code: the mean surprisal in bits,
             exponentiated base 2, equals the mean loss in nats, exponentiated base $e$. If it ever
-            fails, you have mixed bases somewhere.
+            fails, check the log bases, reductions, and evaluated positions.
         </p>
 
 
@@ -502,7 +512,7 @@ assert torch.allclose(2 ** bits.mean(), torch.exp(loss))</code></pre>
             </div>
         </div>
 
-<div class="hd-footer"><p><strong>Next session:</strong> tokenization and fixed-window neural language models.
+<div class="hd-footer"><p><strong>Next session:</strong> fixed-window and recurrent neural language models.
 Bring your tensor-shape checks and a training loop that passes the tiny-data test.</p>
 <p>Questions or corrections? Post on <a href="https://piazza.com/jhu/fall2026/cs601471671">Piazza</a>.</p></div>
     </main>

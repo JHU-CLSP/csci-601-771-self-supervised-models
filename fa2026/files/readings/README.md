@@ -10,11 +10,12 @@ schedule in `fa2026/index.html`.
 | 1 | `01.foundations.html` | Foundations & prerequisites (math/CS review, what self-supervision is) |
 | 2 | `02.language-modeling.html` | Language modeling: formal setup, scoring/generation, n-grams, sparsity, perplexity |
 | 3 | `03.neural-nets.html` | From counting to learning (Tue Sept 8, slides 1–54): MLPs, expressivity, history, perceptrons |
-| 4 | `04.training-neural-nets.html` | Losses, gradients, and analytical backprop (Thu Sept 10, slides 55–109): losses, optimization, calculus, layerwise derivatives, caching, and checked manual backprop |
-| 5 | `05.backprop-in-practice.html` | Backprop in practice (Tue Sept 15, slides 111–156): computation graphs, reverse mode, autograd, PyTorch, reading `micrograd` |
-| 6 | `06.training-practice.html` | Practical training (Thu Sept 17, slides 156–188): batching, memory, normalization, activations, residuals, initialization, dropout, debugging; optional LM-loss application |
+| 4 | `04.training-neural-nets.html` | Losses, gradients, and optimization (Thu Sept 10, slides 55–89): losses, optimization, algebra, calculus, and readiness for backprop |
+| 5 | `05.analytical-backprop.html` | Analytical backpropagation (Tue Sept 15, slides 90–109): layerwise derivatives, caching, and checked manual backprop |
+| 6 | `06.backprop-in-practice.html` | Backprop in practice (Thu Sept 17, slides 111–156): computation graphs, reverse mode, autograd, PyTorch, reading `micrograd` |
+| 7 | `07.training-practice.html` | Practical training (Tue Sept 22, slides 156–188): batching, memory, normalization, activations, residuals, initialization, dropout, debugging; optional LM-loss application |
 
-Slide 156 is the shared transition between Handouts #5 and #6.
+Slide 156 is the shared transition between Handouts #6 and #7.
 
 ### Written, session number not yet assigned
 
@@ -25,25 +26,52 @@ add the schedule link.
 
 | File | Fits session | Topic |
 |------|--------------|-------|
-| `tokenization.html` | #7 (Tokenization and subwords) | Word/char vocabularies both fail, UTF-8 bytes as the floor, BPE, perplexity is not comparable across tokenizers, reading `minbpe` |
+| `tokenization.html` | TBD (Tokenization and subwords) | Word/char vocabularies both fail, UTF-8 bytes as the floor, BPE, perplexity is not comparable across tokenizers, reading `minbpe` |
 | `rnn-language-models.html` | #8 (Recurrent Neural LMs) | Fixed-window limits, the recurrence, BPTT + truncation, vanishing/exploding, gates, sampling, reading `pytorch/examples` word LM |
 | `transformers.html` | #10–#11 (Self-attention, decoder-only) | Attention from the bottleneck problem, causal mask, MHA/GQA, pre-norm block, RoPE, KV cache, reading HF `modeling_llama.py` |
 
 Cross-links already in place: `rnn-language-models.html` links `transformers.html` (§5 and §7.4),
-`transformers.html` links `rnn-language-models.html#s5`, and all three link Handouts #2/#3/#5.
+`transformers.html` links `rnn-language-models.html#s5`, and all three link Handouts #2/#3/#6.
 Renaming a file means fixing those hrefs — `grep -l 'rnn-language-models\|tokenization\.html\|transformers\.html' *.html`.
 
 Widgets: `ssl-objective.js` (Handout #1), `next-token.js` (Handout #2 — order selector, per-model
 perplexity table, sampler), `gradient-descent.js` (Handout #4 — learning-rate explorer).
 
+Interactive backprop widgets (`widgets/backprop-intuition.js` and `.css`):
+- Handout #5, after §1.5: forward/backward stepper using the same two-hidden-unit worked example;
+  editable inputs, parameters, and activation; reveals cached values and summed path contributions.
+- Handout #5 §2.2: softmax playground with three logits, target class, common shift, and a direct
+  logit gradient step; displays probabilities, cross-entropy, and signed `p - y` gradients.
+- Handout #6 §3.2: gradient-state inspector for leaf/non-leaf storage, `retain_grad`, `detach`,
+  `no_grad`, and zero derivatives. This is a JavaScript simulation of the displayed PyTorch code.
+
+All three run offline, use keyboard-accessible controls, and are omitted from print along with the
+existing widgets. Their surrounding worked examples and code remain printable. Numerical derivatives,
+softmax shift invariance, control handlers, and all 48 inspector configurations were checked; inspector
+results agree with PyTorch 2.12.0.
+
 Smoothing and backoff methods are not covered in Handout #2. The `next-token.js` widget offers
 only fixed orders (unigram/bigram/trigram).
 
+## Manual gradients and tensor-autograd labs
+
+- Handout #5 §2.3 extends the regression lab to a batched multiclass classifier, checking every
+  parameter gradient and the input gradient against autograd, plus a finite-difference directional check.
+- Handout #6 §3.2 distinguishes leaf/non-leaf gradients, zero versus missing gradients, broken graph
+  connections, and shared storage after `detach()`.
+- Handout #6 §3.3 covers explicit backward seeds, Jacobian-transpose products, reductions, broadcasting,
+  and the distinction between within-graph sums and accumulation across backward calls.
+- Handout #6 §4.5 Q3 checks repeated backward in `micrograd`: stale intermediate gradients can produce
+  more than twice the first result. Its example is run from a local `micrograd` checkout.
+
+The new runnable labs and exercise variants were checked on PyTorch 2.12.0. The `micrograd` example
+was checked against the verbatim `Value` methods included in the handout.
+
 ## Code-reading sections
 
-From Handout #5 on, each handout ends with one **reading of real, widely used code** — a short
+From Handout #6 on, each handout ends with one **reading of real, widely used code** — a short
 guided pass over a file from a popular repository, so students build confidence opening unfamiliar
-code and recognizing machinery they already understand. Pattern (see Handout #5 §4):
+code and recognizing machinery they already understand. Pattern (see Handout #6 §4):
 
 - a `.callout.try` listing the file(s) with direct GitHub links and line counts;
 - one `<h3>` per idea, each with a `<p class="hd-srcline">file · symbol</p>` line above a
@@ -57,7 +85,7 @@ Planned assignments (instructor's list):
 
 | Handout | Repo / file | Understanding to assess |
 |---------|-------------|-------------------------|
-| #5 backprop §4 | [`micrograd/engine.py`](https://github.com/karpathy/micrograd/blob/master/micrograd/engine.py), [`nn.py`](https://github.com/karpathy/micrograd/blob/master/micrograd/nn.py) | Computation graphs, local derivatives, gradient accumulation, reverse topological traversal, how an MLP exposes parameters |
+| #6 backprop §4 | [`micrograd/engine.py`](https://github.com/karpathy/micrograd/blob/master/micrograd/engine.py), [`nn.py`](https://github.com/karpathy/micrograd/blob/master/micrograd/nn.py) | Computation graphs, local derivatives, gradient accumulation, reverse topological traversal, how an MLP exposes parameters |
 | tokenization §5 | [`minbpe/basic.py`](https://github.com/karpathy/minbpe/blob/master/minbpe/basic.py), [`base.py`](https://github.com/karpathy/minbpe/blob/master/minbpe/base.py) | Pair counting, merge loop, vocabulary construction, encode/decode round-trip, and what the file deliberately omits |
 | RNN §6–§7 | [`word_language_model/model.py`](https://github.com/pytorch/examples/blob/main/word_language_model/model.py), [`generate.py`](https://github.com/pytorch/examples/blob/main/word_language_model/generate.py), [`main.py`](https://github.com/pytorch/examples/blob/main/word_language_model/main.py) | Recurrent state threading, weight tying, hidden-state detach across batches, sampling loop |
 | Transformer §6 | [HF `modeling_llama.py`](https://github.com/huggingface/transformers/blob/main/src/transformers/models/llama/modeling_llama.py) | Attention block layout, RoPE, KV cache, RMSNorm/GQA/SwiGLU, triage in a 500-line production file |
@@ -73,10 +101,11 @@ real file.
 
 ## `471-671-quiz-samples-public/`
 
-Handouts #4–#6 include 15 additional adapted exercises from this collection:
-- #4: Quiz 1 sp2024 Q1.5–6, Quiz 1 sp2025 Q1.9/Q2.1–2, and HW3 sp2025 §2.7/§3.5–6 (losses, gradient steps, Jacobians, matrix gradients, softmax).
-- #5: Quiz 1 sp2024 Q1.14–16/21 (autograd order, gradient accumulation, module registration). Existing graph/complexity questions are retained.
-- #6: HW3 sp2025 §1.2/7, HW4 sp2025 §3.2–4, Quiz 1 sp2024 Q1.18/23/24, and Quiz 3 sp2025 Q6.1/3 (vectorization, saturation, residuals, normalization, validation, memory). Matching existing initialization/dropout/debugging exercises now carry source labels.
+Handouts #4–#7 include 15 additional adapted exercises from this collection:
+- #4: Quiz 1 sp2024 Q1.5–6 and Quiz 1 sp2025 Q1.9/Q2.1–2 (losses, gradient steps, Jacobians).
+- #5: HW3 sp2025 §2.7/§3.5–6 (matrix gradients, softmax).
+- #6: Quiz 1 sp2024 Q1.14–16/21 (autograd order, gradient accumulation, module registration). Existing graph/complexity questions are retained.
+- #7: HW3 sp2025 §1.2/7, HW4 sp2025 §3.2–4, Quiz 1 sp2024 Q1.18/23/24, and Quiz 3 sp2025 Q6.1/3 (vectorization, saturation, residuals, normalization, validation, memory). Matching existing initialization/dropout/debugging exercises now carry source labels.
 
 Solution clarifications in these adaptations: the softmax outer product for a column probability vector is `p p^T`, not `p^T p` (HW3 §3.6); memory-component rankings depend on model/batch/optimizer (Quiz 3 Q6.1); clearing gradients at the end of a step is valid when the first step starts clear (Quiz 1 sp2024 Q1.16); normalization does not force equal feature influence (Quiz 1 sp2024 Q1.18). Residual derivatives use column gradients consistently.
 
@@ -92,7 +121,7 @@ Three arithmetic errors found in these while porting (handouts use corrected val
 - sp2024 quiz1 Q2.4: `H` uses `log2 2/6` while the same page's table and `P(s1)` both use `1/6`.
   With 1/6, H = 1.581 and ppl = 2.99, not 1.33 / 2.51.
 
-PyTorch snippets live in Handout #1 §1.5, Handout #4 §1/§2/§5, Handout #5 §3, Handout #6 §1/§2/§6/§7/§9, the RNN handout
+PyTorch snippets live in Handout #1 §1.5, Handout #4 §1/§2, Handout #5 §2, Handout #6 §3, Handout #7 §1/§2/§6/§7/§9, the RNN handout
 §3/§7 and the Transformer handout §2/§4/§6.
 Handout #2 §3.2 is pure-Python n-gram counting (deliberately not PyTorch).
 Every `assert` in them has been run against torch 2.12 — keep it that way when editing.

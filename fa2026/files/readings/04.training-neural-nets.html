@@ -3,9 +3,9 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Handout #4: Losses, Gradients, and Analytical Backprop — CS 601.471/671</title>
+    <title>Handout #4: Losses, Gradients, and Optimization — CS 601.471/671</title>
     <meta name="description"
-          content="Session 4 handout for Sept 10: losses, optimization, batched algebra, gradients, Jacobians, the chain rule, and the analytical backpropagation derivation.">
+          content="Session 4 handout for Sept 10: losses, optimization, batched algebra, gradients, Jacobians, and the chain rule.">
 
     <link rel="shortcut icon" href="../favicon.ico">
     <link rel="stylesheet" href="../fonts.css">
@@ -19,7 +19,7 @@
 <header class="hd-mast">
     <div class="hd-wrap" style="display:block">
         <div class="hd-course">CS 601.471/671 &nbsp;·&nbsp; NLP: Self-supervised Models &nbsp;·&nbsp; Fall 2026</div>
-        <h1>Handout #4 — Losses, Gradients, and Analytical Backprop</h1>
+        <h1>Handout #4 — Losses, Gradients, and Optimization</h1>
         <p class="hd-sub">
             Session 4 (Thu, Sept 10) &nbsp;·&nbsp;
             <a href="../slides/03-4-5-6.feedforward-nets.pdf">Slides: Feedforward Nets</a> &nbsp;·&nbsp;
@@ -39,16 +39,16 @@
 
 <p class="lead">We can specify a neural network; now we need to learn its parameters. A loss measures
 prediction error, an optimization rule uses gradients to improve the parameters, and the chain rule
-connects derivatives through the network. This handout develops those foundations, then derives and implements analytical backpropagation.</p>
+connects derivatives through the network. This handout develops the foundations for analytical backpropagation in <a href="05.analytical-backprop.html">Handout #5</a>.</p>
 <div class="hd-glance"><dl>
-<dt>Reading for Thursday, Sept 10</dt><dd><strong>Slides 55–109</strong> of
+<dt>Reading for Thursday, Sept 10</dt><dd><strong>Slides 55–89</strong> of
 <a href="../slides/03-4-5-6.feedforward-nets.pdf">Feedforward Nets</a>: optimization in slides 56–75,
-algebra and calculus in slides 76–89. Continue through analytical backpropagation in slides 90–109.</dd>
+algebra and calculus in slides 76–89. Analytical backpropagation in slides 90–109 is covered in Handout #5.</dd>
 <dt>Where we left off</dt><dd>Tuesday's lecture reached slide 54.
 <a href="03.neural-nets.html">Handout #3</a> covers that material. Loss functions and gradients begin here.</dd>
-<dt>Time</dt><dd>About 90–120 minutes including exercises; the code lab can be completed after class.</dd>
+<dt>Time</dt><dd>About 50–70 minutes including exercises.</dd>
 <dt>By the end</dt><dd>Choose a loss; distinguish training from evaluation; explain a gradient step;
-track derivative shapes; derive weight and bias gradients; explain caching; implement and check a backward pass.</dd>
+track derivative shapes; apply the chain rule with Jacobians.</dd>
 <dt>Assumes</dt><dd><a href="03.neural-nets.html#s2">MLP architecture and parameter shapes</a>,
 <a href="01.foundations.html#s1-calc">basic derivatives</a>, and
 <a href="02.language-modeling.html#s5-def">cross-entropy and perplexity</a>.</dd>
@@ -282,188 +282,10 @@ gradient descent uses them to update the parameters. They are distinct jobs.</p>
 </div>
 <div class="callout"><span class="callout-label">Checkpoint before the derivation</span>
 You should be able to evaluate a small network, choose and compute a loss, explain a gradient step,
-and multiply Jacobians with the correct shapes. Next, use those ingredients to derive the
+and multiply Jacobians with the correct shapes. In <a href="05.analytical-backprop.html">Handout #5</a>, use those ingredients to derive the
 network's parameter gradients efficiently.</div>
 
-<h2 id="s4"><span class="hd-secnum">4</span>Deriving analytical backpropagation</h2>
-<p class="hd-srcline">Slides 90–109 · Direct gradients, cached sensitivities, and parameter updates</p>
-<h3 id="s4-forward">4.1 &nbsp;Name the forward computations</h3>
-<p>Use the multilayer network from the slides, with biases made explicit. For one example, let
-$h_0=x\in\mathbb R^{d_0}$ and, for $i=0,\ldots,L-1$, define</p>
-$$z_{i+1}=W_i h_i+b_i,\qquad h_{i+1}=f_i(z_{i+1}),\qquad
-\hat y=u^\top h_L+c,\qquad \ell=\ell(\hat y,t).$$
-<p>Here $W_i\in\mathbb R^{d_{i+1}\times d_i}$, $b_i\in\mathbb R^{d_{i+1}}$,
-and $u\in\mathbb R^{d_L}$. The hidden activations $f_i$ act elementwise. Setting biases to zero
-recovers the slides' forward equations. Cache the activations and the values needed to evaluate
-activation derivatives during the forward pass.</p>
-<p>We use <strong>column gradients</strong>: $g_i=\nabla_{h_i}\ell$. The slides' cached upstream
-sensitivities are written as rows; $g_i$ is their transpose. Below, $\delta_{i+1}$ means the
-column gradient with respect to the <em>preactivation</em> $z_{i+1}$, not $h_{i+1}$.</p>
-<h3 id="s4-output">4.2 &nbsp;Start at the loss and output layer</h3>
-<p>First compute the scalar $q=\partial\ell/\partial\hat y$. For the convenient squared-error
-loss $\ell=\tfrac12(\hat y-t)^2$, we have $q=\hat y-t$. Since
-$\hat y=\sum_j u_j h_{L,j}+c$, the chain rule gives</p>
-$$\nabla_u\ell=q h_L,\qquad \frac{\partial\ell}{\partial c}=q,\qquad g_L=q u.$$
-<p>The first two are parameter gradients to save for the optimizer. The last is the upstream
-sensitivity to send into the last hidden layer. A different loss changes the starting derivative
-$q$; the hidden-layer rules below remain the same.</p>
-<div class="ex"><div class="ex-head"><span>Derive before substituting</span></div><div class="ex-body">
-<p>If the loss is $(\hat y-t)^2$ without the factor $1/2$, which gradients change?</p>
-<details class="ans"><summary>Reveal the answer</summary><div class="ans-body">$q$ doubles, so every parameter gradient doubles. The forward predictions are unchanged. For a fixed learning rate, the update doubles too.</div></details></div></div>
-<h3 id="s4-local">4.3 &nbsp;Derive one hidden layer, then reuse it</h3>
-<p>Suppose $g_{i+1}$ has already arrived from the output side. The elementwise activation gives</p>
-$$\delta_{i+1}=\nabla_{z_{i+1}}\ell
-=g_{i+1}\odot f_i'(z_{i+1}).$$
-<p>This is a Jacobian-transpose product: the activation Jacobian is diagonal, so multiplication
-reduces to the elementwise product $\odot$. For sigmoid, $f'(z)=f(z)(1-f(z))$; for tanh,
-$f'(z)=1-f(z)^2$; for ReLU, it is 1 at positive inputs and 0 at negative inputs (we use 0 at zero).</p>
-<p>Now expand the affine operation coordinate by coordinate:</p>
-$$z_{i+1,j}=\sum_k W_{i,jk}h_{i,k}+b_{i,j}.$$
-<p>Changing $W_{i,jk}$ directly changes only $z_{i+1,j}$, with local derivative $h_{i,k}$.
-Changing $h_{i,k}$ affects every output coordinate, so those paths must be summed:</p>
-$$\frac{\partial\ell}{\partial W_{i,jk}}=\delta_{i+1,j}h_{i,k},\qquad
-\frac{\partial\ell}{\partial b_{i,j}}=\delta_{i+1,j},\qquad
-\frac{\partial\ell}{\partial h_{i,k}}=\sum_j W_{i,jk}\delta_{i+1,j}.$$
-<p>Collecting these entries gives the three reusable rules:</p>
-$$\boxed{\nabla_{W_i}\ell=\delta_{i+1}h_i^\top,\qquad
-\nabla_{b_i}\ell=\delta_{i+1},\qquad g_i=W_i^\top\delta_{i+1}.}$$
-<div class="tbl-scroll"><table class="tbl"><thead><tr><th>Computation</th><th>Shape check</th></tr></thead><tbody>
-<tr><td>Weight gradient: outer product</td><td>$(d_{i+1}\times1)(1\times d_i)=d_{i+1}\times d_i$</td></tr>
-<tr><td>Bias gradient</td><td>$d_{i+1}$ entries, one per output unit</td></tr>
-<tr><td>Gradient passed to input</td><td>$(d_i\times d_{i+1})(d_{i+1}\times1)=d_i\times1$</td></tr>
-</tbody></table></div>
-<div class="ex"><div class="ex-head"><span>Why an outer product?</span></div><div class="ex-body">
-<p>A layer maps 4 inputs to 6 hidden units. Can $h_i^\top\delta_{i+1}$ be its weight gradient?
-What happens to row $j$ of the weight gradient if that ReLU unit has negative preactivation?</p>
-<details class="ans"><summary>Reveal the answer</summary><div class="ans-body">The proposed product has incompatible inner dimensions; the correct gradient is $\delta_{i+1}h_i^\top$, a $6\times4$ matrix. For an inactive ReLU, $\delta_{i+1,j}=0$, so row $j$ and bias gradient $j$ are zero for this example. Other examples in a batch may activate that unit.</div></details></div></div>
-
-<div class="ex" id="sample-matrix-jacobian"><div class="ex-head"><span>From a derivative tensor to a usable weight gradient</span>
-<span class="ex-src">Adapted from HW3, sp2025, §2.7</span></div><div class="ex-body">
-<p>Let $X\in\mathbb R^{n\times d}$, $W\in\mathbb R^{k\times d}$, and $Y=XW^\top$. What is the shape of the unflattened derivative of $Y$ with respect to $W$? Give $\partial Y_{ab}/\partial W_{cj}$. If $G=\nabla_Y\ell$ is $n\times k$, derive $\nabla_W\ell$ without constructing that tensor.</p><details class="ans"><summary>Work it out, then reveal the answer</summary>
-<div class="ans-body"><p>The derivative tensor has shape $(n,k,k,d)$ and entries $\partial Y_{ab}/\partial W_{cj}=\mathbf1[b=c]X_{aj}$. Contracting against $G$ gives $[\nabla_W\ell]_{cj}=\sum_aG_{ac}X_{aj}$, hence $\nabla_W\ell=G^\top X$, of shape $k\times d$. This is the batch sum of the outer products derived above.</p></div></details></div></div>
-<h3 id="s4-cache">4.4 &nbsp;Why the backward sweep saves work</h3>
-<p>Let $A_i=J_{h_{i+1}}(h_i)$. Expanding the chain rule independently for every hidden layer
-would repeatedly compute the same suffix of the network:</p>
-$$g_i=A_i^\top A_{i+1}^\top\cdots A_{L-1}^\top g_L.$$
-<p>Instead, cache $g_{i+1}$ and compute $g_i=A_i^\top g_{i+1}$ once. In practice we evaluate this
-as $W_i^\top(g_{i+1}\odot f_i'(z_{i+1}))$, without constructing the full Jacobian.
-The saved upstream gradient also supplies that layer's weight and bias gradients.</p>
-<p>With comparable layer widths, independently recomputing all suffixes takes
-$1+2+\cdots+L=O(L^2)$ layer operations. A backward sweep takes $O(L)$, comparable to the
-forward pass. For dense layers, a more informative cost is $O(\sum_i d_i d_{i+1})$ per example
-for either pass, plus elementwise work and the output layer. Cached activations cost memory.</p>
-<ol>
-<li>Run the forward pass and cache intermediate values.</li>
-<li>Differentiate the loss and scalar output to initialize $g_L$ and the output parameter gradients.</li>
-<li>For $i=L-1,\ldots,0$, compute $\delta_{i+1}$, save weight and bias gradients, and pass $g_i$ backward.</li>
-<li>After all gradients are computed, update each parameter using the chosen optimizer.</li>
-</ol>
-<div class="ex"><div class="ex-head"><span>What exactly is cached?</span></div><div class="ex-body">
-<p>Are we caching weight updates? Can we update $W_i$ before using it to compute $g_i$?</p>
-<details class="ans"><summary>Reveal the answer</summary><div class="ans-body">We reuse forward values and loss sensitivities at the current parameter values. Weight updates are a separate optimizer step. Using an already updated $W_i$ for $g_i$ mixes two parameter states and is not the gradient of the original forward pass. Finish the backward pass before updating weights.</div></details></div></div>
-<h3 id="s4-worked">4.5 &nbsp;A complete numerical backward pass</h3>
-<p>Take $x=(1,2)^\top$, target $t=1$, ReLU hidden units, and</p>
-$$W=\begin{bmatrix}1&amp;0\\0&amp;-1\end{bmatrix},\quad
-b=\begin{bmatrix}0\\1\end{bmatrix},\quad u=\begin{bmatrix}2\\3\end{bmatrix},\quad c=0.$$
-<p>The forward pass gives $z=(1,-1)^\top$, $h=(1,0)^\top$, $\hat y=2$, and
-$\ell=\tfrac12(2-1)^2=0.5$. Before opening the answer, compute every parameter gradient
-and the gradient with respect to $x$.</p>
-<details class="ans"><summary>Reveal the backward pass</summary><div class="ans-body">
-$$q=1,\quad \nabla_u\ell=(1,0)^\top,\quad \partial\ell/\partial c=1,\quad g_h=(2,3)^\top.$$
-$$\delta=g_h\odot(1,0)^\top=(2,0)^\top,\quad
-\nabla_W\ell=\begin{bmatrix}2&amp;4\\0&amp;0\end{bmatrix},\quad
-\nabla_b\ell=(2,0)^\top,\quad \nabla_x\ell=W^\top\delta=(2,0)^\top.$$
-<p>With learning rate $0.1$, simultaneous updates give
-$W'=\left[\begin{smallmatrix}0.8&amp;-0.4\\0&amp;-1\end{smallmatrix}\right]$,
-$b'=(-0.2,1)^\top$, $u'=(1.9,3)^\top$, and $c'=-0.1$.
-The new hidden preactivations are $(-0.2,-1)^\top$, so the prediction is $-0.1$ and the loss
-is $0.605$. Even correct gradients can increase loss with a finite step: here the step crosses a ReLU boundary.</p>
-</div></details>
-
-<h2 id="s5"><span class="hd-secnum">5</span>Code lab: implement and check the derivation</h2>
-<h3 id="s5-manual">5.1 &nbsp;Manual gradients for a minibatch</h3>
-<p>For row-batched inputs, $Z=XW^\top+b$, $H=\tanh Z$, and $\hat y=Hu+c$.
-Use $J=\tfrac1{2B}\sum_n(\hat y_n-t_n)^2$. Then $q=(\hat y-t)/B$ already includes
-averaging. With $D=(q u^\top)\odot(1-H^2)$, the weight gradient is $D^\top X$ and the
-bias gradient sums the rows of $D$. Do not divide by $B$ again.</p>
-<p>This runnable example implements the backward formulas explicitly. Autograd is used only as
-an independent comparison, and finite differences check every parameter of this small network.</p>
-<pre><code class="language-python">import torch
-
-torch.manual_seed(7)
-B, d, h = 3, 2, 4
-X = torch.randn(B, d, dtype=torch.float64)
-t = torch.randn(B, dtype=torch.float64)
-W = (0.2 * torch.randn(h, d, dtype=torch.float64)).requires_grad_()
-b = torch.zeros(h, dtype=torch.float64, requires_grad=True)
-u = (0.2 * torch.randn(h, dtype=torch.float64)).requires_grad_()
-c = torch.zeros((), dtype=torch.float64, requires_grad=True)
-params = [W, b, u, c]
-
-def objective():
-    H = torch.tanh(X @ W.T + b)
-    pred = H @ u + c
-    return 0.5 * ((pred - t) ** 2).mean()
-
-# Our backward pass: no autograd operations are used to find derivatives.
-with torch.no_grad():
-    H = torch.tanh(X @ W.T + b)
-    pred = H @ u + c
-    q = (pred - t) / B
-    D = (q[:, None] * u[None, :]) * (1 - H ** 2)
-    manual = [D.T @ X, D.sum(dim=0), H.T @ q, q.sum()]
-
-reference = torch.autograd.grad(objective(), params)
-for p, actual, expected in zip(params, manual, reference):
-    assert actual.shape == p.shape
-    torch.testing.assert_close(actual, expected, rtol=1e-10, atol=1e-12)
-
-# Central differences: deliberately expensive, useful for a tiny check.
-eps = 1e-6
-with torch.no_grad():
-    for p, expected in zip(params, manual):
-        numeric = torch.empty_like(p)
-        flat = p.view(-1)
-        for k in range(p.numel()):
-            old = flat[k].item()
-            flat[k] = old + eps
-            plus = objective().item()
-            flat[k] = old - eps
-            minus = objective().item()
-            flat[k] = old
-            numeric.view(-1)[k] = (plus - minus) / (2 * eps)
-        torch.testing.assert_close(numeric, expected, rtol=1e-5, atol=1e-8)
-    before = objective().item()
-    for p, grad in zip(params, manual):
-        p -= 0.01 * grad
-    after = objective().item()
-assert after &lt; before  # checked for this example, not a general guarantee
-print("All gradients agree; loss:", before, "-&gt;", after)</code></pre>
-<div class="ex"><div class="ex-head"><span>Change it, predict it, test it</span></div><div class="ex-body">
-<p>Duplicate every example in the batch. Should the mean loss and parameter gradients change?
-Then remove the tanh derivative from $D$: which gradient checks should fail?</p>
-<details class="ans"><summary>Reveal the answer</summary><div class="ans-body">Duplicating the data doubles the summed contributions and the batch size, leaving the mean loss and gradients unchanged (up to roundoff). Omitting $1-H^2$ corrupts the gradients of $W$ and $b$. The output gradients of $u$ and $c$ still pass because they do not backpropagate through tanh.</div></details></div></div>
-<h3 id="s5-classification">5.2 &nbsp;Connecting to a classification output</h3>
-<p>The scalar regression head makes the derivation easy to follow. For classification, replace it
-with logits $s=Vh+a$, probabilities $p=\operatorname{softmax}(s)$, and a one-hot target $y$.
-For one example, cross-entropy can be rewritten as</p>
-$$\ell=-\sum_j y_j s_j+\log\sum_k e^{s_k},\qquad
-\frac{\partial\ell}{\partial s_j}=-y_j+\frac{e^{s_j}}{\sum_k e^{s_k}}=p_j-y_j.$$
-<p>Thus the output sensitivity is $r=p-y$, and the same affine-layer derivation gives
-$\nabla_V\ell=rh^\top$, $\nabla_a\ell=r$, and $g_h=V^\top r$.
-For a mean loss over a batch, divide each example's output sensitivity by the batch size before
-summing contributions. The hidden-layer recurrence is unchanged.</p>
-<div class="ex"><div class="ex-head"><span>Check the sign</span></div><div class="ex-body">
-<p>If $p=(0.2,0.5,0.3)^\top$ and the first class is correct, what is $r$?
-What would a gradient step directly on the logits do?</p>
-<details class="ans"><summary>Reveal the answer</summary><div class="ans-body">$r=(-0.8,0.5,0.3)^\top$, whose entries sum to zero. Subtracting a positive multiple of $r$ increases the correct-class logit and decreases the others. In the network we update shared parameters, using the chain rule to translate this signal.</div></details></div></div>
-
-
-<div class="ex" id="sample-softmax-jacobian"><div class="ex-head"><span>Derive the softmax Jacobian</span>
-<span class="ex-src">Adapted from HW3, sp2025, §3.5–6</span></div><div class="ex-body">
-<p>For the column vector $p=\operatorname{softmax}(s)\in\mathbb R^K$, derive $\partial p_i/\partial s_j$ for $i=j$ and $i\ne j$. Assemble the $K\times K$ Jacobian. Why does multiplying it by the all-ones vector give zero?</p><details class="ans"><summary>Work it out, then reveal the answer</summary>
-<div class="ans-body"><p>The quotient rule gives $p_i(1-p_i)$ on the diagonal and $-p_ip_j$ off the diagonal. Thus $J_p=\operatorname{diag}(p)-pp^\top$. Since $p^\top\mathbf1=1$, $J_p\mathbf1=p-p=0$: adding the same constant to every logit leaves softmax unchanged.</p><p><strong>Correction to the sample solution:</strong> for a column $p$, the outer product is $pp^\top$. The printed solution switches to $p^\top p$, a scalar, which has the wrong shape.</p></div></details></div></div>
-<h2 id="s6"><span class="hd-secnum">6</span>Review route</h2>
+<h2 id="s4"><span class="hd-secnum">4</span>Review route</h2>
 <p>If one part felt unfamiliar, revisit the relevant worked example rather than memorizing all the
 notation at once:</p>
 <ul>
@@ -471,9 +293,8 @@ notation at once:</p>
 <li>For log probabilities, revisit <a href="02.language-modeling.html#s5-def">Handout #2's cross-entropy and perplexity discussion</a>, then redo §1.2 here.</li>
 <li>For derivative notation, revisit <a href="01.foundations.html#s1-calc">Handout #1's calculus review</a>, then redo the two-path example in §2.4.</li>
 </ul>
-<div class="hd-footer"><p><strong>Next session:</strong> <a href="05.backprop-in-practice.html">Handout #5: Backprop in Practice</a>
-extends the backward sweep to general computation graphs and automatic differentiation. Bring your
-manual gradients and questions from the code lab.</p>
+<div class="hd-footer"><p><strong>Next session:</strong> <a href="05.analytical-backprop.html">Handout #5: Analytical Backpropagation</a>
+derives the backward sweep and checks manual gradients against autograd and finite differences.</p>
 <p>Found an error or an unclear passage? Post on
 <a href="https://piazza.com/jhu/fall2026/cs601471671">Piazza</a>.</p></div>
 

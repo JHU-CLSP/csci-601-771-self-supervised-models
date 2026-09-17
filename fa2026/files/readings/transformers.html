@@ -72,7 +72,7 @@
                 <dd>
                     <a href="rnn-language-models.html#s5">the RNN handout §5</a> (the two structural
                     costs), <a href="04.training-neural-nets.html#s2">Handout #4 §2</a> (batched algebra), and
-                    <a href="06.training-practice.html#s9">Handout #6 §9</a> (the LM loss in code).
+                    <a href="07.training-practice.html#s9">Handout #7 §9</a> (the LM loss in code).
                 </dd>
             </dl>
         </div>
@@ -162,7 +162,7 @@ print(dots.var().item(), (dots * d**-0.5).var().item())
 
         <p>
             An unscaled softmax puts 99.8% of its mass on one position before training has learned
-            anything — and Handout #5 §6 Q2's other half applies: a saturated softmax has near-zero
+            anything — and Handout #6 §5 Q2's other half applies: a saturated softmax has near-zero
             gradient, so the layer cannot learn its way out. Dividing by $\sqrt{d_k}$ keeps the scores
             $O(1)$ regardless of head dimension. It is a variance-control argument, of the same family
             as the initialization schemes.
@@ -191,7 +191,7 @@ print(dots.var().item(), (dots * d**-0.5).var().item())
             With the mask in place, a single forward pass over a length-$T$ sequence produces, at
             position $t$, exactly the prediction a model that had only seen $x_{\le t}$ would produce.
             So <em>all $T$ training predictions are computed in parallel from one pass</em>, and they are
-            all legitimate. This is the property Handout #5 §4.2's shift exploits, and it is the single
+            all legitimate. This is the property Handout #7 §9.2's shift exploits, and it is the single
             biggest reason Transformers train efficiently. An RNN gets the same parallelism-free
             guarantee only by being sequential.
         </div>
@@ -714,7 +714,7 @@ rms(x).pow(2).mean(-1).sqrt()       # [1.0, 1.0, 1.0, 1.0]          <- unit RMS<
             is why <code>intermediate_size</code> is a strange non-round number in these configs.
         </p>
 
-        <h3 id="s6-head">6.6 &nbsp;<code>LlamaForCausalLM</code> — where Handout #5 §4 reappears</h3>
+        <h3 id="s6-head">6.6 &nbsp;<code>LlamaForCausalLM</code> — where Handout #7 §9 reappears</h3>
 
         <p class="hd-srcline"><code>modeling_llama.py</code> · <code>LlamaForCausalLM</code> (verbatim, excerpts)</p>
         <pre><code class="language-python">class LlamaForCausalLM(LlamaPreTrainedModel, GenerationMixin):
@@ -751,11 +751,11 @@ rms(x).pow(2).mean(-1).sqrt()       # [1.0, 1.0, 1.0, 1.0]          <- unit RMS<
         </p>
 
         <p>
-            And <code>loss_function(logits=..., labels=...)</code> is Handout #5 §4 behind a library
+            And <code>loss_function(logits=..., labels=...)</code> is Handout #7 §9 behind a library
             interface — including the shift. Hugging Face's convention is that you pass
             <code>labels</code> equal to <code>input_ids</code> and the shift is applied
             <em>internally</em>. If you shift them yourself as well, you get an off-by-two, a model that
-            appears to train, and a mystery. Handout #5 §4.2 was about doing it by hand; this is the
+            appears to train, and a mystery. Handout #7 §9.2 was about doing it by hand; this is the
             trap in its library form, and the two are the same trap.
         </p>
 
@@ -955,7 +955,7 @@ rms(x).pow(2).mean(-1).sqrt()       # [1.0, 1.0, 1.0, 1.0]          <- unit RMS<
                 <details class="ans"><summary>Answer</summary><div class="ans-body">
                     (1) <strong>The mask is wrong or absent at training time</strong> — every position
                     could see its own target, the task became trivial, and the loss is meaninglessly low
-                    (Handout #5 §6's last question, in its Transformer form). Check the loss against the
+                    (Handout #7 §9.5's last question, in its Transformer form). Check the loss against the
                     $\ln|\Sigma|$ baseline: a suspiciously low value is the tell.
                     (2) <strong>A cache or position-id bug at inference</strong> — a stale KV cache, or
                     <code>position_ids</code> restarting at 0 for each new token, gives the model a

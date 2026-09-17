@@ -141,24 +141,35 @@
             else if (signs > (path.length - 2) * 0.5) regime = 'oscillating';
         }
 
-        if (diverged || regime === 'diverging') {
-            $note.innerHTML = '<b style="color:#b02a55">Diverging.</b> Each step overshoots the ' +
-                'minimum by more than its distance from it, so the loss grows without bound. For the ' +
-                'convex bowl the threshold is exactly \u03B7 = 2 \u2014 below it you converge, above ' +
-                'it you never will, no matter how long you train.';
+        if (path.length === 1) {
+            $note.innerHTML = 'Predict the trajectory, then press Step or Run 25. The curve shows ' +
+                'the loss; the marker starts at &theta; = -4.2.';
+        } else if (surf === SURFACES.bowl && Math.abs(lr - 2) < 1e-10) {
+            $note.innerHTML = '<b>Oscillating without progress.</b> At &eta; = 2, each update ' +
+                'flips the sign of &theta; without changing its magnitude or loss.';
+        } else if (diverged) {
+            $note.innerHTML = '<b style="color:#b02a55">Run stopped: values grew beyond the safety limit.</b> ' +
+                'Reset and try a smaller learning rate. The convex bowl converges for 0 &lt; &eta; &lt; 2; ' +
+                'the other surface has different curvature and no such shared threshold.';
+        } else if (regime === 'diverging') {
+            $note.innerHTML = '<b style="color:#b02a55">Loss has increased over recent steps.</b> ' +
+                'Try a smaller learning rate. On the convex bowl, &eta; &gt; 2 makes the magnitude ' +
+                'grow on every step; increasing loss over a few steps is not a general proof of divergence.';
         } else if (regime === 'oscillating') {
-            $note.innerHTML = 'Overshooting and <b>oscillating</b> across the minimum. Still making ' +
-                'progress, but note how the path zig-zags rather than descending \u2014 and how ' +
-                'close this is to breaking.';
+            $note.innerHTML = 'The updates are <b>oscillating</b>. Compare the recent losses: ' +
+                'oscillation can accompany shrinking steps, a cycle, or instability.';
+        } else if (Math.abs(surf.df(cur)) < 1e-8) {
+            $note.innerHTML = 'The gradient is approximately zero at the current point. On the bowl ' +
+                'this is its minimum; on a nonconvex surface, a small gradient alone does not certify a global minimum.';
         } else if (lr < 0.08) {
-            $note.innerHTML = 'Converging, but slowly &mdash; each step barely moves. This is what a ' +
-                'too-small learning rate costs you: not failure, just an unaffordable number of steps.';
+            $note.innerHTML = 'Small learning rate: updates can be slow. Compare progress after the ' +
+                'same number of steps rather than assuming a smaller rate is always better.';
         } else if (surf === SURFACES.wiggle) {
-            $note.innerHTML = 'Note there are two minima. Where you end up depends on where you ' +
-                'started &mdash; gradient descent finds <em>a</em> minimum, never <em>the</em> minimum.';
+            $note.innerHTML = 'There are two minima. Gradient descent may reach a local or global ' +
+                'minimum depending on initialization and step size; local improvement does not guarantee the global minimum.';
         } else {
-            $note.innerHTML = 'Healthy descent: each step reduces the loss, and the steps shrink as ' +
-                'the gradient does.';
+            $note.innerHTML = 'For this bowl with 0 &lt; &eta; &lt; 2, the magnitude shrinks on each ' +
+                'step until numerical precision limits further progress.';
         }
     }
 

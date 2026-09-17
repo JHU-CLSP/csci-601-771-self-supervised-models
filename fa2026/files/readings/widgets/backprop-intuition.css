@@ -1,0 +1,17 @@
+/* Shared layout for the three offline backprop intuition labs. */
+.bi-controls { display:grid; grid-template-columns:repeat(auto-fit,minmax(125px,1fr)); gap:12px; margin-bottom:14px; }
+.widget .bi-controls input[type=number], .widget .bi-controls select { display:block; width:100%; box-sizing:border-box; padding:7px; border:1px solid #cad3df; border-radius:5px; background:white; color:#173554; font:inherit; }
+.bi-controls input[type=range] { display:block; width:100%; accent-color:#002d72; margin-top:8px; }
+.bi-controls output { float:right; font-variant-numeric:tabular-nums; color:#002d72; }
+.bi-parameters { margin-bottom:16px; }
+.bi-parameters summary { cursor:pointer; color:#002d72; font-size:14px; margin-bottom:10px; }
+.bi-graph { overflow-x:auto; }
+.bi-graph svg { display:block; width:100%; min-width:490px; font:12px system-ui,sans-serif; }
+.bi-status { padding:10px 12px; background:#edf3fa; border-left:3px solid #528dca; color:#173554; font-size:14px; }
+.bi-equation { font-size:14px; line-height:1.7; font-variant-numeric:tabular-nums; }
+.widget .bi-toggles label { display:flex; align-items:center; gap:8px; margin-bottom:12px; }
+.bi-toggles input { width:17px; height:17px; accent-color:#002d72; }
+.widget .w-btn:disabled { opacity:.5; cursor:default; }
+.widget input:focus-visible, .widget select:focus-visible, .widget button:focus-visible, .bi-parameters summary:focus-visible { outline:2px solid #002d72; outline-offset:3px; }
+.bi-code { white-space:pre; overflow-x:auto; font-size:12px; }
+@media (max-width:520px) { .bi-controls { grid-template-columns:repeat(2,minmax(0,1fr)); } }
