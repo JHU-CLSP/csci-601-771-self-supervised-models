@@ -3,6 +3,17 @@
 One self-contained HTML handout per session, linked from the "Additional Reading" column of the
 schedule in `fa2026/index.html`.
 
+## Purpose and authoring approach
+
+Handouts complement the lecture slides as additional reading. Use the assigned slide topics to
+set scope, then develop additional in-scope insights, worked examples, exercises, and visualizations.
+Keep enough explanation for the reading to stand on its own; avoid turning it into a slide transcript
+or a running commentary on slide wording. Slide mappings are navigation aids, not the main structure.
+
+Reuse useful figures from the course slides when they support an explanation or exercise. Preserve
+source credits, identify the source slide, provide meaningful alt text, and explain what the reader
+should notice. Pair borrowed figures with interpretation or a task rather than using them as decoration.
+
 ## Current handouts
 
 | # | File | Session |
@@ -13,9 +24,10 @@ schedule in `fa2026/index.html`.
 | 4 | `04.training-neural-nets.html` | Losses, gradients, and optimization (Thu Sept 10, slides 55–89): losses, optimization, algebra, calculus, and readiness for backprop |
 | 5 | `05.analytical-backprop.html` | Analytical backpropagation (Tue Sept 15, slides 90–109): layerwise derivatives, caching, and checked manual backprop |
 | 6 | `06.backprop-in-practice.html` | Backprop in practice (Thu Sept 17, slides 111–156): computation graphs, reverse mode, autograd, PyTorch, reading `micrograd` |
-| 7 | `07.training-practice.html` | Practical training (Tue Sept 22, slides 156–188): batching, memory, normalization, activations, residuals, initialization, dropout, debugging; optional LM-loss application |
+| 7 | `07.training-practice.html` | Batching and training memory (Tue Sept 22, slides 165–182): execution modes, batching, broadcasting, memory/OOM, gradient accumulation; optional LM-loss application |
+| 8 | `08.stable-training.html` | Training and tokenization (Thu Sept 24, feedforward slides 183–208 and tokenization slides 1–12): activations, gradient stability, residuals, initialization, normalization, validation, early stopping, dropout, tiny-data debugging, diagnostic capstone; word/character/subword tradeoffs, token IDs, whitespace, and number boundaries |
 
-Slide 156 is the shared transition between Handouts #6 and #7.
+Handouts #7 and #8 split the practical-training material at slide 183. Figures and exercises move with their topic; the optional LM-loss application stays in Handout #7 §2.
 
 ### Written, session number not yet assigned
 
@@ -101,11 +113,17 @@ real file.
 
 ## `471-671-quiz-samples-public/`
 
-Handouts #4–#7 include 15 additional adapted exercises from this collection:
+Handouts #4–#8 include adapted exercises from this collection:
 - #4: Quiz 1 sp2024 Q1.5–6 and Quiz 1 sp2025 Q1.9/Q2.1–2 (losses, gradient steps, Jacobians).
 - #5: HW3 sp2025 §2.7/§3.5–6 (matrix gradients, softmax).
 - #6: Quiz 1 sp2024 Q1.14–16/21 (autograd order, gradient accumulation, module registration). Existing graph/complexity questions are retained.
-- #7: HW3 sp2025 §1.2/7, HW4 sp2025 §3.2–4, Quiz 1 sp2024 Q1.18/23/24, and Quiz 3 sp2025 Q6.1/3 (vectorization, saturation, residuals, normalization, validation, memory). Matching existing initialization/dropout/debugging exercises now carry source labels.
+- #7–#8: HW3 sp2025 §1.2/7, HW4 sp2025 §3.2–4, Quiz 1 sp2024 Q1.18/23/24, and Quiz 3 sp2025 Q6.1/3 (vectorization, saturation, residuals, normalization, validation, memory). Matching existing initialization/dropout/debugging exercises now carry source labels.
+
+Additional #7–#8 reasoning exercises adapt Quiz 1 sp2025 Q4.1(c)/Q4.2(b) (batch size,
+parameter/gradient shapes, and repeated-example reductions), Quiz 1 sp2024 Q3.2–3 (a scaled
+leaky ReLU and its gradient tradeoffs), and Quiz 2 sp2025 Q1.6 (norm clipping, including its
+interaction with accumulation). Source PDF page links appear beside each exercise; numerical
+extensions and worked answers were checked independently of the sample solutions.
 
 Solution clarifications in these adaptations: the softmax outer product for a column probability vector is `p p^T`, not `p^T p` (HW3 §3.6); memory-component rankings depend on model/batch/optimizer (Quiz 3 Q6.1); clearing gradients at the end of a step is valid when the first step starts clear (Quiz 1 sp2024 Q1.16); normalization does not force equal feature influence (Quiz 1 sp2024 Q1.18). Residual derivatives use column gradients consistently.
 
@@ -121,7 +139,7 @@ Three arithmetic errors found in these while porting (handouts use corrected val
 - sp2024 quiz1 Q2.4: `H` uses `log2 2/6` while the same page's table and `P(s1)` both use `1/6`.
   With 1/6, H = 1.581 and ppl = 2.99, not 1.33 / 2.51.
 
-PyTorch snippets live in Handout #1 §1.5, Handout #4 §1/§2, Handout #5 §2, Handout #6 §3, Handout #7 §1/§2/§6/§7/§9, the RNN handout
+PyTorch snippets live in Handout #1 §1.5, Handout #4 §1/§2, Handout #5 §2, Handout #6 §3, Handout #7 §1/§2, Handout #8 §3/§4/§5/§6/§7, the RNN handout
 §3/§7 and the Transformer handout §2/§4/§6.
 Handout #2 §3.2 is pure-Python n-gram counting (deliberately not PyTorch).
 Every `assert` in them has been run against torch 2.12 — keep it that way when editing.

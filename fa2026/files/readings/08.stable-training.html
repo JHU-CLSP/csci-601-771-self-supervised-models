@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Handout #8: Neural Network Training and Tokenization — CS 601.471/671</title>
+    <meta name="description"
+          content="Session 8: feedforward slides 183–208 and tokenization slides 1–12; stable training, debugging, language units, token IDs, and vocabulary tradeoffs.">
+
+    <link rel="shortcut icon" href="../favicon.ico">
+    <link rel="stylesheet" href="../fonts.css">
+    <link rel="stylesheet" href="vendor/katex/katex.min.css">
+    <link rel="stylesheet" href="vendor/highlight/github.min.css">
+    <link rel="stylesheet" href="handout.css">
+</head>
+
+<body class="handout" data-handout="08.stable-training">
+
+<header class="hd-mast">
+    <div class="hd-wrap" style="display:block">
+        <div class="hd-course">CS 601.471/671 &nbsp;·&nbsp; NLP: Self-supervised Models &nbsp;·&nbsp; Fall 2026</div>
+        <h1>Handout #8 — Neural Network Training and Tokenization</h1>
+        <p class="hd-sub">
+            Session 8 (Thu, Sept 24) &nbsp;·&nbsp;
+            <a href="../slides/03-4-5-6-7.feedforward-nets.pdf">Slides: Feedforward Nets</a> &nbsp;·&nbsp;
+            <a href="../slides/07-8.tokenization.pdf">Slides: Tokenization</a> &nbsp;·&nbsp;
+            <a href="../../index.html">Course page</a>
+        </p>
+    </div>
+</header>
+
+<div class="hd-wrap">
+
+    <!-- TOC is populated by handout.js from the h2/h3 ids below -->
+    <nav class="hd-toc" aria-label="Contents">
+        <div class="hd-toc-title">On this page</div>
+    </nav>
+
+    <main class="hd-body">
+
+<p class="lead">A correct training loop can still learn slowly, lose its gradient signal, or fit the training set while getting worse on new data. This reading connects activation scale, gradient flow, and generalization through worked examples and diagnostic experiments. We then turn to the interface between language and the network: which pieces of text become its inputs and prediction targets.</p>
+<p>Use the worked examples to predict what a training run will do, then test the explanation.
+Try each exercise before opening its answer.</p>
+<div class="hd-glance"><dl>
+<dt>Slides</dt><dd><strong>183–208</strong> of <a href="../slides/03-4-5-6-7.feedforward-nets.pdf">Feedforward Nets</a>, plus <strong>1–12</strong> of <a href="../slides/07-8.tokenization.pdf">Tokenization</a>. Companion reading with additional examples and exercises.</dd>
+<dt>Session</dt><dd>Thursday, Sept 24. About 90–115 minutes, including exercises.</dd>
+<dt>By the end</dt><dd>Explain activation derivatives and residual paths; connect initialization with normalization; distinguish better training fit from better generalization; apply early stopping and dropout; diagnose a training run; compare token units and interpret token IDs, word pieces, whitespace, and numbers.</dd>
+<dt>Assumes</dt><dd><a href="05.analytical-backprop.html">Handout #5: analytical backprop</a> and <a href="07.training-practice.html">Handout #7: batching, execution modes, and training memory</a>.</dd>
+</dl></div>
+<details class="ans"><summary>Find the reading for a slide topic</summary>
+<div class="tbl-scroll"><table class="tbl"><thead><tr><th>Slides</th><th>Reading route</th></tr></thead><tbody>
+<tr><td>183–188</td><td><a href="#s1">Activation functions</a></td></tr>
+<tr><td>189–193</td><td><a href="#s2">Gradient stability and residual connections</a></td></tr>
+<tr><td>194–195</td><td><a href="#s3">Weight initialization</a></td></tr>
+<tr><td>196–198</td><td><a href="#s4">Normalization</a></td></tr>
+<tr><td>199–205</td><td><a href="#s5">Validation, early stopping, and dropout</a></td></tr>
+<tr><td>206–208</td><td><a href="#s6">Tiny-data debugging and synthesis</a></td></tr>
+<tr><td>Tokenization 1–12</td><td><a href="#s8">From text to tokens</a></td></tr>
+</tbody></table></div></details>
+
+<h2 id="s1"><span class="hd-secnum">1</span>Activation functions and their derivatives</h2>
+<p class="hd-srcline">Slides 183–188</p>
+<div class="tbl-scroll"><table class="tbl"><thead><tr><th>Function</th><th>Derivative</th><th>Training implication</th></tr></thead><tbody>
+<tr><td>Sigmoid $\sigma(z)$</td><td>$\sigma(z)(1-\sigma(z))$</td><td>In $(0,1)$; derivative at most $1/4$ and small in either tail.</td></tr>
+<tr><td>$\tanh z$</td><td>$1-\tanh^2 z$</td><td>Output centered around zero, but still saturates in either tail.</td></tr>
+<tr><td>ReLU $\max(0,z)$</td><td>1 for $z&gt;0$, 0 for $z&lt;0$</td><td>No positive-side saturation; negative inputs block the local gradient.</td></tr>
+<tr><td>Leaky ReLU $\max(\alpha z,z)$, $0&lt;\alpha&lt;1$</td><td>$\alpha$ for $z&lt;0$, 1 for $z&gt;0$</td><td>Retains a nonzero negative-side derivative.</td></tr>
+</tbody></table></div>
+<p>At zero, nonsmooth functions need a chosen derivative convention. Saturation is gradual:
+sigmoid derivatives at finite inputs are mathematically positive, although finite precision can
+round them to zero. A “dead ReLU” stays inactive across the relevant training inputs, not merely
+on one example. Leaky ReLU avoids an exactly zero negative slope but cannot guarantee learning.</p>
+<p>Monotonicity is not required for a valid activation. GELU and SiLU/Swish provide smooth,
+nonmonotone alternatives. For the feedforward experiments in these slides, ReLU is a useful
+baseline; compare alternatives with the same data split and training budget. PReLU learns its
+negative-side slope rather than fixing it. Softplus is a smooth approximation to ReLU; SwiGLU is
+a gated construction using two projections, rather than simply a scalar activation replacement.</p>
+<p>For an elementwise activation $h=f(z)$, backward computes $g_z=g_h\odot f\prime(z)$.
+At $z=5$, sigmoid contributes about 0.00665; at $z=3$, tanh contributes about 0.00987.
+These are small, not mathematically zero. Zero-centered outputs can improve optimization geometry,
+but tanh's mean is not guaranteed to be zero for an arbitrary input distribution.</p>
+<div class="ex"><div class="ex-head"><span>Separate the factors</span></div><div class="ex-body"><p>
+Does sigmoid's derivative being at most $1/4$ prove that a whole network's gradients must shrink
+by a factor of four at every layer?</p><details class="ans"><summary>Answer</summary><div class="ans-body">
+No. The backward rule includes the weight matrix as well as the activation derivative. A weight
+matrix can amplify a signal. The activation contributes attenuation; the full Jacobian determines
+the layer's effect.</div></details></div></div>
+
+
+<div class="ex" id="sample-leaky-proposal"><div class="ex-head"><span>Fix a dead branch without amplifying every path</span>
+<span class="ex-src">Adapted and extended from <a href="471-671-quiz-samples-public/CS_601_471_671_spring2024_quiz1.pdf#page=7">Quiz 1, sp2024, Q3.2–3</a></span></div><div class="ex-body">
+<p>A proposed activation is $f(z)=\max(0.2z,2z)$. Write its two branches and derivatives away
+from zero. With incoming gradient 3, what gradient reaches $z=-2$? What about $z=2$?
+Does this fix every vanishing/exploding-gradient problem? Compare it with replacing ReLU by $f(z)=2z$.</p>
+<details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body">
+<p>For $z&lt;0$, $0.2z$ is the larger value, so $f(z)=0.2z$ and $f\prime(z)=0.2$.
+For $z&gt;0$, $f(z)=2z$ and $f\prime(z)=2$. The backward signals are therefore $0.6$ and 6.
+Unlike ReLU, this function passes a nonzero local gradient on the negative branch; it is twice
+a leaky ReLU with negative slope 0.1.</p>
+<p>The unequal slopes preserve nonlinearity, but their scale matters. Along ten active positive
+branches with identity weight maps, the activation derivatives alone contribute $2^{10}=1024$.
+Negative branches can still attenuate signals, and weight Jacobians also enter the product.
+Nonzero local derivatives do not guarantee well-scaled gradients.</p>
+<p>Using $2z$ everywhere gives a nonzero derivative but removes the nonlinearity. A stack of affine
+layers with this activation is still one affine map. At zero, the proposed piecewise function
+requires a derivative convention; the calculations above avoid that boundary.</p>
+</div></details></div></div>
+<div class="ex" id="sample-saturated-init"><div class="ex-head"><span>Large weights plus sigmoid</span>
+<span class="ex-src">Adapted from HW3, sp2025, §1.7; Quiz 1, sp2025, Q1.13</span></div><div class="ex-body">
+<p>A sigmoid hidden unit receives preactivation $z=10$ after initialization. Estimate its derivative and compare it with the derivative at $z=0$. If the upstream gradient is 1, how much signal reaches the preactivation?</p><details class="ans"><summary>Work it out, then reveal the answer</summary>
+<div class="ans-body"><p>$\sigma\prime(10)=\sigma(10)(1-\sigma(10))\approx4.54\times10^{-5}$, compared with $1/4$ at zero. The incoming value 1 becomes about $4.54\times10^{-5}$. Large weights can cause this saturation, depending on the inputs and cancellations; positive weights alone do not guarantee large preactivations on every example.</p></div></details></div></div>
+<h2 id="s2"><span class="hd-secnum">2</span>Vanishing gradients, exploding gradients, and residuals</h2>
+<p class="hd-srcline">Slides 189–193</p>
+<p>Handout #5 derived $g_i=A_i^\top g_{i+1}$. Repeating that rule multiplies many Jacobians.
+For a scalar illustration, twenty factors of $0.5$ give about $9.54\times10^{-7}$; twenty factors
+of 2 give $1{,}048{,}576$. In multiple dimensions, amplification depends on directions and singular
+values, not just whether individual matrix entries exceed 1.</p>
+$$\|g_i\|\leq\left(\prod_{j=i}^{L-1}\|A_j\|\right)\|g_L\|.$$
+<p>This is an upper bound, not a prediction that every direction grows at that rate. Monitor
+activation and gradient norms at several layers. Nonfinite gradients, nearly zero gradients, and
+large but finite gradients require different diagnoses. Gradient clipping limits the gradient norm before the optimizer uses it; it does not directly
+bound every optimizer’s parameter update, and it cannot repair a NaN already produced in the forward pass.</p>
+<div class="ex" id="sample-gradient-clipping"><div class="ex-head"><span>Clipping limits a large gradient; it does not revive a small one</span>
+<span class="ex-src">Adapted and extended from <a href="471-671-quiz-samples-public/CS_601_471_671_spring2025_quiz2.pdf#page=2">Quiz 2, sp2025, Q1.6</a>; feedforward setting</span></div><div class="ex-body">
+<p>Global norm clipping with threshold $c&gt;0$ uses
+$g_{\rm clip}=\min(1,c/\|g\|_2)g$ for nonzero $g$, leaving a zero vector unchanged.
+Take $c=1$ and compare $g=(3,4)$ with $g=(3\times10^{-8},4\times10^{-8})$.</p>
+<ol>
+<li>Compute the clipped vectors and the update norms for plain SGD with learning rate 0.1, no momentum, and no weight decay.</li>
+<li>Does clipping restore information lost through a zero activation derivative?</li>
+<li>For accumulated microbatches, should you clip each contribution separately or clip after forming the intended full gradient?</li>
+</ol>
+<details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body">
+<p>The first norm is 5, so the clipped vector is $(0.6,0.8)$ and the SGD update norm is 0.1.
+The second norm is $5\times10^{-8}$, already below the threshold; it stays unchanged and gives
+an update norm of $5\times10^{-9}$. Clipping caps magnitude; it does not scale small gradients up
+or repair NaNs. A signal multiplied by a zero derivative remains zero.</p>
+<p>To clip the gradient of the accumulated objective, finish its correctly weighted backward
+contributions, then clip once before <code>optimizer.step()</code>. Clipping is nonlinear: for
+scalar contributions 2 and $-1$ at threshold 1, clipping separately and adding gives $1-1=0$;
+adding first and clipping gives 1. Thus clipping each microbatch implements a different update.</p>
+<p>The SGD update calculation uses the stated optimizer assumptions. With momentum or adaptive
+optimizer state, bounding the current gradient norm does not directly bound the final parameter
+update by learning rate times threshold.</p>
+</div></details></div></div>
+<p>A residual block computes $h_{i+1}=h_i+F(h_i)$, so its backward rule is</p>
+$$g_i=(I+J_F(h_i))^\top g_{i+1}=g_{i+1}+J_F(h_i)^\top g_{i+1}.$$
+<p>The identity path supplies a direct gradient contribution alongside the learned branch. Shapes
+must agree for addition, or a projection is needed. Residuals improve gradient flow in many
+networks; they do not guarantee that gradients cannot vanish or explode.</p>
+<p>Consider a block with two linear layers and a final activation (the example on slide 193): <code>out = linear2(relu(linear1(x))); out = relu(out + x)</code>.
+The skip connection is the addition of <code>x</code>, not the assignment <code>identity = x</code>
+by itself. Because that example applies ReLU <em>after</em> the sum, its full Jacobian is
+$D_{\mathrm{out}}(I+J_F)$, where $D_{\mathrm{out}}$ is the final ReLU mask. The identity contribution
+can still be blocked by that mask. In a plain $x+F(x)$ block, $F(x)=0$ passes $x$ through;
+the branch learns a correction to the identity.</p>
+<p>This connects three complementary controls: residuals add a direct path,
+initialization sets starting signal scales, and normalization adjusts hidden scales during
+computation. None substitutes for checking the actual forward and backward values.</p>
+<div class="ex"><div class="ex-head"><span>The identity path is not a guarantee</span></div><div class="ex-body"><p>
+For the scalar residual $y=x+F(x)$, what happens when $F'(x)=0$? What about $F'(x)=-1$?</p>
+<details class="ans"><summary>Answer</summary><div class="ans-body">The total derivative is $1+F'(x)$.
+It equals 1 in the first case, preserving the upstream gradient, and 0 in the second, where the
+two contributions cancel.</div></details></div></div>
+
+
+<div class="ex" id="sample-residual-derivation"><div class="ex-head"><span>Backpropagate through both residual paths</span>
+<span class="ex-src">Adapted from HW4, sp2025, §3.2–4</span></div><div class="ex-body">
+<p>Let $z_1=W_1x$, $h_1=\operatorname{ReLU}(z_1)$, $z_2=W_2h_1$, $h_3=h_1+\operatorname{ReLU}(z_2)$, and $J=\tfrac12\|h_3-y\|^2$. Derive $\nabla_xJ$ using column gradients. Define $D_i=\operatorname{diag}(\mathbf1[z_i&gt;0])$ and assume no preactivation is zero.</p><details class="ans"><summary>Work it out, then reveal the answer</summary>
+<div class="ans-body"><p>Start with $g_3=h_3-y$. The learned branch contributes $W_2^\top D_2g_3$ to $h_1$, and the identity path contributes $g_3$. Thus $g_1=g_3+W_2^\top D_2g_3$ and</p>$$\nabla_xJ=W_1^\top D_1(I+W_2^\top D_2)(h_3-y).$$<p>The direct term avoids multiplication by $W_2^\top D_2$, but it still passes through $W_1^\top D_1$. Residuals do not remove every possible source of attenuation. The sample solution uses row sensitivities; these transposes implement this handout’s column convention.</p></div></details></div></div>
+<h2 id="s3"><span class="hd-secnum">3</span>Initialization: break symmetry without losing scale</h2>
+<p class="hd-srcline">Slides 194–195</p>
+<p>If hidden units start with identical incoming weights and biases and identical outgoing
+connections, they receive identical gradients and remain interchangeable. Random weights break
+this symmetry. Zero biases can be fine when the weights already distinguish the units; the warning
+is about initializing the whole network symmetrically.</p>
+<p>The noise scale matters too: large weights can saturate activations or amplify gradients, while
+very small weights can weaken signals. To see why fan-in matters, let $z=\sum_{j=1}^n w_jx_j$, with independent, zero-mean weights
+of variance $s^2$, independent of the inputs. Under the usual independence assumptions,
+$\mathbb E[z^2]=n s^2\mathbb E[x_j^2]$. Unit-variance weights can therefore enlarge signals
+as width grows; the scale should depend on the number of summed inputs.</p>
+<p>Xavier/Glorot's gain-1 choice uses $\operatorname{Var}(w)=2/(n_{\rm in}+n_{\rm out})$ to
+balance forward and backward scales. Kaiming's ReLU fan-in choice uses $2/n_{\rm in}$:
+for a symmetric preactivation, ReLU keeps half of its second moment. This is a second-moment
+argument, not a claim that ReLU outputs have mean zero or exactly preserve centered variance.
+For leaky ReLU slope $\alpha$, the analogous choice is $2/((1+\alpha^2)n_{\rm in})$.</p>
+<pre><code class="language-python">import torch
+from torch import nn
+
+layer = nn.Linear(100, 64)  # weight shape: (fan_out, fan_in)
+nn.init.kaiming_normal_(layer.weight, mode="fan_in", nonlinearity="relu")
+nn.init.zeros_(layer.bias)
+assert layer.weight.shape == (64, 100)
+# Suitable for a layer followed by ReLU; choose separately for the output layer.</code></pre>
+<p>These are starting-scale heuristics under simplified assumptions, not guarantees throughout
+training. See <a href="https://docs.pytorch.org/docs/stable/nn.init.html">PyTorch's initialization reference</a>
+for gains and weight-layout conventions.</p>
+<div class="ex"><div class="ex-head"><span>Two identical hidden units</span><span class="ex-src">Adapted from Quiz 1, sp2025, Q1.15; HW3, sp2025, §1.1 and §1.6</span></div><div class="ex-body"><p>
+Two tanh units have identical incoming weights and biases, and the same scalar output weight.
+Will ordinary deterministic gradient descent make them learn different features?</p>
+<details class="ans"><summary>Answer</summary><div class="ans-body">No. They have the same activation,
+the same upstream sensitivity, and the same local derivative. Their incoming gradients match on
+every example, so identical updates preserve the symmetry.</div></details></div></div>
+
+<h2 id="s4"><span class="hd-secnum">4</span>Normalization: choose what to center</h2>
+<p class="hd-srcline">Slides 196–198</p>
+<p>For a numerical input feature, standardization uses $(x-\mu)/\sqrt{v+\epsilon}$, where $\mu$
+and $v$ are estimated from the <strong>training split</strong> and reused on validation and test
+inputs. Do not standardize discrete token IDs: their integer values are labels, not magnitudes.</p>
+<p>Centering can change which update directions are available: for a single affine unit and one example,
+$\nabla_w\ell=\delta x$. If every coordinate of $x$ is positive, the weight-gradient coordinates
+share a sign. Centering can improve this geometry; gradients summed across examples need not share
+a sign, and centering is not a universal convergence guarantee.</p>
+<p>Normalization inside a network is an operation with its own axes. For $X$ shaped $(B,T,d)$,
+<code>LayerNorm(d)</code> computes mean and variance over the final $d$ coordinates separately for
+each token. Batch normalization uses statistics across the batch and relevant spatial axes and
+normally tracks running statistics for evaluation. These choices are not interchangeable. For $(B,T,d)$, LayerNorm has $BT$ separate groups
+of $d$ features and typically $2d$ learned scale/shift parameters. For a $(B,d)$ batch,
+BatchNorm has $d$ groups of $B$ examples; for sequence input in PyTorch's $(B,d,T)$ layout,
+<code>BatchNorm1d(d)</code> aggregates over $B$ and $T$. Padding then needs care because those
+statistics can include padded positions. LayerNorm uses the current token's statistics in both
+training and evaluation; BatchNorm normally switches to running estimates for evaluation.</p>
+$$\operatorname{LN}(x)=\gamma\odot\frac{x-\mu(x)}{\sqrt{v(x)+\epsilon}}+\beta.$$
+<h3 id="s4-contrast">4.1 &nbsp;What information does each normalization remove?</h3>
+<p>Take two examples with two features each, $X=\begin{bmatrix}1&amp;3\\101&amp;103\end{bmatrix}$.
+Ignore $\epsilon$ for this calculation and set $\gamma=1,\beta=0$. LayerNorm groups the two
+features <em>within each row</em>; BatchNorm groups the two examples <em>within each column</em>.
+Use population variance (divide by the number of values in the group).</p>
+<div class="tbl-scroll"><table class="tbl"><thead><tr><th>Operation</th><th>Group means</th><th>Group standard deviations</th><th>Output</th></tr></thead><tbody>
+<tr><td>LayerNorm over features</td><td>2 and 102</td><td>1 and 1</td><td>$\begin{bmatrix}-1&amp;1\\-1&amp;1\end{bmatrix}$</td></tr>
+<tr><td>BatchNorm over examples</td><td>51 and 53</td><td>50 and 50</td><td>$\begin{bmatrix}-1&amp;-1\\1&amp;1\end{bmatrix}$</td></tr>
+</tbody></table></div>
+<p>LayerNorm removes the 100-unit offset between these two rows: it represents which features
+are high or low <em>relative to the same example</em>. BatchNorm represents which examples are high
+or low <em>relative to the current batch for that feature</em>. Their outputs answer different
+questions even though both operations center and rescale numbers.</p>
+<div class="ex"><div class="ex-head"><span>Change the company an example keeps</span></div><div class="ex-body">
+<p>Keep the first row $(1,3)$, but replace the second row by $(-1,1)$. Recompute the normalized
+first row under both operations. What does this reveal about changing a validation batch?</p>
+<details class="ans"><summary>Answer</summary><div class="ans-body">
+<p>LayerNorm still gives $(-1,1)$: the other row does not enter its statistics. Training-mode
+BatchNorm now has column means $(0,2)$ and standard deviations $(1,1)$, so the first row becomes
+$(1,1)$. Its representation changed solely because its companion changed. This is one reason to
+use evaluation mode with BatchNorm's usual running-statistics configuration; LayerNorm has no
+corresponding dependence on other examples.</p>
+</div></details></div></div>
+<p>The following experiment checks LayerNorm's axes and formula on a three-dimensional tensor.</p>
+<pre><code class="language-python">import torch
+from torch import nn
+
+torch.manual_seed(1)
+X = torch.randn(2, 3, 4, dtype=torch.float64)
+layer = nn.LayerNorm(4, elementwise_affine=False, eps=1e-5).double()
+manual = (X - X.mean(-1, keepdim=True)) / torch.sqrt(
+    X.var(-1, unbiased=False, keepdim=True) + 1e-5)
+torch.testing.assert_close(layer(X), manual)
+torch.testing.assert_close(layer(X).mean(-1), torch.zeros(2, 3, dtype=X.dtype), atol=1e-12, rtol=0)
+print("One mean and variance per token; output shape:", layer(X).shape)</code></pre>
+<div class="ex"><div class="ex-head"><span>Which axes?</span></div><div class="ex-body"><p>
+For a $(2,3,4)$ tensor, how many means does <code>LayerNorm(4)</code> compute? Does normalization
+force the final output variance to be exactly one?</p><details class="ans"><summary>Answer</summary><div class="ans-body">
+Six means, one for each example-position pair. The epsilon changes the normalized variance to
+$v/(v+\epsilon)$; learned scale and shift can change the final statistics further.</div></details></div></div>
+
+
+<div class="ex" id="sample-positive-inputs"><div class="ex-head"><span>What does centering actually change?</span>
+<span class="ex-src">Adapted from Quiz 1, sp2024, Q1.18 and Q1.23</span></div><div class="ex-body">
+<p>For one affine unit and one example, take $x=(1,2)^\top$ and upstream scalar $\delta$. Can the weight gradient have signs $(+,-)$? Now use $x=(-1,2)^\top$. Does normalization force every feature to contribute equally to the final prediction?</p><details class="ans"><summary>Work it out, then reveal the answer</summary>
+<div class="ans-body"><p>Since $\nabla_w\ell=\delta x$, positive inputs yield two entries with the same sign (or both zero). With centered inputs and $\delta&lt;0$, the signs are $(+,-)$. This is a local geometric observation, not a claim about every batch-averaged gradient. Normalization changes scales and can help optimization; learned weights still determine influence, so it does not force equal feature contributions.</p></div></details></div></div>
+<div class="ex" id="normalization-symmetry"><div class="ex-head"><span>Can normalization replace random initialization?</span></div><div class="ex-body">
+<p>Two hidden units compute $h_j=\tanh(w_j^\top x+b_j)$. Each feature then passes through
+BatchNorm using the same minibatch, with its own learned scale $\gamma_j$ and shift $\beta_j$.
+A scalar output is $\hat y=v_1\widetilde h_1+v_2\widetilde h_2+c$.</p>
+<p>Initially $w_1=w_2$, $b_1=b_2$, $v_1=v_2$, $\gamma_1=\gamma_2=1$, and
+$\beta_1=\beta_2=0$; the running statistics also match. Assume ordinary deterministic SGD,
+no dropout, and no unit-specific noise or other asymmetry.</p>
+<ol>
+<li>Will the units have different normalized activations? Trace what happens to their gradients and parameters after an update.</li>
+<li>A colleague argues that learned normalization scales will eventually make the units specialize. Does that follow under these assumptions?</li>
+<li>What change would allow specialization, and what separate problem would normalization still address?</li>
+</ol>
+<details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body">
+<p>The hidden activations match for every example, so their batch means, variances, and normalized
+values match too. Since $v_1=v_2$, both normalized features receive the same upstream sensitivity
+on each example. The two BatchNorm backward computations therefore give equal gradients for
+$\gamma_j$, $\beta_j$, and the hidden activations. Equal tanh derivatives and inputs give equal
+$w_j$ and $b_j$ gradients, while equal normalized features give equal $v_j$ gradients.</p>
+<p>SGD applies identical updates to corresponding parameters, preserving the symmetry. The running
+statistics remain equal as well. Repeat this argument at every step: the units remain duplicates.
+Trainable normalization parameters can change, but nothing here makes them change differently.</p>
+<p>Initialize the incoming weights independently with a suitable scale to break that symmetry.
+Normalization can still control activation scales, but it does not automatically create different
+features. Randomness and scale address different concerns: arbitrary large random weights break
+symmetry yet may saturate tanh; normalization after tanh does not undo its saturation derivative.</p>
+</div></details></div></div>
+
+<h2 id="s5"><span class="hd-secnum">5</span>Validation, early stopping, and dropout</h2>
+<p class="hd-srcline">Slides 199–205</p>
+<p>Training loss measures fit to the data used for updates. Validation loss helps choose stopping
+time and hyperparameters. Save the parameters with the best validation score and restore that
+checkpoint; a patience window avoids reacting to a single noisy epoch. Keep the test set for the
+final evaluation. Patience delays the decision to stop so that one noisy evaluation does not end
+the run; it does not change which checkpoint had the best score. Save a copy of those weights (for example with <code>copy.deepcopy(model.state_dict())</code>),
+not just a reference to a model that subsequent updates will change.</p>
+<figure>
+<img src="images/training-practice/early-stopping.png" width="760" height="566"
+     style="display:block;max-width:100%;height:auto;margin:0 auto" loading="lazy"
+     alt="Schematic loss curves across epochs: training loss keeps falling while validation loss falls and then rises; early stopping selects the region near the validation minimum.">
+<figcaption>The checkpoint to keep can precede the time you decide to stop. Schematic from
+<a href="../slides/03-4-5-6-7.feedforward-nets.pdf#page=200">slide 200</a>; the curve illustrates
+one possible pattern rather than a rule that every run must follow.</figcaption>
+</figure>
+<div class="ex"><div class="ex-head"><span>Stopping time versus checkpoint time</span></div><div class="ex-body">
+<p>Validation losses after epochs 1–5 are $0.8,0.6,0.5,0.55,0.58$. Stop after two consecutive epochs
+without improvement. At which epoch do you stop, and which weights do you deploy? Would a smaller
+training loss at epoch 5 change the choice?</p><details class="ans"><summary>Answer</summary><div class="ans-body">
+<p>Stop after epoch 5, then restore epoch 3. Epochs 4 and 5 provide the evidence to stop; they do
+not become better checkpoints by being later. Training loss measures a different criterion and
+does not override the chosen validation rule. If examples have different batch sizes, compute
+validation loss with the correct example or token weighting before comparing checkpoints.</p>
+</div></details></div></div>
+<p>Compare losses on the same target definition and reduction. Dropout makes training predictions
+noisier, so training-mode loss can even exceed evaluation loss. If both losses stay high, check
+optimization and capacity; if only held-out performance worsens, investigate overfitting and data
+shift. Repeatedly choosing hyperparameters on validation also adapts to that split; reserve the
+test set for the final report.</p>
+<p>One way to understand dropout is as training many subnetworks with shared weights. A layer with $n$
+independently masked activations has $2^n$ possible masks, but we sample masks rather than train
+and store that many independent networks. A fresh mask perturbs which features are available;
+the model cannot always rely on the same activation being present.</p>
+<div class="callout warn"><span class="callout-label">Average four tiny networks by hand</span>
+<p>Let $u=w_1x_1=2$ and $v=w_2x_2=6$, dropping each contribution independently with probability
+$1/2$. With <em>unscaled</em> masks the four equally likely sums are $0,2,6,8$, whose mean is 4.
+The unmasked sum is 8. To match this training expectation at evaluation, multiply the unmasked
+contributions by the <strong>keep probability</strong> $1-p=1/2$.</p>
+<p>PyTorch chooses the other convention: divide retained contributions by $1-p$ <em>during training</em>.
+The four sums become $0,4,12,16$, with mean 8, and evaluation uses the unmasked sum 8 directly.
+Thus “scale up” means training-time inverse-keep scaling; it is not an extra evaluation-time step.</p></div>
+<p>Dropout randomly removes activation contributions during training. Let $p$ be the probability
+of dropping and $m\sim\operatorname{Bernoulli}(1-p)$. PyTorch uses <strong>inverted dropout</strong>:</p>
+$$\widetilde h=\frac{m\odot h}{1-p}\quad\text{during training},\qquad
+\widetilde h=h\quad\text{during evaluation},\qquad 0\leq p&lt;1.$$
+<p>Since $\mathbb E[m]=1-p$, $\mathbb E[\widetilde h\mid h]=h$. For an unscaled training mask,
+the alternative is multiplying activations by the keep probability at evaluation. Do not apply both
+conventions. Expectation matching is exact for the activation and a following affine operation;
+a nonlinear whole network is not exactly the average of all masked networks.</p>
+<pre><code class="language-python">import torch
+from torch import nn
+
+torch.manual_seed(2)
+drop = nn.Dropout(p=0.25)
+x = torch.ones(10000)
+drop.train()
+y = drop(x)
+assert torch.all((y == 0) | torch.isclose(y, torch.full_like(y, 4 / 3)))
+assert abs(y.mean().item() - 1) &lt; 0.03
+# Disabling graph recording does not turn dropout off.
+with torch.no_grad():
+    assert (drop(x) == 0).any()
+drop.eval()
+torch.testing.assert_close(drop(x), x)
+print("Training mean:", y.mean().item(), "; eval is identity")</code></pre>
+<div class="ex"><div class="ex-head"><span>Keep versus drop probability</span><span class="ex-src">Extension of Quiz 1, sp2024, Q1.19–20; sp2025, Q1.10</span></div><div class="ex-body"><p>
+With $p=0.2$, what happens to a retained activation of 3 during training? During evaluation?</p>
+<details class="ans"><summary>Answer</summary><div class="ans-body">During training a retained value
+becomes $3/0.8=3.75$; otherwise it becomes zero. During evaluation it is 3. Multiplying by 0.8
+again at evaluation would incorrectly shrink the signal.</div></details></div></div>
+
+
+<div class="ex" id="sample-validation-choice"><div class="ex-head"><span>Respond to a training–validation gap</span>
+<span class="ex-src">Adapted from Quiz 1, sp2024, Q1.24; HW3, sp2025, §1.4–5</span></div><div class="ex-body">
+<p>Training loss is much lower than validation loss. Which are reasonable experiments: fewer layers, narrower hidden layers, less dropout, or more hidden units? What would you inspect before concluding that capacity is the cause?</p><details class="ans"><summary>Work it out, then reveal the answer</summary>
+<div class="ans-body"><p>Fewer or narrower layers can reduce capacity and help if overfitting is the issue. Less dropout weakens that regularizer, while more hidden units increases capacity; neither is the natural first response to this diagnosis. Also inspect split quality, distribution differences, training/evaluation modes, and the loss calculation. Use validation results to compare experiments; no architectural change guarantees improvement.</p></div></details></div></div>
+<h2 id="s6"><span class="hd-secnum">6</span>First debug on a tiny dataset</h2>
+<p class="hd-srcline">Slides 206–208</p>
+<p>Before a long training run, ask whether a sufficiently expressive model can fit a handful of
+consistent examples. Disable dropout and other regularization for this check, use a fixed seed,
+and inspect the loss. Success checks that some parts work together; it does not prove labels,
+data splits, or evaluation are correct. Failure can mean a bug, unsuitable learning rate, too little
+capacity, or contradictory labels.</p>
+<pre><code class="language-python">import torch
+from torch import nn
+
+torch.manual_seed(3)
+X = torch.tensor([[0., 0.], [0., 1.], [1., 0.], [1., 1.]])
+y = torch.tensor([0, 1, 1, 0])  # XOR: requires nonlinear features
+model = nn.Sequential(nn.Linear(2, 16), nn.Tanh(), nn.Linear(16, 2))
+optimizer = torch.optim.Adam(model.parameters(), lr=0.05)
+model.train()
+for step in range(300):
+    optimizer.zero_grad(set_to_none=True)
+    loss = nn.functional.cross_entropy(model(X), y)
+    assert torch.isfinite(loss)
+    loss.backward()
+    assert all(p.grad is not None and torch.isfinite(p.grad).all()
+               for p in model.parameters())
+    optimizer.step()
+model.eval()
+with torch.no_grad():
+    logits = model(X)
+    accuracy = (logits.argmax(-1) == y).float().mean().item()
+    final_loss = nn.functional.cross_entropy(logits, y).item()
+assert accuracy == 1.0 and final_loss &lt; 0.02
+print("Tiny-data accuracy:", accuracy, "; loss:", final_loss)</code></pre>
+<p>If loss is nonfinite, find the first nonfinite intermediate. If gradients are missing, check
+whether the parameter participates in the loss and whether an operation detached it. If gradients
+are zero, inspect activation saturation and masks. If gradients are finite but parameters do not
+change, check the optimizer's parameter list, learning rate, and call to <code>step()</code>.
+A low training loss with worsening validation loss instead calls for checking generalization.</p>
+<div class="ex"><div class="ex-head"><span>A diagnostic experiment</span><span class="ex-src">Extension of Quiz 1, sp2024, Q1.13; sp2025, Q1.20</span></div><div class="ex-body"><p>
+Change the learning rate in the tiny-data lab to zero. Which checks still pass, and what fails?</p>
+<details class="ans"><summary>Answer</summary><div class="ans-body">The forward loss and gradients
+can remain finite, but parameter updates are zero. For this seeded example the final fit assertion
+fails. Finite gradients alone do not establish that learning occurs.</div></details></div></div>
+
+<h3 id="s6-synthesis">6.1 &nbsp;From the first successful fit to a useful experiment</h3>
+<p class="hd-srcline">Slides 207–208</p>
+<p>The loss as a function of a neural network's parameters is generally nonconvex. Backprop computes
+gradients efficiently; it does not guarantee a global optimum, convergence for an arbitrary
+learning rate, or generalization. Different seeds can expose sensitivity to initialization and data
+order. Compare several runs where feasible, using a fixed validation protocol and compute budget.</p>
+<p>Ensembling averages predictions from trained models (or uses voting for class decisions), which
+may improve held-out performance but costs more computation. It does not make an individual run
+escape a poor solution. Likewise, a larger model can sometimes be easier to optimize, but scale
+does not generally turn the objective into a convex function.</p>
+<ol>
+<li>Check shapes, paired labels, finite values, and gradient flow on one batch.</li>
+<li>Fit a tiny consistent dataset with regularization disabled.</li>
+<li>Restore regularization, train on the training split, and monitor held-out loss.</li>
+<li>Change a justified hyperparameter, record the result, and restore the best validation checkpoint.</li>
+</ol>
+<p>The same reasoning carries beyond feedforward networks: track what is computed, what is saved,
+what is differentiated, and what evidence shows that the model generalizes.</p>
+
+<h3 id="s6-capstone">6.2 &nbsp;Diagnostic capstone: three curves, more than one explanation</h3>
+<div class="ex" id="training-log-capstone"><div class="ex-head"><span>Choose the next experiment</span></div><div class="ex-body">
+<p>A feedforward classifier passes its tiny-data test. On the full dataset you record the following
+<strong>illustrative log</strong>. Each loss is a mean over examples. The train column is measured
+on the training split in evaluation mode, so both loss columns use the same layer behavior.</p>
+<div class="tbl-scroll"><table class="tbl"><thead><tr><th>Epoch</th><th>Train loss</th><th>Validation loss</th><th>Live GPU memory after validation (GB)</th></tr></thead><tbody>
+<tr><td>1</td><td>0.72</td><td>0.76</td><td>1.20</td></tr>
+<tr><td>2</td><td>0.49</td><td>0.58</td><td>1.50</td></tr>
+<tr><td>3</td><td>0.31</td><td>0.54</td><td>1.80</td></tr>
+<tr><td>4</td><td>0.19</td><td>0.61</td><td>2.10</td></tr>
+<tr><td>5</td><td>0.11</td><td>0.70</td><td>2.40</td></tr>
+</tbody></table></div>
+<p>Batch size, input shape, dataset sizes, and model size stay fixed. Adam's state was initialized
+before the first recorded measurement. Memory is measured at the same point after validation and
+gradient clearing; it counts live allocations rather than allocator-reserved storage. Evaluation
+uses <code>model.eval()</code>, and you retain predictions for later error analysis. Gradient norms
+are finite and similar across epochs.</p>
+<ol>
+<li>Give a plausible explanation for each trend. Which conclusions are supported, and which are still hypotheses?</li>
+<li>Choose the checkpoint under a lowest-validation-loss rule. Would increasing dropout fix the memory trend? Would <code>eval()</code> alone prevent a retained backward graph?</li>
+<li>Design one short experiment to investigate the memory growth. State what result would support your explanation.</li>
+<li>Once memory is stable, choose one controlled experiment to investigate the generalization gap. Name what you would hold fixed and what evidence you would compare.</li>
+</ol>
+<details class="ans"><summary>A worked diagnosis</summary><div class="ans-body">
+<p><strong>Separate the observations.</strong> Falling train loss shows better fit to the training
+objective. Validation loss bottoms out at epoch 3 and then rises, consistent with overfitting;
+check split quality, label processing, and loss aggregation before treating model capacity as the
+cause. Keep epoch 3 under the stated checkpoint rule. Finite gradient norms do not establish
+correct labels, correct updates everywhere, or good generalization.</p>
+<p><strong>Memory calls for its own explanation.</strong> The rising live-memory baseline is
+consistent with retained tensors. Saving predictions can retain their backward graphs if graph
+recording was enabled; even detached predictions consume GPU storage if kept there. Neither a
+training–validation gap nor overfitting itself explains that storage growth. Adam's one-time state
+allocation and a merely reserved allocator cache have been excluded by the measurement setup.</p>
+<p><strong>Test one cause.</strong> Run a few validation passes at fixed weights with
+<code>eval()</code> and <code>no_grad()</code>, but without saving predictions; discard outputs
+between passes and measure live memory at the same point. A stable baseline supports the
+retention explanation. Then reintroduce bounded prediction logging, transferring only needed
+detached results to CPU. If growth returns, inspect what else the logging path retains. If it
+persists even without logging, inspect other long-lived references rather than assuming this
+hypothesis was correct. Moving an unbounded log to CPU only moves the storage problem.</p>
+<p><strong>Investigate generalization separately.</strong> Compare the baseline with one modest
+increase in dropout, keeping architecture, data split, loss calculation, learning rate, training
+budget, and checkpoint rule fixed. Compare the best validation losses and the loss trajectories;
+use paired seeds if feasible. Lower training accuracy alone is not evidence of improvement.
+Dropout may help held-out performance, but it does not clear stored predictions or their graphs.
+Use the test set only after selecting the training procedure.</p>
+</div></details></div></div>
+
+<h2 id="s7"><span class="hd-secnum">7</span>Reading real code: PyTorch dropout</h2>
+<p class="hd-srcline">Companion to slide 205 · torch/nn/modules/dropout.py · Dropout.forward</p>
+<p>This method from the installed PyTorch 2.12.0 source delegates to the functional operation. The excerpt
+below preserves its executable lines and omits only the docstring:</p>
+<pre><code class="language-python">    def forward(self, input: Tensor) -&gt; Tensor:
+        return F.dropout(input, self.p, self.training, self.inplace)</code></pre>
+<p>Trace <code>self.p</code> to the drop probability, <code>self.training</code> to the mode toggled by
+<code>train()</code> and <code>eval()</code>, and <code>self.inplace</code> to whether storage may be
+modified in place. No check of gradient recording appears here: that is why <code>no_grad()</code>
+and evaluation mode have distinct jobs. See the
+<a href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Dropout.html">Dropout documentation and source link</a>.
+The normalization axes used above are documented in
+<a href="https://docs.pytorch.org/docs/stable/generated/torch.nn.LayerNorm.html">LayerNorm</a>.</p>
+<div class="ex"><div class="ex-head"><span>Read, change, explain</span></div><div class="ex-body"><p>
+In a local copy of this method, replace <code>self.training</code> with <code>True</code>. Which
+assertion in §5's lab would fail, and why?</p><details class="ans"><summary>Answer</summary><div class="ans-body">
+The evaluation identity check fails: calling <code>eval()</code> no longer controls the dropout
+operation. The layer still randomly zeroes values and scales retained ones during evaluation.</div></details></div></div>
+<h2 id="s8"><span class="hd-secnum">8</span>From text to tokens: choosing the units the model sees</h2>
+<p class="hd-srcline">Tokenization slides 1–12 · <a href="../slides/07-8.tokenization.pdf">Atomic Units of Language</a></p>
+<p>A neural network operates on numbers, but our observations are strings. Tokenization chooses
+how to express a string as a sequence of discrete symbols. That choice determines what counts as
+one prediction, how many predictions represent a sentence, and which distinctions the model can
+observe. It is part of the modeling setup, not just a formatting step.</p>
+
+<h3 id="s8-interface">8.1 &nbsp;Text pieces, integer IDs, and vectors are different things</h3>
+<p>A tokenizer maps text to vocabulary entries and their integer IDs. An embedding lookup then
+maps each ID to a learned vector. For vocabulary size $V$ and embedding dimension $d$, an embedding
+matrix $E\in\mathbb R^{V\times d}$ gives token $i$ the vector $E[i]$. A batch of IDs has shape
+$(B,T)$; its embeddings have shape $(B,T,d)$. These are the tensor axes from Handout #7.</p>
+<p>The ID is a row address, not a numerical measurement of meaning. If “cat” has ID 20 and “dog”
+has ID 21, their proximity does not make them similar; the learned vectors can express similarity.
+Renumbering a vocabulary while consistently permuting the corresponding embedding and output
+rows changes the labels, not the model's predictions over token strings. Mixing IDs from one
+tokenizer with another model's unpermuted vocabulary instead gives the rows the wrong meanings.</p>
+<p>At the output, a language model produces $V$ scores, one per vocabulary entry. A common affine
+output layer has $Vd$ weights plus any bias. Thus tokenization affects both the sequence axis $T$
+and vocabulary axis $V$. We can discuss that interface without yet choosing a neural language-model
+architecture. Beginning/end markers such as BOS and EOS are additional symbols when the model's
+convention uses them; they are not literal words in the text.</p>
+
+<h3 id="s8-units">8.2 &nbsp;Where does the cost go?</h3>
+<p>Consider the exact string <code>cats run.</code>, including one space and a period. The following
+segmentations are illustrative choices, not predictions from a particular trained tokenizer:</p>
+<div class="tbl-scroll"><table class="tbl"><thead><tr><th>Units</th><th>Pieces</th><th>Length</th><th>What the choice asks the model to learn</th></tr></thead><tbody>
+<tr><td>Whitespace-delimited words</td><td><code>["cats", "run."]</code></td><td>2</td><td>Whole forms, including punctuation attached by this splitting rule.</td></tr>
+<tr><td>Characters</td><td><code>["c", "a", "t", "s", " ", "r", "u", "n", "."]</code></td><td>9</td><td>Spelling and punctuation as well as relationships across words.</td></tr>
+<tr><td>Possible subwords</td><td><code>["cat", "s", " run", "."]</code></td><td>4</td><td>Reusable pieces; here the leading space belongs to a piece.</td></tr>
+</tbody></table></div>
+<p><strong>Words keep sequences short but need many entries.</strong> New names, inflections,
+compounds, and typos continually create unfamiliar forms. Mapping them to one UNK symbol lets the
+model continue, but erases their identities. Whitespace also does not reliably define word boundaries
+across languages. Even in English, a simple split treats <code>run</code> and <code>run.</code>
+as different entries unless another preprocessing rule separates punctuation.</p>
+<p><strong>Characters reuse a smaller inventory but lengthen sequences.</strong> In this example,
+one word-to-word relationship spans several character positions. More positions mean more
+activation storage and prediction steps for many architectures. A character vocabulary learned
+only from training data can still miss a new character; “fewer unknowns” is not “none under every
+encoding.” The word “character” also needs a convention for combining marks and other multi-part
+written symbols.</p>
+<p><strong>Subwords trade between these costs.</strong> Frequent strings can get whole entries,
+while uncommon strings reuse shorter pieces. Those pieces sometimes align with meaningful parts
+such as a plural suffix, but frequency-driven pieces need not be morphemes or pronounceable words.
+Encoding an unfamiliar word requires that the tokenizer's underlying pieces can cover it; the
+label “subword” alone does not guarantee complete coverage.</p>
+<p>The slides also ask about bits: a tiny symbol inventory can represent text under a specified
+encoding, but it expands the sequence further. For this all-ASCII example, UTF-8 uses 9 bytes,
+or 72 bits before any boundary markers. A small vocabulary is not by itself a cheap language model.</p>
+<div class="ex"><div class="ex-head"><span>What does UNK make impossible?</span></div><div class="ex-body">
+<p>A word tokenizer knows “email” and “now” but maps both “Mira” and “Zev” to UNK. Compare
+<code>email Mira now</code> with <code>email Zev now</code>. Can a deterministic model recover which
+name was present from the resulting token IDs alone? What changes if the names can be represented
+by character or subword pieces?</p><details class="ans"><summary>Answer</summary><div class="ans-body">
+<p>Both strings become the same ID sequence, so the model has no evidence in that sequence to
+choose between the names. Larger hidden layers cannot restore a distinction erased by preprocessing.
+Distinct piece sequences preserve the possibility of telling the names apart, but do not guarantee
+the model knows who either person is. Representability and understanding are different requirements.</p>
+</div></details></div></div>
+<div class="ex"><div class="ex-head"><span>Vocabulary memory versus sequence memory</span></div><div class="ex-body">
+<p>At $d=256$, compare the weight count of an output projection for $V=50{,}000$ and $V=500$.
+Ignore biases. If the smaller vocabulary gives much longer sequences, can you conclude that the
+whole training run uses less memory?</p><details class="ans"><summary>Answer</summary><div class="ans-body">
+<p>The projections have 12,800,000 and 128,000 weights: a hundredfold difference in that component.
+Total memory also includes the rest of the model, gradients, optimizer state, and activations.
+Longer sequences can enlarge activation storage and computation, so compare both $V$ and $T$
+under the same text workload before drawing a conclusion.</p>
+</div></details></div></div>
+
+<h3 id="s8-observe">8.3 &nbsp;Read the tokenizer output, not the word count</h3>
+<p>For <code>The unbelievably fluffy cat purred.</code>, slide 11 records the following outputs
+with added special tokens disabled. These are the lecture's observed examples, not a promise that
+every tokenizer revision will produce the same result.</p>
+<div class="tbl-scroll"><table class="tbl"><thead><tr><th>Tokenizer in the slide</th><th>Displayed pieces</th><th>IDs</th></tr></thead><tbody>
+<tr><td>Qwen3 · 8 tokens</td><td><code>The | Ġunbelie | vably | Ġfluffy | Ġcat | Ġp | urred | .</code></td><td><code>785, 38937, 88134, 67561, 8251, 281, 8130, 13</code></td></tr>
+<tr><td>DeepSeek-V3 · 10 tokens</td><td><code>The | Ġun | bel | iev | ably | Ġfluffy | Ġcat | Ġpur | red | .</code></td><td><code>671, 612, 12870, 41607, 3188, 81340, 7539, 2805, 1157, 16</code></td></tr>
+</tbody></table></div>
+<p>The vertical bars above mark boundaries we added for readability. In these displayed token
+spellings, <code>Ġ</code> represents a leading space; it is not a letter that appeared in the
+original sentence. A tokenizer's display strings are an inspection format. Use its decoder to
+recover text rather than assuming that concatenating displayed spellings always reproduces it.</p>
+<p>Notice that the same printed word can have different IDs and boundaries across tokenizers.
+The split <code>Ġp | urred</code> is not a linguistic analysis of “purred”; it is a vocabulary
+choice. Neither eight tokens nor ten tokens alone tells you which resulting language model is
+better. You have measured segmentation length, not prediction quality.</p>
+<div class="ex"><div class="ex-head"><span>Read three claims critically</span></div><div class="ex-body">
+<p>For the outputs above, assess each claim: (1) both tokenizers see five words, so both must make
+five token predictions; (2) <code>Ġcat</code> has the same meaning as an ID in both vocabularies,
+so its integer ID can be copied between them; (3) a 512-token limit always permits the same amount
+of text, regardless of tokenizer.</p><details class="ans"><summary>Answer</summary><div class="ans-body">
+<p>All three claims are false. The observed segmentations have 8 and 10 tokens, irrespective of
+word count; prediction positions also depend on the sequence-boundary convention. The displayed
+<code>Ġcat</code> entries use different IDs (8251 and 7539), which address different vocabularies.
+A token budget limits pieces, not characters or words, so the amount of text that fits depends
+on the tokenizer and the particular text. Special tokens can consume part of that budget too.</p>
+</div></details></div></div>
+
+<h3 id="s8-inspect">8.4 &nbsp;Spaces, unfamiliar words, and numbers are part of the input</h3>
+<p>Slide 12 uses <code style="white-space:pre-wrap">The cat saw a quokka  12345.</code>, with
+<strong>two spaces</strong> before the number. An unfamiliar word may split into pieces; the
+number may split too. A space can be attached to a following piece or represented separately.
+Do not assume “one word = one token,” “one number = one token,” or “spaces are free.”</p>
+<p>Try predicting boundaries for four inputs: <code>cat</code>, <code> cat</code>,
+<code style="white-space:pre-wrap">  cat</code>, and <code>cat.</code>. Then inspect them with the
+same tokenizer and special-token setting used in a class example. Record the IDs, display pieces,
+token count, and decoded text. Keep leading/repeated spaces visible when printing, for example
+with a string representation that includes quotes. A changed count or ID sequence is an observation
+to explain, not a failure of the tokenizer.</p>
+<p>To make a comparison meaningful, record the tokenizer/model identifier and revision when
+available, exact input text, and whether special tokens were added. Inspect one-token decodings
+carefully: some tokens represent only part of an encoded character. Decoding the full sequence is
+the appropriate round-trip check; tokenizers with normalization may intentionally change the text.</p>
+<div class="ex"><div class="ex-head"><span>What can you infer from one tokenization?</span></div><div class="ex-body">
+<p>You observe that <code> cat</code> is one token, while <code>cat</code> has a different ID.
+Does this prove that every word has exactly two entries, with and without a preceding space?
+Can you predict the number of tokens in <code>123456</code> from the word count?</p>
+<details class="ans"><summary>Answer</summary><div class="ans-body">
+<p>No. It establishes two encodings for those particular strings under that tokenizer, not a
+universal vocabulary rule. Other strings may use multiple pieces or different whitespace handling.
+Likewise, a sequence of digits can be split into several tokens according to tokenizer-specific
+rules and vocabulary. Inspect the exact string; word count cannot determine its token count.</p>
+</div></details></div></div>
+
+        <div class="hd-footer"><p><strong>Review:</strong> <a href="07.training-practice.html">Handout #7</a> covers the execution modes and memory behavior used in the capstone. <strong>Coming in class #9:</strong> the rest of tokenization and subwords (slides 13–52), followed by fixed-window MLP language models and sampling.</p><p>Questions or corrections? Post on <a href="https://piazza.com/jhu/fall2026/cs601471671">Piazza</a>.</p></div>
+    </main>
+</div>
+
+<script defer src="vendor/katex/katex.min.js"></script>
+<script defer src="vendor/katex/auto-render.min.js"></script>
+<script defer src="vendor/highlight/highlight.min.js"></script>
+<script defer src="handout.js"></script>
+
+</body>
+</html>
