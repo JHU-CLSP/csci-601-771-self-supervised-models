@@ -1,0 +1,33 @@
+/* Styles scoped to the class 9 handout and its offline demonstrations. */
+[data-handout="09.tokenization"] figure { margin: 26px 0; }
+[data-handout="09.tokenization"] figure img { display: block; width: 100%; height: auto; }
+[data-handout="09.tokenization"] figcaption { color: #535f6c; font-size: 14px; margin-top: 10px; }
+.bonus-badge { display: inline-block; border: 1px solid #1684d9; border-radius: 4px; color: #07578f; background: #e4f2ff; font-size: 13px; font-weight: 600; padding: 2px 9px; vertical-align: middle; margin-right: 7px; }
+.bonus-note { position: relative; border: 1px solid #abd4f4; background: #f4faff; padding: 18px; margin: 22px 0; }
+.bonus-note > .bonus-badge { float: right; margin: 0 0 8px 12px; }
+.bonus-note p { margin: 0; }
+.bonus-section { border-top: 3px solid #68ace5; margin-top: 44px; }
+.bonus-section > h3 { border-left: 3px solid #68ace5; padding-left: 12px; }
+.bonus-section .ex-head { background: #eaf4ff; color: #07578f; }
+[data-handout="09.tokenization"] .widget select { max-width: 100%; width: 100%; padding: 9px; margin: 0 0 14px; border: 1px solid #b7c7d8; border-radius: 4px; color: #23282d; background: white; font-size: 15px; }
+[data-handout="09.tokenization"] .widget button { min-height: 40px; }
+[data-handout="09.tokenization"] button:disabled { opacity: .5; cursor: default; }
+.bpe-status { font-weight: 600; color: #002d72; }
+.bpe-chunks { display: flex; flex-wrap: wrap; gap: 9px; margin: 18px 0; }
+.bpe-chunk { display: inline-flex; flex-wrap: wrap; gap: 3px; padding: 6px; border-left: 2px solid #597c9e; border-right: 2px solid #597c9e; border-radius: 3px; max-width: 100%; }
+.bpe-piece { background: #eaf2ff; border: 1px solid #bfd3e6; border-radius: 3px; padding: 2px 6px; font-family: ui-monospace, monospace; overflow-wrap: anywhere; }
+.bpe-rules { font-size: 14px; overflow-wrap: anywhere; }
+.bpe-rule-list { font-family: ui-monospace, monospace; }
+.bpe-rule-list li { padding: 3px 5px; }
+.bpe-rule-list .next-rule { background: #eaf2ff; color: #002d72; font-weight: 700; }
+[data-handout="09.tokenization"] .bpe-trace { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; }
+[data-handout="09.tokenization"] .widget caption { text-align: left; padding: 8px 0; font-weight: 600; }
+[data-handout="09.tokenization"] .widget .tbl { margin-top: 0; }
+@media print {
+    [data-handout="09.tokenization"] [data-toggle-answers] { display: none; }
+    [data-handout="09.tokenization"] .hd-mast a { color: #000; }
+    [data-handout="09.tokenization"] .hd-wrap { display: block; }
+    [data-handout="09.tokenization"] .hd-body { max-width: none; padding-bottom: 0; }
+    .bonus-badge { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    .bonus-section .ex { border-left: 2px solid #1684d9; }
+}

@@ -26,24 +26,24 @@ should notice. Pair borrowed figures with interpretation or a task rather than u
 | 6 | `06.backprop-in-practice.html` | Backprop in practice (Thu Sept 17, slides 111–156): computation graphs, reverse mode, autograd, PyTorch, reading `micrograd` |
 | 7 | `07.training-practice.html` | Batching and training memory (Tue Sept 22, slides 165–182): execution modes, batching, broadcasting, memory/OOM, gradient accumulation; optional LM-loss application |
 | 8 | `08.stable-training.html` | Training and tokenization (Thu Sept 24, feedforward slides 183–208 and tokenization slides 1–12): activations, gradient stability, residuals, initialization, normalization, validation, early stopping, dropout, tiny-data debugging, diagnostic capstone; word/character/subword tradeoffs, token IDs, whitespace, and number boundaries |
+| 9 | `09.tokenization.html` | Tokenization and subwords (Tue Sept 29, slides 13–36): pipeline, information loss, BPE training/inference, byte coverage, modeling tradeoffs, core checks, and pinned minbpe lab. Blue bonus section covers slides 31, 35, and extensions 37–49. |
 
 Handouts #7 and #8 split the practical-training material at slide 183. Figures and exercises move with their topic; the optional LM-loss application stays in Handout #7 §2.
 
 ### Written, session number not yet assigned
 
-These three have no number prefix and are **not linked from `index.html`** yet. When a session is
+These two have no number prefix and are **not linked from `index.html`** yet. When a session is
 assigned, rename to `NN.slug.html`, update `data-handout` on `<body>` (it namespaces the
 `localStorage` checkbox keys), fill in the masthead's "Session number TBD" and the footer note, and
 add the schedule link.
 
 | File | Fits session | Topic |
 |------|--------------|-------|
-| `tokenization.html` | TBD (Tokenization and subwords) | Word/char vocabularies both fail, UTF-8 bytes as the floor, BPE, perplexity is not comparable across tokenizers, reading `minbpe` |
 | `rnn-language-models.html` | #8 (Recurrent Neural LMs) | Fixed-window limits, the recurrence, BPTT + truncation, vanishing/exploding, gates, sampling, reading `pytorch/examples` word LM |
 | `transformers.html` | #10–#11 (Self-attention, decoder-only) | Attention from the bottleneck problem, causal mask, MHA/GQA, pre-norm block, RoPE, KV cache, reading HF `modeling_llama.py` |
 
 Cross-links already in place: `rnn-language-models.html` links `transformers.html` (§5 and §7.4),
-`transformers.html` links `rnn-language-models.html#s5`, and all three link Handouts #2/#3/#6.
+`transformers.html` links `rnn-language-models.html#s5`, and both link Handouts #2/#3/#6.
 Renaming a file means fixing those hrefs — `grep -l 'rnn-language-models\|tokenization\.html\|transformers\.html' *.html`.
 
 Widgets: `ssl-objective.js` (Handout #1), `next-token.js` (Handout #2 — order selector, per-model
@@ -98,7 +98,7 @@ Planned assignments (instructor's list):
 | Handout | Repo / file | Understanding to assess |
 |---------|-------------|-------------------------|
 | #6 backprop §4 | [`micrograd/engine.py`](https://github.com/karpathy/micrograd/blob/master/micrograd/engine.py), [`nn.py`](https://github.com/karpathy/micrograd/blob/master/micrograd/nn.py) | Computation graphs, local derivatives, gradient accumulation, reverse topological traversal, how an MLP exposes parameters |
-| tokenization §5 | [`minbpe/basic.py`](https://github.com/karpathy/minbpe/blob/master/minbpe/basic.py), [`base.py`](https://github.com/karpathy/minbpe/blob/master/minbpe/base.py) | Pair counting, merge loop, vocabulary construction, encode/decode round-trip, and what the file deliberately omits |
+| #9 §7 | [`minbpe/basic.py`](https://github.com/karpathy/minbpe/blob/master/minbpe/basic.py), [`base.py`](https://github.com/karpathy/minbpe/blob/master/minbpe/base.py) | Pair counting, merge loop, vocabulary construction, encode/decode round-trip, and what the file deliberately omits |
 | RNN §6–§7 | [`word_language_model/model.py`](https://github.com/pytorch/examples/blob/main/word_language_model/model.py), [`generate.py`](https://github.com/pytorch/examples/blob/main/word_language_model/generate.py), [`main.py`](https://github.com/pytorch/examples/blob/main/word_language_model/main.py) | Recurrent state threading, weight tying, hidden-state detach across batches, sampling loop |
 | Transformer §6 | [HF `modeling_llama.py`](https://github.com/huggingface/transformers/blob/main/src/transformers/models/llama/modeling_llama.py) | Attention block layout, RoPE, KV cache, RMSNorm/GQA/SwiGLU, triage in a 500-line production file |
 
@@ -189,3 +189,24 @@ before committing if it should not be published.
 Three answers in that PDF are wrong; the corrected values are in Handout #1 §1.1a and §1.2b:
 `α(x+y) = [6,6,12]` (printed `16`), `Var[X] = 3.96 − 3.24` (printed `6.552 − 1.8²`), and
 `E[1/(2+X)] = 0.2792` (printed `0.355` — the sum dropped its `k=0` term).
+
+## Class 9 tokenizer companion
+
+The unassigned `tokenization.html` draft was replaced by `09.tokenization.html`, linked from session 9.
+It builds on #8 rather than repeating the introductory unit tradeoffs. The slide mapping separates core
+13–36 material from the blue bonus topics (31 and 35), and includes the 37–49 extension as bonus;
+43 and 47 continue surrounding optional topics despite lacking their own blue label. No core check
+depends on a bonus topic. A crop of the pipeline from slide 13 is credited inline.
+
+`widgets/tokenization.js` and `.css` provide offline character-BPE training and ranked-inference
+explorers. Training lets students choose maximum-frequency ties, undo, and reset; inference includes
+the slide trace, a longest-match counterexample, and a frequency-versus-rank counterexample.
+Static traces and worked answers remain available without JavaScript and in print.
+The code lab links minbpe revision `1acefe89412b20245db5a22d2a02001e547dc602`; examples exercise
+training, rank application, byte decoding, overlapping pairs, and the empty-pair training edge case.
+
+Validation: 14 core and 7 bonus checks; Python snippets and the minbpe mutation/repair were run
+against the pinned source. Corpus counts, the longest-match counterexample’s training history,
+and all three inference traces were checked. Browser QA covered merge selection, undo/reset,
+exhaustion, answer toggles, KaTeX rendering, local links, 1280/390/320 px layouts, and print
+visibility/answer expansion. No external scripts or styles are required.
