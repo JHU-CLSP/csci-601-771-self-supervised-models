@@ -27,6 +27,7 @@ should notice. Pair borrowed figures with interpretation or a task rather than u
 | 7 | `07.training-practice.html` | Batching and training memory (Tue Sept 22, slides 165–182): execution modes, batching, broadcasting, memory/OOM, gradient accumulation; optional LM-loss application |
 | 8 | `08.stable-training.html` | Training and tokenization (Thu Sept 24, feedforward slides 183–208 and tokenization slides 1–12): activations, gradient stability, residuals, initialization, normalization, validation, early stopping, dropout, tiny-data debugging, diagnostic capstone; word/character/subword tradeoffs, token IDs, whitespace, and number boundaries |
 | 9 | `09.tokenization.html` | Tokenization and subwords (Tue Sept 29, slides 13–36): pipeline, information loss, BPE training/inference, byte coverage, modeling tradeoffs, core checks, and pinned minbpe lab. Blue bonus section covers slides 31, 35, and extensions 37–49. |
+| 10 | `10.mlp-language-modeling.html` | Fixed-window neural LMs (Thu Oct 1, MLP slides 1–21): embedding lookup and repeated-ID gradients, ordered concatenation, next-token loss, joint training, parameter sharing and scaling, context limits, runnable PyTorch lab, and pinned PyTorch tutorial reading |
 
 Handouts #7 and #8 split the practical-training material at slide 183. Figures and exercises move with their topic; the optional LM-loss application stays in Handout #7 §2.
 
@@ -210,3 +211,20 @@ against the pinned source. Corpus counts, the longest-match counterexample’s t
 and all three inference traces were checked. Browser QA covered merge selection, undo/reset,
 exhaustion, answer toggles, KaTeX rendering, local links, 1280/390/320 px layouts, and print
 visibility/answer expansion. No external scripts or styles are required.
+
+## Class 10 MLP LM companion
+
+`10.mlp-language-modeling.html` follows the revised 21-slide MLP deck and is linked from session 10.
+The Transformer introduction is outside this handout’s scope. The slide-17 architecture is reused
+with its Bengio et al. credit and an explicit note about the schematic output vocabulary.
+The original lab uses a deterministic vocabulary, BOS/EOS, batched concatenation, raw-logit
+cross-entropy, joint training, repeated-ID gradient checks, and a short sampling loop.
+The guided reading pins PyTorch tutorials revision `e924720de192aee7e64c1f8628ec834d7e34a3ea`;
+its two excerpts are verbatim. It contrasts recent-first context order, single-example reshaping,
+and log-softmax/NLL with the handout’s oldest-first batched implementation.
+
+Validation: original lab and all assertions ran on PyTorch 2.12.0 (training loss 2.3033 → 0.1001);
+repeated-ID gradients, parameter counts, the broken reshape, batch-safe tutorial edit, and loss
+mutation were checked. Excerpts match the pinned file. Browser QA at 1280/390/320 px found no
+page overflow, KaTeX errors, or script errors; local links, figure loading, generated TOC, answer
+opening, print answer expansion, and hidden print TOC were verified.

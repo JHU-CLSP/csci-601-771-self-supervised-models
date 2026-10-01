@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Handout #10: Fixed-Window Neural Language Models — CS 601.471/671</title>
+<meta name="description" content="Embedding lookup, ordered context concatenation, next-token loss, joint training, parameter sharing, fixed-window limits, and a runnable PyTorch language-model lab.">
+<link rel="shortcut icon" href="../favicon.ico"><link rel="stylesheet" href="../fonts.css">
+<link rel="stylesheet" href="vendor/katex/katex.min.css"><link rel="stylesheet" href="vendor/highlight/github.min.css"><link rel="stylesheet" href="handout.css">
+<style>
+/* Keep long math inside its scrolling container and nested TOCs readable. */
+.hd-body .katex-display { position: relative; }
+.hd-body a { overflow-wrap: anywhere; }
+@media print { .hd-body pre { white-space: pre-wrap; overflow-wrap: anywhere; } }
+@media (max-width: 900px) { .hd-toc ol ol { column-count: 1; } }
+@media (max-width: 480px) { .hd-toc > ol { column-count: 1; } }
+</style>
+</head><body class="handout" data-handout="10.mlp-language-modeling">
+<header class="hd-mast"><div class="hd-wrap" style="display:block">
+<div class="hd-course">CS 601.471/671 · NLP: Self-supervised Models · Fall 2026</div>
+<h1>Handout #10 — Fixed-Window Neural Language Models</h1>
+<p class="hd-sub">Session 10 (Thu, Oct 1) · <a href="../slides/10.mlp-language-modeling.pdf">Slides: Building Our First Neural LM</a> · <a href="../../index.html">Course page</a></p>
+</div></header><div class="hd-wrap"><nav class="hd-toc" aria-label="Contents"><div class="hd-toc-title">On this page</div></nav><main class="hd-body">
+<p class="lead">A language model can learn a next-token distribution without storing a separate count table for every context. We turn token IDs into learned vectors, concatenate a short ordered context, and use an MLP to predict the next token. The same next-token loss trains both the network and the vectors that represent its inputs.</p>
+<p>This is the bridge between <a href="02.language-modeling.html">language modeling</a>, <a href="06.backprop-in-practice.html">backpropagation and PyTorch</a>, and <a href="09.tokenization.html">tokenization</a>. Work through the examples before revealing their answers.</p>
+<div class="hd-glance"><dl>
+<dt>Scope</dt><dd>Companion to slides 1–21 of the current MLP deck. This handout develops embeddings and fixed-window LMs; the session's introduction to self-attention has a <a href="transformers.html">separate companion reading</a>.</dd>
+<dt>Time</dt><dd>About 50–65 minutes for the reading and checks, plus 25–35 minutes for the code lab. No additional assigned paper.</dd>
+<dt>By the end</dt><dd>Trace text to IDs to embeddings; derive every forward-pass shape; build causal training pairs; explain which parameters receive gradients; distinguish parameter sharing from memorized counts; demonstrate an information limit of fixed-window models.</dd>
+<dt>Assumes</dt><dd>Softmax and cross-entropy, matrix multiplication, minibatch shapes, autograd, and token IDs. See <a href="05.analytical-backprop.html#s2">Handout #5 §2</a> and <a href="07.training-practice.html">Handout #7</a> for review.</dd>
+</dl></div>
+<details class="ans"><summary>Find the reading for a slide topic</summary><div class="ans-body"><div class="tbl-scroll"><table class="tbl"><thead><tr><th>Slides</th><th>Reading</th></tr></thead><tbody>
+<tr><td>1–6</td><td><a href="#s1">The conditional prediction task</a></td></tr>
+<tr><td>7–13</td><td><a href="#s2">Embedding lookup and its gradients</a></td></tr>
+<tr><td>14–17</td><td><a href="#s3">The forward pass</a> and <a href="#s4">joint training</a></td></tr>
+<tr><td>18, 20</td><td><a href="#s5">Sharing statistical strength</a></td></tr>
+<tr><td>19, 21</td><td><a href="#s6">Context limits and the next architectures</a></td></tr>
+<tr><td>Implementation extension</td><td><a href="#s7">Runnable lab</a> and <a href="#s8">reading real PyTorch code</a></td></tr>
+</tbody></table></div></div></details>
+<h2 id="s1"><span class="hd-secnum">1</span>The task: predict the next token</h2><p class="hd-srcline">Slides 1–6, 15–16</p>
+<p>Let $w_1,\ldots,w_T$ be token IDs after a fixed tokenizer has encoded a document. A causal language model factorizes the sequence probability into next-token conditionals. Our approximation keeps only the last $k$ tokens:</p>
+$$p_\theta(w_{1:T})=\prod_{t=1}^{T}p_\theta(w_t\mid w_{&lt;t}),\qquad p_\theta(w_t\mid w_{&lt;t})\approx p_\theta(w_t\mid w_{t-k:t-1}).$$
+<p>Here $k$ is the number of <strong>context tokens</strong>. An n-gram model with the same amount of context has order $n=k+1$, because the target is part of the n-gram. We will use $k=4$ throughout the worked architecture.</p>
+<p>For <code>and our problems turning into ideas</code>, one example is <code>[and, our, problems, turning] → into</code>; the next is <code>[our, problems, turning, into] → ideas</code>. The labels come from the text itself. This is self-supervision: creating a target does not require a human to annotate each window.</p>
+<h3 id="s1-boundaries">1.1 Boundaries and causality</h3>
+<p>To predict the first token, prepend $k$ beginning-of-sequence tokens (<code>&lt;bos&gt;</code>). Append an end-of-sequence target (<code>&lt;eos&gt;</code>) if the model should learn when to stop. This is a modeling convention, not a requirement to score padding as ordinary text. Build windows within documents, and split documents into training and validation sets <em>before</em> constructing overlapping windows. Otherwise nearly identical windows can leak across the split.</p>
+<p>The target and future tokens must be absent from the input. Predicting a missing token using both left and right context is a useful task, but it is not this autoregressive next-token conditional. During generation, the right context does not yet exist.</p>
+<div class="ex"><div class="ex-head"><span>Check 1 · Window size versus n-gram order</span></div><div class="ex-body"><p>A model sees four previous tokens. What n-gram order uses the same context? With no boundary padding, how many training pairs come from six tokens?</p><details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body"><p>Order 5. There are two pairs: targets at positions 5 and 6. With four <code>&lt;bos&gt;</code> tokens and an appended <code>&lt;eos&gt;</code>, the convention in this handout gives seven targets: six text tokens and EOS.</p></div></details></div></div>
+<h2 id="s2"><span class="hd-secnum">2</span>Embedding lookup: IDs become trainable vectors</h2><p class="hd-srcline">Slides 7–13</p>
+<p>A token ID is an address, not a numerical measurement. ID 20 need not be twice as similar to ID 10 as ID 5 is. Instead, keep an embedding table $E\in\mathbb R^{V\times d}$, where $V$ is the vocabulary size and $d$ is the vector dimension. Retrieve row $E[i]$ for ID $i$. A word, punctuation mark, byte, or subword piece can all have a row.</p>
+<p>For an illustrative word tokenizer, <code>The movie was great!</code> might become <code>[The, movie, was, great, !]</code>, then five integer IDs, then five vectors. A subword tokenizer may produce a different number of pieces. The lookup operation does not choose the tokenization and does not change the vocabulary.</p>
+<div class="callout"><span class="callout-label">Two matrix conventions</span>The slides draw embedding vectors as columns, giving a $d\times V$ table and a $d\times L$ embedded sequence. PyTorch stores the table as $V\times d$ and returns an $L\times d$ sequence. These are transposed conventions for the same lookup. For a batch of $B$ length-$k$ contexts, PyTorch returns $B\times k\times d$.</div>
+<h3 id="s2-example">2.1 A lookup you can compute by hand</h3>
+<p>Suppose IDs 0, 1, 2, 3 name <code>&lt;bos&gt;</code>, <code>and</code>, <code>our</code>, and <code>into</code>, and the table is:</p>
+$$E=\begin{bmatrix}0&amp;0\\1&amp;2\\-1&amp;3\\2&amp;-2\end{bmatrix}.$$
+<p>Looking up <code>[1, 2, 1]</code> returns <code>[[1, 2], [-1, 3], [1, 2]]</code>. Repeated IDs retrieve identical vectors. Their surrounding contexts do not change the table lookup; the later network combines those vectors with other inputs.</p>
+<p>Lookup is equivalent to multiplying a one-hot row vector by $E$, but implementations gather the selected rows without materializing a $V$-dimensional one-hot vector. This saves work and memory; it does not remove the table's $Vd$ trainable parameters.</p>
+<h3 id="s2-gradients">2.2 How can an integer lookup be differentiable?</h3>
+<p>We do not differentiate the integer ID. We differentiate the floating-point entries that it selected. For the ordinary dense-gradient embedding used here:</p>
+$$\frac{\partial\mathcal L}{\partial E[i]}=\sum_{(b,j):\,c_{b,j}=i}\frac{\partial\mathcal L}{\partial v_{b,j}}.$$
+<p>If a token occurs several times in the batch, its row receives the sum of those contributions. Rows not selected have zero data-loss gradient through the input embedding path. Weight decay, optimizer state, special padding behavior, or tying the input table to the output layer can change which rows are updated; none is used in this example.</p>
+<div class="ex"><div class="ex-head"><span>Check 2 · A repeated token</span></div><div class="ex-body"><p>For IDs <code>[1, 2, 1]</code>, incoming gradients on their vectors are <code>[1, 0]</code>, <code>[0, 2]</code>, and <code>[3, -1]</code>. What gradient reaches each table row?</p><details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body"><p>Row 1 gets <code>[4, -1]</code>; row 2 gets <code>[0, 2]</code>. Rows 0 and 3 get <code>[0, 0]</code>. The two occurrences of ID 1 share one parameter row, so their gradients add.</p></div></details></div></div>
+<h2 id="s3"><span class="hd-secnum">3</span>The forward pass: preserve order, then predict</h2><p class="hd-srcline">Slides 14–17</p>
+<p>For one context, retrieve $v_1,\ldots,v_k\in\mathbb R^d$ and concatenate them in chronological order. For the mathematical equations, use column vectors:</p>
+$$x=[v_1;\ldots;v_k]\in\mathbb R^{kd},\qquad h=f(W_1x+b_1),\qquad z=W_2h+b_2,\qquad p_i=\frac{e^{z_i}}{\sum_{j=1}^{V}e^{z_j}}.$$
+<p>$z$ contains <strong>logits</strong>, unrestricted scores. Softmax produces nonnegative probabilities that sum to one over the full vocabulary, including the target. The activation $f$ may be tanh or ReLU. The biases are included here even though the slide equations omit them.</p>
+<figure><img src="images/10-mlp-slide17.png" alt="Slide 17: four ordered context embeddings are concatenated, passed through a hidden layer, and projected to vocabulary scores followed by softmax." style="width:100%;height:auto"><figcaption>Architecture from slide 17 of <em>Building Our First Neural LM</em>; slide credit: Bengio et al. (2003). Follow the arrows from embeddings to concatenation to hidden layer to output. The pictured word list is schematic; an actual vocabulary distribution must include the target “into.”</figcaption></figure>
+<div class="tbl-scroll"><table class="tbl"><thead><tr><th>Object</th><th>Shape</th><th>Example: $k=4,d=3,H=8,V=8$</th></tr></thead><tbody>
+<tr><td>Input embedding table $E$</td><td>$V\times d$</td><td>$8\times3$</td></tr>
+<tr><td>Concatenated context $x$</td><td>$kd$</td><td>12</td></tr>
+<tr><td>$W_1$, $b_1$</td><td>$H\times kd$, $H$</td><td>$8\times12$, 8</td></tr>
+<tr><td>Hidden vector $h$</td><td>$H$</td><td>8</td></tr>
+<tr><td>$W_2$, $b_2$</td><td>$V\times H$, $V$</td><td>$8\times8$, 8</td></tr>
+<tr><td>Logits and probabilities</td><td>$V$</td><td>8 each</td></tr>
+</tbody></table></div>
+<h3 id="s3-order">3.1 Concatenation is an architectural choice</h3>
+<p>The vectors for <code>dog bites person</code> and <code>person bites dog</code> are placed into different slots. $W_1$ has a distinct block of columns for each slot, so the network can treat the same token differently at different relative positions. Averaging the vectors would make these contexts identical and erase their order. Concatenation preserves order without adding a separate positional-encoding layer.</p>
+<div class="ex"><div class="ex-head"><span>Check 3 · Trace a batch</span></div><div class="ex-body"><p>With $B=2,k=4,d=3,H=8,V=8$, list the shapes from IDs through logits. Which axis should softmax normalize?</p><details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body"><p><code>[2,4] → [2,4,3] → [2,12] → [2,8] → [2,8]</code>. Softmax normalizes the vocabulary axis, the final dimension. Applying it across the batch would make one example’s probabilities depend on the other example.</p></div></details></div></div>
+<h2 id="s4"><span class="hd-secnum">4</span>Joint training with next-token cross-entropy</h2><p class="hd-srcline">Slide 16; training detail building on Handouts #5–#7</p>
+<p>For a target ID $y$, minimize the negative log-probability of that token. Over $N$ prediction targets:</p>
+$$\mathcal L=\frac1N\sum_{t=1}^N-\log p_\theta(y_t\mid c_t),\qquad \theta=\{E,W_1,b_1,W_2,b_2\}.$$
+<p>One backward pass trains all of these parameters together. The vectors are useful because they help predict tokens under this objective; there is no separate label saying which words should be synonyms. Similar vectors can support generalization, but meaningful geometry is a learned outcome rather than a guarantee.</p>
+<h3 id="s4-numbers">4.1 One numerical prediction and its gradient</h3>
+<p>For a toy three-token output vocabulary <code>[into, table, chair]</code>, let the logits be $[\log 2,0,0]$. Softmax gives $[0.5,0.25,0.25]$. If the target is <code>into</code>, the loss is $-\log0.5=\log2\approx0.6931$ nats. The logit gradient is:</p>
+$$\frac{\partial\mathcal L}{\partial z}=p-\operatorname{onehot}(y)=[-0.5,0.25,0.25].$$
+<p>A direct gradient-descent step on these logits would increase the target logit and decrease the others. In a real model, we update the parameters that produced the logits. Backpropagate through $W_2$, the activation, $W_1$, and the concatenation; split the context gradient into $k$ blocks and add each block to its selected embedding row.</p>
+<div class="callout warn"><span class="callout-label">Choose one loss interface</span><code>F.cross_entropy(logits, targets)</code> expects raw logits and internally computes stable log-softmax plus negative log-likelihood. Alternatively, use <code>F.nll_loss(log_probs, targets)</code> after <code>F.log_softmax</code>. Do not feed ordinary softmax probabilities into cross-entropy as though they were logits.</div>
+<h3 id="s4-evaluation">4.2 What does a lower loss establish?</h3>
+<p>Evaluate held-out targets with the same tokenizer and scoring convention. If mean negative log-likelihood uses natural logs, perplexity is $\exp(\mathcal L)$. A uniform predictor has loss $\log V$ and perplexity $V$. Average total loss over the number of scored targets, rather than averaging unequal batch means equally. Lower training loss alone does not establish better held-out language modeling.</p>
+<div class="ex"><div class="ex-head"><span>Check 4 · Loss and vocabulary</span></div><div class="ex-body"><p>The target gets probability 0.25. What are this example’s loss and perplexity? Does a positive probability for every vocabulary token solve the unknown-token problem?</p><details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body"><p>Loss is <code>log(4) ≈ 1.3863</code> nats and this one-target perplexity is 4. Softmax covers existing IDs only. Text absent from a word vocabulary still needs an unknown-token policy or a tokenizer with suitable character/byte coverage.</p></div></details></div></div>
+<h2 id="s5"><span class="hd-secnum">5</span>Why shared parameters help sparse contexts</h2><p class="hd-srcline">Slides 18 and 20</p>
+<p>A count model estimates a continuation distribution from occurrences of a discrete context. With large contexts, many strings are rare or absent. Neural LMs reuse the same embedding rows and the same prediction network across training examples. Evidence from <code>students opened their</code> can influence predictions for <code>pupils opened their</code> through shared parameters, even when the second exact context is rare.</p>
+<p>This does not guarantee that the model recognizes every paraphrase. It learns similarities supported by its training signal. Smoothing and backoff in count-based n-grams also share evidence through shorter contexts; the neural model adds learned distributed representations and a shared nonlinear predictor.</p>
+<h3 id="s5-count">5.1 Parameter growth: what is being held fixed?</h3>
+<p>For the untied, one-hidden-layer model above, the parameter count is:</p>
+$$P=Vd+Hkd+H+VH+V.$$
+<p>At $V=8,d=3,H=8,k=4$, this is $24+96+8+64+8=200$. Increasing $k$ by one adds $Hd=24$ parameters in $W_1$, while the other dimensions are held fixed. Embedding and output parameters can still dominate for a large vocabulary.</p>
+<p>A dense table of all order-$(k+1)$ n-gram outcomes has $V^{k+1}$ entries, or $V^k(V-1)$ free parameters after normalization. Practical count models store observed n-grams sparsely, not that entire dense table. Thus “linear versus exponential” describes these particular scaling comparisons, not a universal measured memory ratio between implementations.</p>
+<p>The historical evidence for learning distributed word representations jointly with a next-word predictor is <a href="https://jmlr.csail.mit.edu/papers/v3/bengio03a.html">Bengio et al. (2003), <em>A Neural Probabilistic Language Model</em></a>. Our equations are a simplified architecture, not a reproduction of every option in that paper.</p>
+<div class="ex"><div class="ex-head"><span>Check 5 · Parameter budget</span></div><div class="ex-body"><p>Keeping $V=8,d=3,H=8$ fixed, increase $k$ from 4 to 6. What is the new parameter count? Does the embedding table grow?</p><details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body"><p>The new count is 248: two extra slots add <code>2 × 8 × 3 = 48</code> weights. The embedding table remains <code>8 × 3</code>; the model reuses those rows in every slot.</p></div></details></div></div>
+<h2 id="s6"><span class="hd-secnum">6</span>The window imposes an information limit</h2><p class="hd-srcline">Slides 19 and 21</p>
+<p>Consider two prefixes:</p>
+<pre><code>Alice left the key by the door. Later, the key belonged to
+Bob left the key by the door. Later, the key belonged to</code></pre>
+<p>The final four tokens are identical: <code>the key belonged to</code>. A deterministic $k=4$ model receives exactly the same input for both, so it must produce exactly the same next-token distribution. It cannot distinguish Alice from Bob on the basis of the discarded prefix, regardless of its hidden width, number of layers, or training time.</p>
+<p>This is different from failing to fit a complicated function of the visible input. Adding depth may improve that function but cannot recover information that never entered the network. Increasing the window exposes more context, at the cost of a larger first layer and more work per prediction.</p>
+<div class="tbl-scroll"><table class="tbl"><thead><tr><th>Architecture</th><th>How past context is represented</th><th>Main limitation highlighted here</th></tr></thead><tbody>
+<tr><td>Fixed-window MLP</td><td>Concatenation of the last $k$ token vectors</td><td>Earlier tokens are inaccessible</td></tr>
+<tr><td>Recurrent LM</td><td>A recurrent state updated as tokens arrive</td><td>Can use variable-length history, but may struggle to retain long-range information; sequence processing is sequential</td></tr>
+<tr><td>Causal Transformer</td><td>Attention over permitted earlier positions</td><td>A different route for combining context; still subject to the chosen context limit and computational cost</td></tr>
+</tbody></table></div>
+<p>These are architectural distinctions, not disjoint historical eras or a guarantee that every newer model beats every older one. For this lecture, the important transition is from a fixed list of input slots toward more flexible ways of using earlier tokens.</p>
+<div class="ex"><div class="ex-head"><span>Check 6 · More layers or more information?</span></div><div class="ex-body"><p>Your four-token model fails on the Alice/Bob pair. A colleague proposes five more hidden layers. Can that fix the distinction? What input change could?</p><details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body"><p>No: both examples still have identical inputs. A sufficiently large window including the name, or an architecture carrying information from earlier positions, could make the inputs distinguishable. Access to the information is necessary; successful learning is an additional requirement.</p></div></details></div></div>
+<h2 id="s7"><span class="hd-secnum">7</span>Runnable lab: a complete small MLP LM</h2><p class="hd-srcline">Implementation extension of slides 13–17</p>
+<p>The following is original companion code, using an intentionally tiny word vocabulary. Save it as <code>mlp_lm.py</code> and run it with PyTorch installed. It tests wiring and tensor shapes, not generalization: both short sentences are training data. A real experiment needs a separate validation corpus and a tokenizer fixed consistently across splits.</p>
+<pre><code class="language-python">import math
+import torch
+from torch import nn
+from torch.nn import functional as F
+
+torch.manual_seed(7)
+torch.set_num_threads(1)
+k, d, H = 4, 3, 8
+sentences = [
+    &quot;and our problems turning into ideas&quot;.split(),
+    &quot;and our ideas turning into problems&quot;.split(),
+]
+vocab = [&quot;&lt;bos&gt;&quot;, &quot;&lt;eos&gt;&quot;] + sorted({w for s in sentences for w in s})
+stoi = {w: i for i, w in enumerate(vocab)}
+V = len(vocab)
+contexts, targets = [], []
+for sentence in sentences:
+    ids = [stoi[&quot;&lt;bos&gt;&quot;]] * k + [stoi[w] for w in sentence] + [stoi[&quot;&lt;eos&gt;&quot;]]
+    for t in range(k, len(ids)):
+        contexts.append(ids[t-k:t])
+        targets.append(ids[t])
+X = torch.tensor(contexts, dtype=torch.long)
+y = torch.tensor(targets, dtype=torch.long)
+
+class WindowLM(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.embedding = nn.Embedding(V, d)
+        self.hidden = nn.Linear(k * d, H)
+        self.output = nn.Linear(H, V)
+
+    def forward(self, ids):
+        vectors = self.embedding(ids)       # [B, k, d]
+        x = vectors.flatten(start_dim=1)    # [B, k*d]
+        h = torch.tanh(self.hidden(x))      # [B, H]
+        return self.output(h)              # [B, V], raw logits
+
+model = WindowLM()
+assert X.shape == (14, 4) and y.shape == (14,)
+assert model(X).shape == (14, 8)
+assert sum(p.numel() for p in model.parameters()) == 200
+optimizer = torch.optim.Adam(model.parameters(), lr=0.03)
+with torch.no_grad():
+    initial = F.cross_entropy(model(X), y).item()
+for step in range(400):
+    optimizer.zero_grad(set_to_none=True)
+    loss = F.cross_entropy(model(X), y)
+    loss.backward()
+    optimizer.step()
+model.eval()
+with torch.no_grad():
+    final = F.cross_entropy(model(X), y).item()
+print(f&quot;training loss: {initial:.4f} -&gt; {final:.4f}&quot;)
+print(f&quot;training perplexity: {math.exp(final):.4f}&quot;)
+assert final &lt; initial
+
+# Verify repeated-ID gradients independently of the MLP.
+lookup = nn.Embedding(4, 2)
+ids = torch.tensor([1, 2, 1])
+incoming = torch.tensor([[1., 0.], [0., 2.], [3., -1.]])
+(lookup(ids) * incoming).sum().backward()
+assert torch.equal(lookup.weight.grad,
+                   torch.tensor([[0., 0.], [4., -1.], [0., 2.], [0., 0.]]))
+
+# Both inputs have the same visible suffix; full prefixes are not passed in.
+a = torch.tensor([[stoi[w] for w in &quot;and our problems turning&quot;.split()]])
+b = a.clone()
+assert torch.equal(model(a), model(b))
+
+# Generate using only the most recent k IDs; stop at EOS or the limit.
+torch.manual_seed(11)
+history = [stoi[&quot;&lt;bos&gt;&quot;]] * k
+generated = []
+with torch.no_grad():
+    for _ in range(12):
+        logits = model(torch.tensor([history[-k:]]))
+        logits[:, stoi[&quot;&lt;bos&gt;&quot;]] = -torch.inf  # BOS is a context-only marker here
+        probs = logits.softmax(dim=-1)
+        next_id = torch.multinomial(probs[0], 1).item()
+        if next_id == stoi[&quot;&lt;eos&gt;&quot;]:
+            break
+        generated.append(vocab[next_id])
+        history.append(next_id)
+print(&quot;sample:&quot;, &quot; &quot;.join(generated))
+</code></pre>
+<p>The two sentences share the context <code>[&lt;bos&gt;, &lt;bos&gt;, and, our]</code> but have different next tokens. A model should represent that ambiguity with a distribution, not attain zero loss on both identical inputs. The sampling mask removes the context-only BOS marker and renormalizes the distribution; it does not change the training loss.</p>
+<div class="ex"><div class="ex-head"><span>Lab check · Diagnose a broken reshape</span></div><div class="ex-body"><p>Replace <code>flatten(start_dim=1)</code> by <code>flatten(start_dim=0)</code>. Predict the shape and failure before running it. Then repair it.</p><details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body"><p>The embedding output is <code>[14,4,3]</code>. Flattening from dimension 0 gives one vector of length 168, while the hidden layer expects 12 features per example. The matrix multiplication fails. Starting at dimension 1 preserves 14 separate examples and produces <code>[14,12]</code>.</p></div></details></div></div>
+<div class="ex"><div class="ex-head"><span>Lab check · Show what the context cannot tell you</span></div><div class="ex-body"><p>Create two identical context rows with different target IDs. Can the network achieve probability 1 for both targets? Now add a distinguishing earlier token and increase the window.</p><details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body"><p>No. If two equally frequent conflicting targets share the only identical context and the other probabilities approach zero, their best probabilities are 0.5 each and their mean loss approaches <code>log(2)</code>. A larger window can separate them only if it actually includes the distinguishing token. Rebuild the data and resize the first layer when changing the window.</p></div></details></div></div>
+<h2 id="s8"><span class="hd-secnum">8</span>Read real code: PyTorch’s embedding tutorial</h2><p class="hd-srcline">Guided code-reading lab</p>
+<div class="callout try"><span class="callout-label">Open the source</span><a href="https://github.com/pytorch/tutorials/blob/e924720de192aee7e64c1f8628ec834d7e34a3ea/beginner_source/nlp/word_embeddings_tutorial.py">PyTorch tutorials · beginner_source/nlp/word_embeddings_tutorial.py</a> (352 lines), revision <code>e924720de192</code>. Read only the “An Example: N-Gram Language Modeling” section first. The later CBOW model solves a different task. Excerpts below are verbatim from this pinned revision.</div>
+<h3 id="s8-model">8.1 Recognize the model you just built</h3><p class="hd-srcline">word_embeddings_tutorial.py · NGramLanguageModeler</p>
+<pre data-upstream="pytorch-tutorials"><code class="language-python">class NGramLanguageModeler(nn.Module):
+
+    def __init__(self, vocab_size, embedding_dim, context_size):
+        super(NGramLanguageModeler, self).__init__()
+        self.embeddings = nn.Embedding(vocab_size, embedding_dim)
+        self.linear1 = nn.Linear(context_size * embedding_dim, 128)
+        self.linear2 = nn.Linear(128, vocab_size)
+
+    def forward(self, inputs):
+        embeds = self.embeddings(inputs).view((1, -1))
+        out = F.relu(self.linear1(embeds))
+        out = self.linear2(out)
+        log_probs = F.log_softmax(out, dim=1)
+        return log_probs
+</code></pre>
+<p><code>embeddings</code> is §2’s table; <code>linear1</code> combines the ordered slots from §3; <code>linear2</code> produces vocabulary logits. The tutorial uses ReLU, 128 hidden units, and returns log-probabilities. Its training loop therefore uses <code>nn.NLLLoss()</code>, the second valid interface from §4.</p>
+<p>The reshape <code>.view((1, -1))</code> assumes one context at a time. With context size 2 and embedding dimension 3, a single input of shape <code>[2]</code> becomes <code>[1,6]</code>. Feeding a batch of two contexts, shape <code>[2,2]</code>, instead becomes <code>[1,12]</code> and fails at the first linear layer, which expects 6 features. The class is not a general batched implementation.</p>
+<h3 id="s8-pairs">8.2 Check the order of the training pairs</h3><p class="hd-srcline">word_embeddings_tutorial.py · ngrams list comprehension</p>
+<pre data-upstream="pytorch-tutorials"><code class="language-python">ngrams = [
+    (
+        [test_sentence[i - j - 1] for j in range(CONTEXT_SIZE)],
+        test_sentence[i]
+    )
+    for i in range(CONTEXT_SIZE, len(test_sentence))
+]
+</code></pre>
+<p>The comprehension enumerates the <em>most recent</em> context token first. For <code>When forty winters</code>, its pair is <code>[forty, When] → winters</code>. Our lab uses oldest first, <code>[When, forty] → winters</code>. Either convention works if training and generation agree; switching only at generation changes which positional block receives each token. Also notice that vocabulary IDs built by enumerating a set are not a portable serialization scheme: save the mapping with the model or build it deterministically.</p>
+<div class="ex"><div class="ex-head"><span>Code experiment · One word changes the loss</span></div><div class="ex-body"><p>In the pinned class, replace <code>F.log_softmax</code> by <code>F.softmax</code>, leaving <code>NLLLoss</code> unchanged. For zero logits and a three-token vocabulary, compute the reported loss before and after. Why is the new result invalid?</p><details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body"><p>The correct log-probabilities are all <code>-log(3)</code>, so NLL is <code>log(3) ≈ 1.0986</code>. Softmax outputs <code>1/3</code>; NLL treats these values as log-probabilities and returns <code>-1/3</code>. A negative “negative log-likelihood” here exposes the mismatched interface. Restore log-softmax, or return raw logits and change the loss to cross-entropy.</p></div></details></div></div>
+<div class="ex"><div class="ex-head"><span>Code edits · Make the tutorial batch-safe</span></div><div class="ex-body"><p>Edit the pinned class so it accepts <code>[B,k]</code> IDs, preserves the batch axis, and returns <code>[B,V]</code> raw logits. Change the training loss accordingly. Test with one and two examples; show that the two-example output equals concatenated single-example outputs.</p><details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body"><p>Replace the reshape by <code>self.embeddings(inputs).flatten(start_dim=1)</code>; return <code>out</code> instead of log-probabilities; use cross-entropy with long targets of shape <code>[B]</code>. The modified interface requires a batch dimension even for one context. Use <code>torch.testing.assert_close</code> to compare batched and separate calls. No batch-dependent layer is present, so the results agree within numerical tolerance.</p></div></details></div></div>
+<h2 id="s9"><span class="hd-secnum">9</span>Before moving on</h2>
+<p>The model learns an ordered, fixed-window conditional distribution. Learned embeddings and a shared MLP let evidence affect many contexts, while the next-token objective supplies the supervision. Joint training improves what the model does with the visible context; architecture determines which context is visible.</p>
+<label class="hd-check" data-key="lookup"><input type="checkbox"> I can explain lookup shapes and repeated-token gradients.</label>
+<label class="hd-check" data-key="forward"><input type="checkbox"> I can trace the ordered context through the MLP and count its parameters.</label>
+<label class="hd-check" data-key="loss"><input type="checkbox"> I can pair logits or log-probabilities with the correct loss and build causal labels.</label>
+<label class="hd-check" data-key="limits"><input type="checkbox"> I can prove why identical visible contexts force identical predictions.</label>
+<div class="hd-footer"><p><strong>Continue:</strong> the <a href="transformers.html">Transformer companion</a> introduces attention as another way to combine context. The <a href="rnn-language-models.html">recurrent LM companion</a> explains the intermediate recurrent-state approach.</p><p>Companion to <a href="../slides/10.mlp-language-modeling.pdf">Building Our First Neural LM</a>, session 10. Questions or corrections? Post on <a href="https://piazza.com/jhu/fall2026/cs601471671">Piazza</a>.</p></div>
+</main></div><script defer src="vendor/katex/katex.min.js"></script><script defer src="vendor/katex/auto-render.min.js"></script><script defer src="vendor/highlight/highlight.min.js"></script><script defer src="handout.js"></script></body></html>
