@@ -249,3 +249,102 @@ The latter is a two-layer, pre-norm decoder with right-padding support and per-l
 it deliberately rejects all-masked queries and does not implement left-padded cached generation.
 Code readings pin nanoGPT `3adf61e154c3fe3fca428ad6bc3818b27a3b8291`, `model.py` (330 lines).
 Excerpts are verbatim; the MIT notice is retained in `labs/nanoGPT-LICENSE.txt`.
+
+Validation: both labs ran on PyTorch 2.12.0. Prefix invariance, fused-projection
+equivalence, row sums, shapes, cache agreement, padding equivalence, valid-target
+counting, and backward were checked. Removing causality or restarting cached position
+IDs fails the intended assertions. Pinned nanoGPT prefix invariance and the manual
+mask/transpose mutation results were verified. All local links and heading IDs resolve.
+Browser QA at 1280/390/320 px found no page overflow, KaTeX errors, or script errors;
+score edits, prefix selection, reset, answer expansion, and print visibility were checked.
+Desktop/mobile/print previews were visually inspected.
+
+
+### Past-assessment additions for Classes 11–12
+
+Screened all 13 PDFs in `471-671-quiz-samples-public` for the current Transformer scope.
+New adaptations draw on Spring 2025 Quiz 2 Q3.1–2, Q3.5–7, Q4.3–4; Homework 6 §2.1–2.2;
+and Homework 7 §1's einsum exercise. Sources have local PDF page links beside the questions.
+Homework 6's John Hewitt credit is preserved for its mixture/copying question family.
+
+#11 adds hard-versus-soft routing (including the remaining value-gradient path), optional
+recovery from orthogonal value subspaces, and an optional named-axis einsum exercise.
+#12 adds an additive-mask debugging question, unequal-width shape/cost derivation, and
+expands the cache check to explain why past Q tensors are unnecessary for the next step.
+Existing axis reasoning is now labeled against the corresponding quiz question.
+
+Corrected/clarified source solutions: Quiz 2 Q3.2 incorrectly says to multiply scores by
+the 0/-infinity additive mask; use addition or masked_fill. HW6 §2.1's blanket statement
+about inability to backpropagate excludes the differentiable selected-value path; Q/K
+routing has no useful ordinary gradient. HW6 §2.2's finite-score copying/two-value-average
+constructions are approximate unless other keys are excluded or special values cancel.
+HW7's scale-factor naming is made explicit as division by sqrt(d_k).
+
+The nonzero-mean variance extension, arithmetic intensity, parallel-block variants, GQA,
+model-specific parameter counts, sampling methods, fine-tuning, and alignment are not
+added as core topics to these two slide-scoped readings. Basic blocks, positions, scaling,
+training/generation, shapes, and cache concepts in the other samples mostly reinforce
+material already present.
+
+Validation: checked the added mask probabilities, NaN multiplication counterexample,
+hard-routing value gradients, orthogonal recovery, and einsum/matmul equivalence in PyTorch.
+Source page links, IDs, desktop/mobile layouts, KaTeX, and answer/print controls checked.
+
+
+### Course implementation now has guided reading in #10 and #11
+
+Removed the two loose Class-12 schedule entries (“The final section of the slides on
+writing your own Transformer” and “Play with this implementation ...”). The schedule
+retains the formatted Handout #12 link. Their content now has explicit optional routes:
+#10 §8.3 reads the JHU-CLSP tutorial's byte-token pipeline and shifted targets;
+#11 §9.3 reads separate heads and tests fusion, and §9.4 uses slides 112–125 as an
+assembly worksheet. The encoder–decoder and cache details still lead into #12.
+#12's footer now points to the guided #11 workshop rather than a bare source link.
+
+Pinned JHU-CLSP/jsalt-tutorial revision `92c7e31e08160e843ac33b8532b5e02688ba0503`;
+file `lab1-shakespereLM/lab_1_pretraining_a_small_language_model.py` (254 lines).
+The two short excerpts are verbatim; source bytes were checked against the Git blob.
+`labs/10_11_jsalt_checks.py` is original companion code. It loads selected definitions
+from a separately saved upstream file, bypassing its top-level package installation
+and corpus download. It verifies UTF-8 IDs, shifted targets, the character/byte ragged
+batch counterexample, separate/fused head agreement (288 parameters including biases),
+independent layer parameters, untied embedding/head parameters, shapes, and causality.
+Checks passed on PyTorch 2.12.0; no Muon install or training download was performed.
+
+The new sections are optional extensions, not additions to #10/#11's core slide scope.
+
+Validation of these additions: local links and heading IDs resolve, source excerpts match,
+and browser checks at 1280/390/320 px found no page overflow, math errors, or script errors.
+The optional readings and assembly worksheet were visually inspected in mobile, desktop,
+and print views; answers expand for printing.
+
+## Worked traces and reading paths (October 6)
+
+#11 §4.1 now shows two heads retrieving different positions for the same query,
+then concatenating their separate feature vectors. The rank exercise uses
+T=6, D=8, H=2, giving distinct bounds of 4 per head and 6 for the combined output.
+#11 §7.4 follows A B C through token/position embeddings, Q/K/V projections,
+prefix attention, residual additions, a ReLU FFN, vocabulary logits, and the
+shifted B C A targets. Normalization, biases, and dropout are explicitly omitted
+from this fixed-parameter teaching block; the complete block equations remain in §5.
+`labs/11_attention.py` independently computes the two-head retrieval and complete
+trace, checks the listed tensors, and verifies the capstone target-change result.
+The trace's mean loss is 3.02041 nats; changing its final target A to B raises
+that mean by 0.1 nats.
+
+#12 §5 has an original accessible SVG cache-step diagram: cached K/V at 0–3,
+new q/k/v at 4, K/V append, attention over 0–4, and prediction at position 5.
+The caption gives batched head shapes; narrow screens can scroll the diagram.
+
+Both handouts state a core reading path and use zero-based sequence positions.
+#11's softmax derivative and permutation proof are optional-depth disclosure boxes;
+#11 §8–§9 and #12 §7–§8 are explicitly optional implementation extensions.
+#11 §10 adds four cumulative questions with answers and a bulk answer control.
+The optional-depth labels remain visible in print, and answers expand for printing.
+
+Validation: the extended attention lab passes on PyTorch 2.12.0. Browser checks
+at 1280/390/320 px report no math errors, script errors, broken images, or page
+overflow. Local links and fragments resolve; heading IDs are unique. Optional
+boxes, bulk practice answers, widgets, and print expansion work. The new worked
+example, head retrieval, and cache diagram were visually inspected in desktop,
+mobile, and print views. `git diff --check` passes.

@@ -11,7 +11,7 @@
         var label = document.createElement('label');
         label.textContent = 'Score for key ' + i;
         var input = document.createElement('input');
-        input.type = 'number'; input.step = '0.1'; input.min = '-20'; input.max = '20';
+        input.type = 'number'; input.step = 'any'; input.min = '-20'; input.max = '20';
         input.value = String(score); label.appendChild(input); controls.appendChild(label);
         inputs.push(input);
         var row = document.createElement('div'); row.className = 'attention-bar-row';
