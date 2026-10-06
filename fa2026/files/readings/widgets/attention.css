@@ -1,0 +1,8 @@
+.score-controls { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+.score-controls input { width:100%; min-width:0; box-sizing:border-box; padding:6px; }
+.attention-bars { margin:12px 0; }
+.attention-bar-row { display:grid; grid-template-columns:90px 1fr 60px; gap:8px; align-items:center; margin:8px 0; font-size:14px; }
+.attention-track { background:#e6e9ee; height:18px; border-radius:3px; }
+.attention-fill { background:#2463a6; height:100%; border-radius:3px; }
+.attention-reset { padding:6px 12px; }
+@media(max-width:480px) { .score-controls { grid-template-columns:1fr; } }

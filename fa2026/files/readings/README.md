@@ -28,12 +28,14 @@ should notice. Pair borrowed figures with interpretation or a task rather than u
 | 8 | `08.stable-training.html` | Training and tokenization (Thu Sept 24, feedforward slides 183–208 and tokenization slides 1–12): activations, gradient stability, residuals, initialization, normalization, validation, early stopping, dropout, tiny-data debugging, diagnostic capstone; word/character/subword tradeoffs, token IDs, whitespace, and number boundaries |
 | 9 | `09.tokenization.html` | Tokenization and subwords (Tue Sept 29, slides 13–36): pipeline, information loss, BPE training/inference, byte coverage, modeling tradeoffs, core checks, and pinned minbpe lab. Blue bonus section covers slides 31, 35, and extensions 37–49. |
 | 10 | `10.mlp-language-modeling.html` | Fixed-window neural LMs (Thu Oct 1, MLP slides 1–21): embedding lookup and repeated-ID gradients, ordered concatenation, next-token loss, joint training, parameter sharing and scaling, context limits, runnable PyTorch lab, and pinned PyTorch tutorial reading |
+| 11 | `11.self-attention.html` | Self-attention and next-token prediction (Tue Oct 6, Transformer slides 1–51): numerical retrieval, scaling, batches/heads, fused QKV, blocks, positions, training/generation, leakage, attention lab, pinned nanoGPT reading |
+| 12 | `12.transformer-masking-and-cost.html` | Masks, architecture, and cost (Thu Oct 8, Transformer slides 51–125): causal/padding/loss masks, encoder–decoder and cross-attention, FLOPs and IO, cache offsets/memory/cost, optional decoder workshop, pinned nanoGPT reading |
 
 Handouts #7 and #8 split the practical-training material at slide 183. Figures and exercises move with their topic; the optional LM-loss application stays in Handout #7 §2.
 
 ### Written, session number not yet assigned
 
-These two have no number prefix and are **not linked from `index.html`** yet. When a session is
+These older drafts have no number prefix and are **not linked from `index.html`**. Classes #11 and #12 now have scoped companions below; `transformers.html` remains an optional broader draft, not the assigned reading. When a session is
 assigned, rename to `NN.slug.html`, update `data-handout` on `<body>` (it namespaces the
 `localStorage` checkbox keys), fill in the masthead's "Session number TBD" and the footer note, and
 add the schedule link.
@@ -228,3 +230,22 @@ repeated-ID gradients, parameter counts, the broken reshape, batch-safe tutorial
 mutation were checked. Excerpts match the pinned file. Browser QA at 1280/390/320 px found no
 page overflow, KaTeX errors, or script errors; local links, figure loading, generated TOC, answer
 opening, print answer expansion, and hidden print TOC were verified.
+
+
+## Classes 11–12 Transformer companions
+
+The current 125-page `10-11-12.transformers.pdf` is split at slide 51, deliberately
+included in both: #11 ends with the leakage question, while #12 derives and tests the mask.
+Both are linked from their schedule rows. #10 now points to #11; the older `transformers.html`
+draft and its cross-links remain available. No RoPE/GQA/SwiGLU unit is added to the core scope.
+
+The companions develop original worked examples and checks rather than transcribing slides.
+`widgets/attention.js` and `.css` provide an offline, keyboard-accessible score explorer.
+The static retrieval and masked-retrieval examples retain the explanation in print.
+Slide 75 is reused with its Waterloo/Vaswani credits and an interpretation of its two input routes.
+
+Original downloadable labs: `labs/11_attention.py` and `labs/12_causal_decoder.py`.
+The latter is a two-layer, pre-norm decoder with right-padding support and per-layer KV caches;
+it deliberately rejects all-masked queries and does not implement left-padded cached generation.
+Code readings pin nanoGPT `3adf61e154c3fe3fca428ad6bc3818b27a3b8291`, `model.py` (330 lines).
+Excerpts are verbatim; the MIT notice is retained in `labs/nanoGPT-LICENSE.txt`.
