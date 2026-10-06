@@ -29,7 +29,7 @@ should notice. Pair borrowed figures with interpretation or a task rather than u
 | 9 | `09.tokenization.html` | Tokenization and subwords (Tue Sept 29, slides 13–36): pipeline, information loss, BPE training/inference, byte coverage, modeling tradeoffs, core checks, and pinned minbpe lab. Blue bonus section covers slides 31, 35, and extensions 37–49. |
 | 10 | `10.mlp-language-modeling.html` | Fixed-window neural LMs (Thu Oct 1, MLP slides 1–21): embedding lookup and repeated-ID gradients, ordered concatenation, next-token loss, joint training, parameter sharing and scaling, context limits, runnable PyTorch lab, and pinned PyTorch tutorial reading |
 | 11 | `11.self-attention.html` | Self-attention and next-token prediction (Tue Oct 6, Transformer slides 1–51): numerical retrieval, scaling, batches/heads, fused QKV, blocks, positions, training/generation, leakage, attention lab, pinned nanoGPT reading |
-| 12 | `12.transformer-masking-and-cost.html` | Masks, architecture, and cost (Thu Oct 8, Transformer slides 51–125): causal/padding/loss masks, encoder–decoder and cross-attention, FLOPs and IO, cache offsets/memory/cost, optional decoder workshop, pinned nanoGPT reading |
+| 12 | `12.transformer-masking-and-cost.html` | Masks, architecture, and cost (Thu Oct 8, Transformer slides 51–125): causal/padding/loss masks, encoder–decoder and cross-attention, FLOPs and IO, cache offsets/memory/cost, assigned at-home implementation reading, optional decoder experiments and pinned nanoGPT reading |
 
 Handouts #7 and #8 split the practical-training material at slide 183. Figures and exercises move with their topic; the optional LM-loss application stays in Handout #7 §2.
 
@@ -295,10 +295,10 @@ Source page links, IDs, desktop/mobile layouts, KaTeX, and answer/print controls
 
 Removed the two loose Class-12 schedule entries (“The final section of the slides on
 writing your own Transformer” and “Play with this implementation ...”). The schedule
-retains the formatted Handout #12 link. Their content now has explicit optional routes:
+retains the formatted Handout #12 link. Their content now has guided routes:
 #10 §8.3 reads the JHU-CLSP tutorial's byte-token pipeline and shifted targets;
 #11 §9.3 reads separate heads and tests fusion, and §9.4 uses slides 112–125 as an
-assembly worksheet. The encoder–decoder and cache details still lead into #12.
+assigned at-home assembly worksheet. The encoder–decoder and cache details still lead into #12.
 #12's footer now points to the guided #11 workshop rather than a bare source link.
 
 Pinned JHU-CLSP/jsalt-tutorial revision `92c7e31e08160e843ac33b8532b5e02688ba0503`;
@@ -311,7 +311,7 @@ batch counterexample, separate/fused head agreement (288 parameters including bi
 independent layer parameters, untied embedding/head parameters, shapes, and causality.
 Checks passed on PyTorch 2.12.0; no Muon install or training download was performed.
 
-The new sections are optional extensions, not additions to #10/#11's core slide scope.
+The tutorial exercises are optional extensions. Slides 112–125 are assigned reading to complete at home, guided by #11 §9.4 and #12 §7; the in-class #11 slide range remains 1–51.
 
 Validation of these additions: local links and heading IDs resolve, source excerpts match,
 and browser checks at 1280/390/320 px found no page overflow, math errors, or script errors.
@@ -338,7 +338,7 @@ The caption gives batched head shapes; narrow screens can scroll the diagram.
 
 Both handouts state a core reading path and use zero-based sequence positions.
 #11's softmax derivative and permutation proof are optional-depth disclosure boxes;
-#11 §8–§9 and #12 §7–§8 are explicitly optional implementation extensions.
+#11 §8 and §9.1–§9.3, #12 §7's code experiments, and #12 §8 are optional extensions. #11 §9.4 and #12 §7 guide the assigned at-home reading of slides 112–125.
 #11 §10 adds four cumulative questions with answers and a bulk answer control.
 The optional-depth labels remain visible in print, and answers expand for printing.
 
