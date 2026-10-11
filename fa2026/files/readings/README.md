@@ -30,6 +30,7 @@ should notice. Pair borrowed figures with interpretation or a task rather than u
 | 10 | `10.mlp-language-modeling.html` | Fixed-window neural LMs (Thu Oct 1, MLP slides 1–21): embedding lookup and repeated-ID gradients, ordered concatenation, next-token loss, joint training, parameter sharing and scaling, context limits, runnable PyTorch lab, and pinned PyTorch tutorial reading |
 | 11 | `11.self-attention.html` | Self-attention and next-token prediction (Tue Oct 6, Transformer slides 1–51): numerical retrieval, scaling, batches/heads, fused QKV, blocks, positions, training/generation, leakage, attention lab, pinned nanoGPT reading |
 | 12 | `12.transformer-masking-and-cost.html` | Masks, architecture, and cost (Thu Oct 8, Transformer slides 51–125): causal/padding/loss masks, encoder–decoder and cross-attention, FLOPs and IO, cache offsets/memory/cost, assigned at-home implementation reading, optional decoder experiments and pinned nanoGPT reading |
+| 13 | `13.modern-llm-architectures.html` | Modern LLM architecture choices (Tue Oct 13, printed slides 1–36): normalization paths/invariances/precision, gated FFN budgets, serial/parallel dependencies, shared embeddings/gradients, offline explorers, PyTorch checks, and pinned nanoGPT reading |
 
 Handouts #7 and #8 split the practical-training material at slide 183. Figures and exercises move with their topic; the optional LM-loss application stays in Handout #7 §2.
 
@@ -348,3 +349,57 @@ overflow. Local links and fragments resolve; heading IDs are unique. Optional
 boxes, bulk practice answers, widgets, and print expansion work. The new worked
 example, head retrieval, and cache diagram were visually inspected in desktop,
 mobile, and print views. `git diff --check` passes.
+
+
+## Class 13 architecture companion
+
+`13.modern-llm-architectures.html` is linked from the Oct 13 schedule row. It covers
+printed slides 1–36 (PDF pages 1–35; printed number 20 is absent). PDF page 36,
+printed 37, is identified as the next lecture's hyperparameter preview.
+The parallel equation on printed slide 29 is clarified in the handout; the source
+PDF is not changed. Core sections add invariance/gradient reasoning, precision and
+axis pitfalls, parameter-matched gated FFNs, a dependency counterexample, and
+shared-parameter gradient/memory accounting. Sections 6–7 are optional extensions.
+
+`widgets/architecture.js` and `.css` provide offline scale/shift and FFN-budget
+explorers with keyboard-accessible controls. Printable examples preserve their
+main lessons. `labs/13_architecture_checks.py` is original, CPU-only PyTorch code.
+The nanoGPT reading reuses revision `3adf61e154c3fe3fca428ad6bc3818b27a3b8291`
+and the existing MIT notice; verbatim excerpts and the +60-parameter clone mutation
+were checked against that revision. Past-assessment adaptations cite Spring 2025
+HW6 §1.8 and Quiz 2 Q1.16, Q4.1–2, Q4.5, and Q4.10–11 with local source-page links.
+
+Validation: the lab passed with PyTorch 2.12.0, including float16/reference agreement,
+normalization axes and invariances, residual Jacobians, gate values, shape/gradient
+checks, matched counts, fused gate/up projections, serial/parallel differences,
+and input-plus-output shared gradients. Browser checks at 1280/390/320 px found
+no page overflow, KaTeX errors, or script errors. Explorers, reset, bulk answers,
+print expansion/hiding, unique IDs, and local links/fragments passed. Desktop,
+mobile, and print previews were visually inspected; `git diff --check` passed.
+
+
+### Class 13 correctness and completeness audit
+
+Added the topology information-boundary exercise and optional output-norm,
+sandwich-norm, and QK-norm distinctions. Explicitly identify the original
+Transformer as post-norm. All 17 exercises have worked answers.
+
+Corrected the nanoGPT constructor-clone exercise: its later initialization makes
+separate parameters generally unequal when construction finishes; an after-construction
+clone isolates equal values without sharing. Both phases and the +60 count were
+verified. Updated the slide-29 note against the current PDF, whose parallel formula
+uses `h + MLP(LN(x)) + Attention(LN(x))`; the intended residual is `x`.
+The sample quiz's serial equation also omits the residual attention contribution;
+the adaptation flags that omission. Qualified the single-prediction logit-gradient
+claim and aligned the precision/gating exercises with the actual lab assertions.
+
+The downloadable lab now checks learned RMSNorm gain registration/updates,
+the printed serial/parallel outputs, and independently derived input/output gradient
+formulas. Audit checks also verified finite-difference normalization derivatives,
+numeric memory/parameter accounting, the advertised mutation failures, and actual
+nanoGPT parallel/RMSNorm/SwiGLU integration, including prefix invariance and finite
+backward gradients. Widget numbers agree with independent calculations at 24
+scale/shift settings and all six FFN configurations. Expanded answers fit at
+1280/390/320 px; print expansion and restoration, offline/no-JS reading, local assets,
+source-page ranges, fragments, IDs, and course-row placement pass. The revised
+content was visually reviewed in desktop and print views.
