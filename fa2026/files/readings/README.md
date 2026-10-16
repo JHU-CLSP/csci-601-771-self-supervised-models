@@ -30,7 +30,8 @@ should notice. Pair borrowed figures with interpretation or a task rather than u
 | 10 | `10.mlp-language-modeling.html` | Fixed-window neural LMs (Thu Oct 1, MLP slides 1–21): embedding lookup and repeated-ID gradients, ordered concatenation, next-token loss, joint training, parameter sharing and scaling, context limits, runnable PyTorch lab, and pinned PyTorch tutorial reading |
 | 11 | `11.self-attention.html` | Self-attention and next-token prediction (Tue Oct 6, Transformer slides 1–51): numerical retrieval, scaling, batches/heads, fused QKV, blocks, positions, training/generation, leakage, attention lab, pinned nanoGPT reading |
 | 12 | `12.transformer-masking-and-cost.html` | Masks, architecture, and cost (Thu Oct 8, Transformer slides 51–125): causal/padding/loss masks, encoder–decoder and cross-attention, FLOPs and IO, cache offsets/memory/cost, assigned at-home implementation reading, optional decoder experiments and pinned nanoGPT reading |
-| 13 | `13.modern-llm-architectures.html` | Modern LLM architecture choices (Tue Oct 13, printed slides 1–36): normalization paths/invariances/precision, gated FFN budgets, serial/parallel dependencies, shared embeddings/gradients, offline explorers, PyTorch checks, and pinned nanoGPT reading |
+| 13 | `13.modern-llm-architectures.html` | Normalization and residual paths (Tue Oct 13, slides 1–13): topology, norm placement/statistics, precision, FLOPs versus runtime, scale/shift explorer, normalization lab, and code reading |
+| 14 | `14.ffn-layout-and-tying.html` | LLM architecture choices and dimensions (Thu Oct 15, slides 14–50 of the latest 13-14-15 deck): RMSNorm evidence, FFNs, block layout, tying, FFN/head dimensions, depth/width budgets, checked labs and code reading; ends at the pre-training-data divider |
 
 Handouts #7 and #8 split the practical-training material at slide 183. Figures and exercises move with their topic; the optional LM-loss application stays in Handout #7 §2.
 
@@ -351,55 +352,171 @@ example, head retrieval, and cache diagram were visually inspected in desktop,
 mobile, and print views. `git diff --check` passes.
 
 
-## Class 13 architecture companion
+## Classes 13–14: architecture companions
 
-`13.modern-llm-architectures.html` is linked from the Oct 13 schedule row. It covers
-printed slides 1–36 (PDF pages 1–35; printed number 20 is absent). PDF page 36,
-printed 37, is identified as the next lecture's hyperparameter preview.
-The parallel equation on printed slide 29 is clarified in the handout; the source
-PDF is not changed. Core sections add invariance/gradient reasoning, precision and
-axis pitfalls, parameter-matched gated FFNs, a dependency counterexample, and
-shared-parameter gradient/memory accounting. Sections 6–7 are optional extensions.
+Current slide source: `../slides/13-14-15.modern-llm-architectures.pdf`.
+Both handouts and the session-13/14 course rows link this version. Slide numbers
+and PDF pages agree through page 50. The superseded 13-14 deck is not the source
+for these readings or their current figure crops.
 
-`widgets/architecture.js` and `.css` provide offline scale/shift and FFN-budget
-explorers with keyboard-accessible controls. Printable examples preserve their
-main lessons. `labs/13_architecture_checks.py` is original, CPU-only PyTorch code.
-The nanoGPT reading reuses revision `3adf61e154c3fe3fca428ad6bc3818b27a3b8291`
-and the existing MIT notice; verbatim excerpts and the +60-parameter clone mutation
-were checked against that revision. Past-assessment adaptations cite Spring 2025
-HW6 §1.8 and Quiz 2 Q1.16, Q4.1–2, Q4.5, and Q4.10–11 with local source-page links.
+Session 13 stopped at slide 13, the first “Why RMSNorm?” slide.
+`13.modern-llm-architectures.html` retains slides 1–13: topology, normalization
+placement/statistics, residual gradients, axes, precision, and FLOPs versus runtime.
+Its optional lab and pinned nanoGPT reading cover normalization only.
 
-Validation: the lab passed with PyTorch 2.12.0, including float16/reference agreement,
-normalization axes and invariances, residual Jacobians, gate values, shape/gradient
-checks, matched counts, fused gate/up projections, serial/parallel differences,
-and input-plus-output shared gradients. Browser checks at 1280/390/320 px found
-no page overflow, KaTeX errors, or script errors. Explorers, reset, bulk answers,
-print expansion/hiding, unique IDs, and local links/fragments passed. Desktop,
-mobile, and print previews were visually inspected; `git diff --check` passed.
+`14.ffn-layout-and-tying.html` now covers slides 14–50. Sections 1–4 cover RMSNorm
+evidence/recap (14–16), FFNs (17–29), serial/parallel blocks (30–33), and embedding
+tying (34–38). Section 5 covers dimensions and the architecture recap (39–49).
+Slide 50 is the pre-training-data divider; substantive data-source and preparation
+material starts at 51 and is outside this handout. The handout URL remains stable
+although its title is now “LLM Architecture Choices and Dimensions.”
+
+New dimension material develops parameter-matched FFN ratios and rounding,
+attention width A=H*head_dim independent of residual D, 4DA projection counts,
+and equal-block-parameter depth/width comparisons using 12LD². It distinguishes
+embedding totals, ordinary MHA cache sizes, attention products, sequential layer
+dependencies, and actual throughput. The aspect-ratio figure supports a broad
+empirical basin, not a universal optimum. The old deck’s T5 exception is not an
+assigned topic in the current version; the worked rounding example follows the
+current gated-width discussion instead.
+
+The current slide 31 already has the correct parallel equation. The old slide-error
+note was removed; the handout now interprets its dependency graph. The sample quiz’s
+separate serial-equation omission remains flagged. SiLU (the nonlinearity) and
+SwiGLU (the gated FFN) are explicitly distinguished. Bias-removal stability is
+identified as an empirical observation, separate from parameter savings.
+
+Downloadable CPU-only original PyTorch labs:
+- `labs/13_architecture_checks.py`: normalization invariances/axes, float16/reference
+  agreement, registered gain updates, and residual Jacobians.
+- `labs/14_architecture_checks.py`: gate trace, FFN shapes/gradients/counts, fused
+  projections, serial/parallel outputs, shared gradients, and `FlexibleAttention`.
+  The latter checks D=10,H=3,head_dim=4 (A=12): 480 projection parameters, output
+  shape, causality, agreement with PyTorch SDPA, finite gradients, and failure of
+  the residual-derived reshape. Rounding and depth/width counts are checked too.
+
+Both handouts retain their original URLs; reading paths, section numbering,
+objectives, reciprocal links, course scopes, and local assessment links are updated.
+There are 12 structured exercises in #13 and 19 in #14, each with an answer, plus
+figure-reading disclosures. The shared `widgets/architecture.js`/`.css` initialize
+only each page’s present controls; progress keys are distinct. The normalization
+explorer is in #13; the FFN-budget explorer is in #14.
+
+### Slide visuals and code provenance
+
+All crops in `images/architectures/` were exported from the current 13-14-15 PDF:
+- `13-slide08-norm-paths.png`: slide 8, Xiong et al. (2020), Figure 1.
+- `13-slide13-operator-cost.png`: slide 13, Ivanov et al. (2020 preprint), Table 1;
+  slide credit Tatsu Hashimoto.
+- `14-slide22-relu-gelu.png`: slide 22, with axes/legend and the slide’s annotation.
+  The caption clarifies its “ELU” typo: the blue curve and lesson concern GELU.
+- `14-slide35-embedding-tying.png`: slide 35, preserving the sharing annotation.
+  The caption retains the slide’s Press & Wolf reference without asserting it is
+  the original artwork source.
+- `14-slide48-aspect-ratio.png`: slide 48, Kaplan et al. (2020), Figure 5’s aspect-ratio
+  panel; slide credit Tatsu Hashimoto. The text explains the unlabeled vertical
+  scale and approximately fixed non-embedding parameter comparison.
+
+Captions identify the source slide/paper; alt text and interpretation prompts
+preserve the teaching content. Figures remain visible in print. The operator table
+scrolls in a keyboard-focusable region on narrow screens. The original serial/
+parallel SVG remains in #14 §3. The PDFs themselves are not edited.
+
+Code readings pin nanoGPT `3adf61e154c3fe3fca428ad6bc3818b27a3b8291` with its MIT
+notice. #13 examines `LayerNorm.forward`; #14 examines block layout, sharing, and
+the attention divisibility assertion. The constructor-clone caveat, +60 parameter
+example, and shape/gradient checks remain. Past assessment adaptations retain
+Spring 2025 HW6 §1.8 and Quiz 2 Q1.16, Q4.1–2, Q4.5, and Q4.10–11.
 
 
-### Class 13 correctness and completeness audit
+Validation against the latest source: pages/slides 13, 22, 31, 35, 48, 49, and 50
+were checked directly, including the updated numbering and data divider. Both labs
+pass on PyTorch 2.12.0. The new attention module agrees with SDPA and passes prefix
+invariance/backward checks; the deliberate incorrect reshape fails. Rounding,
+parameter/cache ratios, new excerpt bytes, answers, local assets/links/fragments,
+and contiguous section numbering pass. Browser checks at 1280/390/320 px cover
+expanded answers, math, widgets, print expansion/restoration, no-JS reading, and
+course-row placement. New dimension sections and refreshed figures were visually
+reviewed in desktop/mobile/print views. `git diff --check` passes.
 
-Added the topology information-boundary exercise and optional output-norm,
-sandwich-norm, and QK-norm distinctions. Explicitly identify the original
-Transformer as post-norm. All 17 exercises have worked answers.
+### Optional deepening after the coverage review
 
-Corrected the nanoGPT constructor-clone exercise: its later initialization makes
-separate parameters generally unequal when construction finishes; an after-construction
-clone isolates equal values without sharing. Both phases and the +60 count were
-verified. Updated the slide-29 note against the current PDF, whose parallel formula
-uses `h + MLP(LN(x)) + Attention(LN(x))`; the intended residual is `x`.
-The sample quiz's serial equation also omits the residual attention contribution;
-the adaptation flags that omission. Qualified the single-prediction logit-gradient
-claim and aligned the precision/gating exercises with the actual lab assertions.
+Added three optional boxes without extending the session slide ranges or the core
+reading paths. #13 §2.1 uses constant common-shift updates to show that LN branch
+inputs can remain unchanged while residual RMS grows; its lab verifies all states
+and values. #14 §2.2 derives both gated-product gradient paths and explains the
+g=0,u=-3 example (gate gradient -1.5, content gradient 0 for incoming gradient 1).
+Its lab checks the derivatives and a detach mutation that preserves forward values
+but removes the isolated gate path. #14 §4.3 derives the tying fraction relative to
+the untied baseline, using N_blocks≈12LD², distinguishes absolute from fractional
+savings at fixed vocabulary, and compares the 38/162 versus 38/124 denominators.
+The budget assumptions and forward link to §5.3 are explicit; the lab checks the
+reported fractions. These are original explanations, not additional assigned topics.
 
-The downloadable lab now checks learned RMSNorm gain registration/updates,
-the printed serial/parallel outputs, and independently derived input/output gradient
-formulas. Audit checks also verified finite-difference normalization derivatives,
-numeric memory/parameter accounting, the advertised mutation failures, and actual
-nanoGPT parallel/RMSNorm/SwiGLU integration, including prefix invariance and finite
-backward gradients. Widget numbers agree with independent calculations at 24
-scale/shift settings and all six FFN configurations. Expanded answers fit at
-1280/390/320 px; print expansion and restoration, offline/no-JS reading, local assets,
-source-page ranges, fragments, IDs, and course-row placement pass. The revised
-content was visually reviewed in desktop and print views.
+All three optional boxes include answers and retain explicit optional labels in
+print. Both labs pass; local links/IDs, math, fully expanded mobile layouts,
+widgets, print state restoration, and no-JS reading pass. The new examples were
+visually inspected in desktop/mobile/print views. With the warm-ups below, structured exercise counts are
+12 in #13 and 19 in #14; these three boxes supplement them. A stale dimension-section
+reference was corrected to the current slides 39–49. `git diff --check` passes.
+
+
+### Warm-ups and quiz-source adaptations
+
+Each handout now opens with three preparation questions intended for 5–7 minutes,
+with worked answers and a separate answer toggle. They are ungraded and do not
+change the assigned slide ranges or numbered sections.
+
+- #13: a normalization/readout counterexample adapts Spring 2024 Quiz 1 Q1.18
+  (pp. 4–5), correcting the source answer's claim that normalization guarantees
+  equal feature influence. An original centering puzzle demonstrates loss of a
+  common offset. A FLOPs-per-byte calculation extends Spring 2025 Quiz 2 Q1.17
+  (p. 4), with explicit limits on inferring runtime from arithmetic intensity.
+- #14: a tensor-shape question extends Spring 2025 Quiz 2 Q4.9 (p. 8); an original
+  Parameter-aliasing puzzle extends its Q1.16 (p. 4); a scalar serial/parallel
+  dataflow puzzle adapts Q4.5 (p. 7). The latter deliberately omits normalization
+  to isolate the dependency difference. Source links and adaptation labels appear
+  beside each question.
+
+Both downloadable labs verify the warm-up examples. Local links, exercise answers,
+math rendering, independent warm-up/practice answer toggles, 1280/390/320 px layouts,
+and print expansion/restoration pass. Warm-up desktop/mobile/print views were
+visually reviewed. The totals are 12 structured exercises in #13 and 19 in #14.
+
+
+### Optional theory questions
+
+Four original theory boxes extend the explanations without extending slide scope,
+core reading time, or the 12/19 structured-exercise counts. Each contains prediction
+or derivation prompts with worked answer disclosures and explicit assumptions.
+
+- #13 `theory-norm-geometry`: sphere/zero-mean geometry, local degrees of freedom,
+  the RMSNorm Jacobian, epsilon's radial sensitivity, and the zero-vector limit.
+  It distinguishes exact common-shift invariance from approximate scale invariance.
+- #13 `theory-residual-angle`: a fixed orthogonal branch update changes a larger
+  residual's direction less; the exact 45°/5.71° example avoids claiming a general
+  law of training dynamics or gradient size.
+- #14 `theory-gate-interactions`: an identity-gated coordinate is a quadratic form;
+  the local bias-free SwiGLU expansion explains feature interactions without claiming
+  that ordinary nonlinear FFNs lack them or that gating guarantees better quality.
+- #14 `theory-tying-conflict`: a scalar constrained-optimization puzzle demonstrates
+  opposing route gradients, followed by the feasible-set argument for globally
+  optimal unregularized training loss. Finite optimization and validation behavior
+  are explicitly distinguished from that theoretical comparison.
+
+The labs verify analytic normalization derivatives/null directions, residual angles,
+quadratic identities, the local SwiGLU limit, and tied-gradient cancellation. Both
+CPU labs and local link/ID/answer checks pass. Browser checks cover math, expanded
+320/390/1280 px layouts, print expansion/restoration, and the existing page controls.
+
+
+### Handout 14 bonus-slide reading status
+
+The latest deck marks slide 23 and slides 44–48 as Bonus. The GELU CDF/error-function
+formula now lives in an optional disclosure in §2.1; qualitative activation behavior
+remains core. Entire subsections §5.2 (slides 44–45) and §5.3 (slides 46–48), including
+their exercises and figures, are explicitly optional in their headings and callouts.
+Practice E–F and the corresponding optional code reading carry matching labels.
+The reading path, time estimate, goals, and slide map distinguish core from bonus
+material. The GELU disclosure retains its optional heading in print. Slide ranges
+and existing section anchors are unchanged.

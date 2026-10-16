@@ -626,10 +626,10 @@
         <tr>
             <td>#13 - Tue Oct 13</td>
             <td>
-                Transformer-based language models: (<a href="https://livejohnshopkins-my.sharepoint.com/:p:/g/personal/dkhasha1_jh_edu/IQBcPgf7o4HQT7mVO7qUIvvgAaO47ToI_ktYSnDlceHkEMY?e=ijdgCh" target="_blank" rel="noopener noreferrer">PPTX</a>, <a href="files/slides/13-14.modern-llm-architectures.pdf">PDF</a>)
+                Transformer-based language models: (<a href="https://livejohnshopkins-my.sharepoint.com/:p:/g/personal/dkhasha1_jh_edu/IQBcPgf7o4HQT7mVO7qUIvvgAaO47ToI_ktYSnDlceHkEMY?e=ijdgCh" target="_blank" rel="noopener noreferrer">PPTX</a>, <a href="files/slides/13-14-15.modern-llm-architectures.pdf">PDF</a>)
                 <ul>
                     <li>Notable models</li>
-                    <li>Architectural variants</li>
+                    <li>Normalization and residual paths (slides 1–13)</li>
                 </ul>
                 <hr/>
                 Introducing final projects: (<a href="https://livejohnshopkins-my.sharepoint.com/:p:/g/personal/dkhasha1_jh_edu/IQDQWmQBIvgKTpiPpOIli1bKAQGb9UjZiMtSs4k6ouqSXk8?e=hK3Cbc" target="_blank" rel="noopener noreferrer">PPTX</a>, <a href="files/slides/13.final_project_ideas.pdf">PDF</a>)
@@ -637,10 +637,11 @@
                     <li>Defining final projects</li>
                     <li>Tips for successful project</li>
                 </ul>
+                <div style="margin-top:10px"><a href="https://youtu.be/9wujARVqUyg" target="_blank" rel="noopener noreferrer"><b>Recording</b></a></div>
             </td>
             <td>
                 <ul>
-                    <li><a href="files/readings/13.modern-llm-architectures.html"><b>Handout #13</b>: Modern LLM Architecture Choices</a> — normalization, gated FFNs, block layout, and embedding tying (slides 1–36).</li>
+                    <li><a href="files/readings/13.modern-llm-architectures.html"><b>Handout #13</b>: Normalization and Residual Paths</a> — slides 1–13, through the first “Why RMSNorm?” slide.</li>
                 </ul>
             </td>
             <td style="background-color:#fff3b0; font-weight:bold; text-align:center; border:2px solid #e0a800; border-radius:4px;">
@@ -654,18 +655,21 @@
         <tr>
             <td>#14 - Thu Oct 15</td>
             <td>
-                Transformer-based language models: (<a href="https://livejohnshopkins-my.sharepoint.com/:p:/g/personal/dkhasha1_jh_edu/IQBcPgf7o4HQT7mVO7qUIvvgAaO47ToI_ktYSnDlceHkEMY?e=ijdgCh" target="_blank" rel="noopener noreferrer">PPTX</a>, <a href="files/slides/13-14.modern-llm-architectures.pdf">PDF</a>)
+                Transformer-based language models: (<a href="https://livejohnshopkins-my.sharepoint.com/:p:/g/personal/dkhasha1_jh_edu/IQBcPgf7o4HQT7mVO7qUIvvgAaO47ToI_ktYSnDlceHkEMY?e=ijdgCh" target="_blank" rel="noopener noreferrer">PPTX</a>, <a href="files/slides/13-14-15.modern-llm-architectures.pdf">PDF</a>)
                 <ul>
                     <li>Architectural variants</li>
                     <ul>
-                        <li>LayerNorm variants</li>
-                        <li>FFN variations: activations, bias and activations</li>
+                        <li>RMSNorm results and recap</li>
+                        <li>FFN variations: bias and gated activations</li>
+                        <li>Serial/parallel block layout</li>
+                        <li>Parameter tying (shared embeddings)</li>
+                        <li>FFN/head dimensions, depth/width, and architecture recap</li>
                     </ul>
                 </ul>
             </td>
             <td>
                 <ul>
-                    <li><a href="#">TBD</a></li>
+                    <li><a href="files/readings/14.ffn-layout-and-tying.html"><b>Handout #14</b>: LLM Architecture Choices and Dimensions</a> — RMSNorm evidence, FFNs, block layout, tying, and architecture dimensions (slides 14–50, through the pre-training-data divider).</li>
                 </ul>
             </td>
             <td></td>
@@ -676,11 +680,6 @@
             <td>
                 Transformer-based language models: (<a href="files/slides/12-13.transformers-language-models.pptx">PPTX</a>, <a href="files/slides/12-13.transformers-language-models.pdf">PDF</a>)
                 <ul>
-                    <li>Architectural variants</li>
-                    <ul>
-                        <li>Parameter tying</li>
-                        <li>Dimensions</li>
-                    </ul>
                     <li>Pre-training data</li>
                 </ul>
             </td>

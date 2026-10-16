@@ -1,4 +1,4 @@
-/* Original offline component experiments for Handout 13. */
+/* Original offline component experiments for Handouts 13–14. */
 (function () {
     'use strict';
     var scale = document.getElementById('norm-scale');
