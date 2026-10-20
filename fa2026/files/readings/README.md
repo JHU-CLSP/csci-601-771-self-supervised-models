@@ -535,9 +535,9 @@ coverage, cleaning-rule audits, evidence from C4, duplicate weighting and
 retention, pipeline order, sharding, and the limits of reference-LM perplexity.
 Blue Bonus slides 55, 67–80, 82, and 84–86 are summarized in three optional
 collapsed notes in §5; their optional labels remain visible in print. Core
-practice does not require the bonus algorithms. There are 13 worked exercises:
+practice does not require the bonus algorithms. There are 16 worked exercises:
 three warm-ups, one cleaning question, three optional implementation questions,
-and six core synthesis questions, plus an inline figure-reading disclosure.
+and nine core synthesis questions, plus an inline figure-reading disclosure.
 
 Two full-resolution slide figures preserve source credits and link to full-size
 images. `widgets/pretraining-data.js` and `.css` provide an offline synthetic
@@ -559,3 +559,10 @@ pass. Browser checks cover all nine widget settings, KaTeX, image loading, TOC,
 answer toggles, 1280/390/320 px layouts, print expansion/restoration and visible
 optional labels, no-JavaScript reading, and both Session 15 course links.
 Desktop, mobile, figure, widget, and print-style screenshots were visually reviewed.
+
+Three additional core prediction questions (G–I) examine how deduplication changes
+the loss-minimizing conditional distribution, how changed evaluation weights can
+hide deterioration in every domain, and how identical paragraphs can still have
+different conditioning contexts. Each includes a worked answer and explicit
+assumptions; the evaluation question does not require bonus training-mixture
+methods. Core reading time is now estimated at 40–50 minutes.
