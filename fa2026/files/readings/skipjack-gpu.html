@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Using a GPU on Skipjack — CS 601.471/671</title>
+    <meta name="description" content="Course GPU guide: logging in to Skipjack, requesting an A100 MIG instance, running Slurm jobs, and planning GPU memory.">
+    <link rel="shortcut icon" href="../favicon.ico">
+    <link rel="stylesheet" href="../fonts.css">
+    <link rel="stylesheet" href="vendor/highlight/github.min.css">
+    <link rel="stylesheet" href="handout.css">
+</head>
+<body class="handout" data-handout="skipjack-gpu">
+<header class="hd-mast">
+    <div class="hd-wrap" style="display:block">
+        <div class="hd-course">CS 601.471/671 &nbsp;·&nbsp; NLP: Self-supervised Models &nbsp;·&nbsp; Fall 2026</div>
+        <h1>Using a GPU on Skipjack</h1>
+        <p class="hd-sub">Course GPU guide &nbsp;·&nbsp; Tuesday, October 20, 2026 &nbsp;·&nbsp; <a href="../../index.html">Course page</a></p>
+    </div>
+</header>
+<div class="hd-wrap">
+    <nav class="hd-toc" aria-label="Contents">
+        <div class="hd-toc-title">On this page</div>
+    </nav>
+    <main class="hd-body">
+<p class="lead">This guide explains how to request a GPU for class exercises on JHU’s Skipjack cluster. You will use Slurm, the cluster’s job scheduler, to reserve resources before running your code.</p>
+<h2 id="s1"><span class="hd-secnum">1</span>Log in</h2>
+<p>You need an active JHU ARCH account with access to Skipjack. Open a terminal on your computer and run:</p>
+<pre><code class="language-bash">ssh YOUR_JHED_ID@login.arch.jhu.edu
+</code></pre>
+<p>Replace <code>YOUR_JHED_ID</code> with your own username. The terminal displays a login URL and a code. Open that URL in your browser, sign in with your JHED credentials, and complete MFA. Return to the terminal and press Enter when prompted.</p>
+<p>Keep the terminal open while working. You are initially on a <strong>login node</strong>. Use this node to edit files and submit jobs; request a compute allocation before running GPU code.</p>
+<h2 id="s2"><span class="hd-secnum">2</span>Understand the class GPU resources</h2>
+<p>The class partition is named <code>interactive_gpu</code>. At verification on October 20, 2026, its configuration was:</p>
+<div class="tbl-scroll"><table class="tbl">
+<thead>
+<tr>
+<th>Resource</th>
+<th>Configuration</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Compute nodes</td>
+<td>Two A100 nodes</td>
+</tr>
+<tr>
+<td>GPU allocation</td>
+<td>One NVIDIA A100 MIG <code>2g.20gb</code> instance per request below</td>
+</tr>
+<tr>
+<td>GPU memory</td>
+<td>Approximately 20 GB per instance</td>
+</tr>
+<tr>
+<td>Advertised GPU instances</td>
+<td>48 across the partition</td>
+</tr>
+<tr>
+<td>Maximum job duration</td>
+<td>4 hours</td>
+</tr>
+<tr>
+<td>Default duration if omitted</td>
+<td>2 hours</td>
+</tr>
+</tbody>
+</table></div>
+<p>MIG (Multi-Instance GPU) divides a physical GPU into smaller instances so multiple people can share the hardware. Your request below gives you one instance, rather than an entire A100. Code must fit within that instance’s memory and compute capacity.</p>
+<p>Slurm starts jobs as resources become available. Submission does not guarantee an immediate start, and 48 advertised instances does not mean 48 are currently free. Your instructor must coordinate with the cluster manager if the whole class needs guaranteed capacity at a particular time.</p>
+<h2 id="s3"><span class="hd-secnum">3</span>Start an interactive GPU session</h2>
+<p>After logging in, run:</p>
+<pre><code class="language-bash">srun --partition=interactive_gpu \
+  --gres=gpu:2g.20gb:1 \
+  --ntasks=1 \
+  --cpus-per-task=1 \
+  --mem=2G \
+  --time=01:00:00 \
+  --pty bash
+</code></pre>
+<p>This requests one MIG GPU instance, one CPU task, and 2 GB of <strong>system RAM</strong> for one hour. System RAM is separate from the instance’s approximately 20 GB of GPU memory. Use your instructor’s resource settings if an exercise needs more CPU or system memory.</p>
+<p>You may see:</p>
+<pre><code class="language-text">srun: job ... queued and waiting for resources
+</code></pre>
+<p>Leave the command running while you wait. Once the job starts, a shell opens on a compute node. Check your allocation:</p>
+<pre><code class="language-bash">hostname
+echo "$SLURM_JOB_ID"
+nvidia-smi -L
+</code></pre>
+<p>The GPU listing should include a <code>MIG 2g.20gb</code> instance. <code>nvidia-smi</code> may also list physical GPUs; that listing does not mean your job has permission to use all of them.</p>
+<p>Run your exercise from this allocated shell. Do not open a new SSH connection and assume it has the same GPU allocation.</p>
+<h2 id="s4"><span class="hd-secnum">4</span>Check Python and run your code</h2>
+<p>Activate the Python environment specified by your instructor <strong>inside the allocated shell</strong>. If the course uses environment modules, you can inspect available modules with:</p>
+<pre><code class="language-bash">module avail
+</code></pre>
+<p>Follow the course’s installation or environment instructions. Requesting a GPU does not automatically install PyTorch or other Python packages.</p>
+<p>If your course environment includes PyTorch, verify GPU access:</p>
+<pre><code class="language-bash">python - &lt;&lt;'PY'
+import torch
+
+print("CUDA available:", torch.cuda.is_available())
+assert torch.cuda.is_available(), "PyTorch cannot access CUDA"
+print("Visible devices:", torch.cuda.device_count())
+print("Device:", torch.cuda.get_device_name(0))
+
+x = torch.randn(1024, 1024, device="cuda")
+y = x @ x
+torch.cuda.synchronize()
+print("GPU matrix multiplication succeeded:", tuple(y.shape))
+PY
+</code></pre>
+<p>Then run your program:</p>
+<pre><code class="language-bash">python your_script.py
+</code></pre>
+<p>Your program must explicitly use the GPU. For example, in PyTorch:</p>
+<pre><code class="language-python">import torch
+
+device = torch.device("cuda")
+model = model.to(device)
+inputs = inputs.to(device)
+outputs = model(inputs)
+</code></pre>
+<p>Let Slurm manage GPU visibility; do not manually select another user’s GPU or override <code>CUDA_VISIBLE_DEVICES</code>.</p>
+<h2 id="s5"><span class="hd-secnum">5</span>Monitor and finish your session</h2>
+<p>Show your own running and pending jobs:</p>
+<pre><code class="language-bash">squeue -u "$USER"
+</code></pre>
+<p>Common states:</p>
+<div class="tbl-scroll"><table class="tbl">
+<thead>
+<tr>
+<th>State</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PD</code></td>
+<td>Pending: waiting for resources, priority, or another scheduling condition</td>
+</tr>
+<tr>
+<td><code>R</code></td>
+<td>Running</td>
+</tr>
+<tr>
+<td><code>CG</code></td>
+<td>Completing and releasing resources</td>
+</tr>
+</tbody>
+</table></div>
+<p>For more detail about a job:</p>
+<pre><code class="language-bash">scontrol show job JOB_ID
+</code></pre>
+<p>Replace <code>JOB_ID</code> with its numeric ID. When finished, leave the allocated shell:</p>
+<pre><code class="language-bash">exit
+</code></pre>
+<p>This releases the GPU and returns you to the login shell. To cancel one of your jobs, including a pending job:</p>
+<pre><code class="language-bash">scancel JOB_ID
+</code></pre>
+<p>Release resources promptly when you finish. Jobs are limited to their requested duration, so save results and checkpoints before time expires. Keep an interactive session’s SSH terminal connected; use a batch job for work that should run independently of your terminal.</p>
+<h2 id="s6"><span class="hd-secnum">6</span>Run a batch job</h2>
+<p>A batch job runs a script without requiring an interactive shell. Save this as <code>gpu_job.sbatch</code>:</p>
+<pre><code class="language-bash">#!/bin/bash
+#SBATCH --job-name=class-gpu
+#SBATCH --partition=interactive_gpu
+#SBATCH --gres=gpu:2g.20gb:1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=2G
+#SBATCH --time=01:00:00
+#SBATCH --output=class-gpu-%j.out
+
+set -euo pipefail
+
+# Add the environment activation commands provided by your instructor here.
+
+hostname
+nvidia-smi -L
+python your_script.py
+</code></pre>
+<p>From the directory containing your Python script, submit it:</p>
+<pre><code class="language-bash">sbatch gpu_job.sbatch
+</code></pre>
+<p>Slurm prints a job ID. Check progress and read the output file:</p>
+<pre><code class="language-bash">squeue -u "$USER"
+cat class-gpu-JOB_ID.out
+</code></pre>
+<p>Replace <code>JOB_ID</code> with the numeric ID returned by <code>sbatch</code>. The output file appears when the job starts. Batch jobs also need the course environment activation commands; add them before submitting.</p>
+<p>After a job ends, inspect its final status:</p>
+<pre><code class="language-bash">sacct -j JOB_ID --format=JobID,State,ExitCode,Elapsed
+</code></pre>
+<p><code>COMPLETED</code> with exit code <code>0:0</code> indicates a successful process exit. Check the program’s output to confirm the expected result.</p>
+<h2 id="s7"><span class="hd-secnum">7</span>Troubleshooting</h2>
+<div class="tbl-scroll"><table class="tbl">
+<thead>
+<tr>
+<th>Problem</th>
+<th>What to check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Job stays pending</td>
+<td>Run <code>squeue -u "$USER"</code> and inspect the reason. <code>Resources</code> or <code>Priority</code> usually means you need to wait.</td>
+</tr>
+<tr>
+<td>Account or QoS error</td>
+<td>Share the exact error with your instructor or ARCH support. Student permissions may differ from the instructor’s.</td>
+</tr>
+<tr>
+<td>Requested time is rejected</td>
+<td>Use a duration of 4 hours or less, such as <code>--time=01:00:00</code>.</td>
+</tr>
+<tr>
+<td><code>nvidia-smi</code> fails or no GPU is available</td>
+<td>Confirm that you are inside the shell started by the GPU <code>srun</code> command, rather than on a login node.</td>
+</tr>
+<tr>
+<td><code>import torch</code> fails</td>
+<td>Activate the course environment or follow the course package setup instructions.</td>
+</tr>
+<tr>
+<td>PyTorch reports CUDA unavailable</td>
+<td>Check that the GPU allocation is active and that the course environment contains a CUDA-enabled PyTorch installation.</td>
+</tr>
+<tr>
+<td>CUDA out-of-memory error</td>
+<td>Reduce batch size, model size, or other GPU memory use. Each requested instance has approximately 20 GB.</td>
+</tr>
+<tr>
+<td>Job ends at its time limit</td>
+<td>Save checkpoints and request enough time for your exercise, up to 4 hours.</td>
+</tr>
+</tbody>
+</table></div>
+<p>To inspect current partition configuration and node status:</p>
+<pre><code class="language-bash">scontrol show partition interactive_gpu
+sinfo -p interactive_gpu
+</code></pre>
+<h2 id="s8"><span class="hd-secnum">8</span>GPU memory and choosing a model</h2>
+<p><strong>Plan for approximately 20 GB of GPU memory per allocated MIG slice.</strong> The physical A100 has 80 GB, but your <code>2g.20gb</code> allocation exposes only a portion of its memory and compute capacity. The <code>--mem=2G</code> setting in the examples requests system RAM, not GPU memory.</p>
+<p>Requesting multiple slices does not automatically combine their memory into a single larger GPU. A model must fit in each slice unless your application explicitly supports splitting it across devices.</p>
+<p>For a <strong>dense language model on one 20 GB slice</strong>, use the following as initial planning estimates. These are not measured limits on Skipjack, and they assume the model is resident on the GPU without CPU or disk offloading.</p>
+<div class="tbl-scroll"><table class="tbl">
+<thead>
+<tr>
+<th>Workload</th>
+<th>Reasonable starting target</th>
+<th>Larger, configuration-dependent target</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Full training or full fine-tuning with AdamW</td>
+<td>100–500 million parameters</td>
+<td>Around 1 billion with careful memory optimization</td>
+</tr>
+<tr>
+<td>QLoRA fine-tuning with a frozen 4-bit base model</td>
+<td>7–8 billion parameters</td>
+<td>13 billion with short sequences, small batches, and memory optimizations</td>
+</tr>
+<tr>
+<td>FP16/BF16 inference</td>
+<td>7–8 billion parameters with limited context and batch size</td>
+<td>Already near the memory limit; benchmark first</td>
+</tr>
+<tr>
+<td>8-bit inference</td>
+<td>7–13 billion parameters</td>
+<td>Depends on architecture, context length, and batch size</td>
+</tr>
+<tr>
+<td>4-bit inference</td>
+<td>13–20 billion parameters</td>
+<td>Around 30–32 billion may fit with constrained context and optimized software</td>
+</tr>
+</tbody>
+</table></div>
+<p>For class exercises, start with <strong>100–500M parameters for full training</strong>, <strong>7–8B for QLoRA</strong>, or <strong>7–8B quantized for inference</strong>. Validate the exact model and exercise before assigning it to students.</p>
+<h3 id="why-the-limits-vary">Why the limits vary</h3>
+<p>GPU memory holds more than model weights:</p>
+<ul>
+<li><strong>Inference:</strong> weights, the attention KV cache, temporary buffers, and framework overhead. Longer contexts and larger batches increase memory use.</li>
+<li><strong>Full training:</strong> weights, gradients, optimizer state, activations, and temporary buffers. Sequence length and batch size can substantially change the total.</li>
+<li><strong>QLoRA:</strong> a frozen, quantized base model plus trainable adapters and training activations. This is adapter fine-tuning, not full training of all base-model parameters.</li>
+</ul>
+<p>Useful approximate calculations, using decimal GB:</p>
+<div class="tbl-scroll"><table class="tbl">
+<thead>
+<tr>
+<th>Memory component</th>
+<th>Rough calculation</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FP16/BF16 weights only</td>
+<td>2 GB per billion parameters</td>
+<td>An 8B model needs about 16 GB before runtime overhead</td>
+</tr>
+<tr>
+<td>8-bit weights only</td>
+<td>1 GB per billion parameters</td>
+<td>A 13B model needs about 13 GB before overhead</td>
+</tr>
+<tr>
+<td>4-bit weights only</td>
+<td>0.5 GB per billion parameters</td>
+<td>A 32B model needs about 16 GB before quantization metadata and runtime overhead</td>
+</tr>
+<tr>
+<td>Common mixed-precision AdamW training state</td>
+<td>Approximately 18 GB per billion parameters, plus activations</td>
+<td>A 1B model can use about 18 GB before activations</td>
+</tr>
+</tbody>
+</table></div>
+<p>The exact training-state cost depends on optimizer and precision settings. Quantization metadata and some unquantized layers increase memory above the simple weight estimates. A model whose weights barely fit may still fail during generation or training.</p>
+<p><strong>Fitting in memory does not mean a job will finish within four hours.</strong> MIG provides a fraction of the physical GPU’s compute resources. Use small experiments, measure runtime, and save checkpoints for longer work.</p>
+<p>Sources: <a href="https://huggingface.co/docs/transformers/v4.36.1/en/model_memory_anatomy">Hugging Face model memory guide</a> and <a href="https://huggingface.co/docs/transformers/v4.50.0/en/quantization/bitsandbytes">bitsandbytes quantization guide</a>. The latter documents a constrained 13B adapter fine-tuning example on a 16 GB GPU; it is not a guarantee for every model or setup.</p>
+<h2 id="s9"><span class="hd-secnum">9</span>Distributed training and inference</h2>
+<p>Separate independent jobs are the simplest way to use several MIG slices. Each job can train a different model, test a hyperparameter setting, or process a separate portion of an inference dataset, provided its model fits in one slice. Access to multiple simultaneous allocations remains subject to account limits and scheduler availability.</p>
+<p>Using several slices for <strong>one coordinated model</strong> requires additional validation:</p>
+<div class="tbl-scroll"><table class="tbl">
+<thead>
+<tr>
+<th>Approach</th>
+<th>Guidance</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Independent training experiments</td>
+<td>Suitable for separate jobs; no GPU-to-GPU communication is needed</td>
+</tr>
+<tr>
+<td>Independent inference workers</td>
+<td>Suitable when each worker holds its own model and processes different inputs</td>
+</tr>
+<tr>
+<td>Distributed data parallel training (DDP)</td>
+<td>Requires working gradient communication; typically replicates the model on each device, so it does not automatically let a larger model fit</td>
+</tr>
+<tr>
+<td>Sharded training, such as FSDP</td>
+<td>Can distribute model state, but requires a compatible software stack and communication setup</td>
+</tr>
+<tr>
+<td>Tensor or pipeline parallel inference</td>
+<td>Can split one model across devices, but software compatibility and communication performance must be tested</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Do not assume ordinary multi-GPU tutorials work unchanged on MIG.</strong> NVIDIA documents experimental MIG support starting with NCCL 2.31, requiring a driver supporting CUDA 13.0 or later. Each rank must use a distinct MIG instance. MIG does not support NVLink peer-to-peer communication; NVIDIA also specifies disabling Multi-Node NVLink with <code>NCCL_MNNVL_ENABLE=0</code> for this configuration.</p>
+<p>The single-slice tests described above did <strong>not</strong> verify the installed NCCL/PyTorch versions, multi-slice communication, distributed performance, or permission to allocate several slices. Requesting more slices alone does not establish distributed compatibility.</p>
+<p>For an assignment teaching DDP, FSDP, or tensor parallelism, coordinate with the instructor and cluster manager to validate a working setup in advance. A temporary allocation of full GPUs may be more appropriate for these exercises.</p>
+<p>Source: <a href="https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/usage/communicators.html#using-mig-instances">NVIDIA NCCL documentation: Using MIG instances</a>.</p>
+<h2 id="verification">Verification and limits</h2>
+<p>On October 20, 2026, two short tests using the instructor’s <code>dkhasha1</code> account successfully requested a <code>2g.20gb</code> instance. A CUDA driver test detected one visible MIG device and successfully allocated, wrote, read back, and verified GPU memory. Both jobs completed with exit code <code>0:0</code>, and their allocations were released.</p>
+<p>The PyTorch example is a student check to run in the course environment; that environment was not tested during the infrastructure check. Each student must verify their own account access. Availability and partition configuration can change.</p>
+<p>ARCH portal: <a href="https://portal.arch.jhu.edu">https://portal.arch.jhu.edu</a></p>
+<p>Support: helpdesk@arch.jhu.edu</p>
+        <div class="hd-footer">
+            <p>Questions about the class setup? Post on <a href="https://piazza.com/jhu/fall2026/cs601471671">Piazza</a>. For account or cluster issues, contact <a href="mailto:helpdesk@arch.jhu.edu">ARCH support</a>.</p>
+        </div>
+    </main>
+</div>
+<script defer src="vendor/highlight/highlight.min.js"></script>
+<script defer src="handout.js"></script>
+</body>
+</html>
