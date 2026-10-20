@@ -32,6 +32,7 @@ should notice. Pair borrowed figures with interpretation or a task rather than u
 | 12 | `12.transformer-masking-and-cost.html` | Masks, architecture, and cost (Thu Oct 8, Transformer slides 51–125): causal/padding/loss masks, encoder–decoder and cross-attention, FLOPs and IO, cache offsets/memory/cost, assigned at-home implementation reading, optional decoder experiments and pinned nanoGPT reading |
 | 13 | `13.modern-llm-architectures.html` | Normalization and residual paths (Tue Oct 13, slides 1–13): topology, norm placement/statistics, precision, FLOPs versus runtime, scale/shift explorer, normalization lab, and code reading |
 | 14 | `14.ffn-layout-and-tying.html` | LLM architecture choices and dimensions (Thu Oct 15, slides 14–50 of the latest 13-14-15 deck): RMSNorm evidence, FFNs, block layout, tying, FFN/head dimensions, depth/width budgets, checked labs and code reading; ends at the pre-training-data divider |
+| 15 | `15.pre-training-data.html` | Pre-training data (Tue Oct 20, printed slides 51–93): collection, cleaning, duplicate removal, pipeline audit, perplexity limits, core exercises, and optional bonus/lab/code reading |
 
 Handouts #7 and #8 split the practical-training material at slide 183. Figures and exercises move with their topic; the optional LM-loss application stays in Handout #7 §2.
 
@@ -520,3 +521,41 @@ Practice E–F and the corresponding optional code reading carry matching labels
 The reading path, time estimate, goals, and slide map distinguish core from bonus
 material. The GELU disclosure retains its optional heading in print. Slide ranges
 and existing section anchors are unchanged.
+
+## Class 15 pre-training data companion
+
+`15.pre-training-data.html` covers printed slides 51–93 of the current
+`13-14-15.modern-llm-architectures.pdf`. The final data-preparation summary
+is PDF page 91, labeled 93; printed labels 91–92 are absent. The handout stops
+before the actual-pre-training divider. Session 15 links the reading beside the
+separate Skipjack GPU guide.
+
+Core reading covers collection and token-count denominators, Common Crawl
+coverage, cleaning-rule audits, evidence from C4, duplicate weighting and
+retention, pipeline order, sharding, and the limits of reference-LM perplexity.
+Blue Bonus slides 55, 67–80, 82, and 84–86 are summarized in three optional
+collapsed notes in §5; their optional labels remain visible in print. Core
+practice does not require the bonus algorithms. There are 13 worked exercises:
+three warm-ups, one cleaning question, three optional implementation questions,
+and six core synthesis questions, plus an inline figure-reading disclosure.
+
+Two full-resolution slide figures preserve source credits and link to full-size
+images. `widgets/pretraining-data.js` and `.css` provide an offline synthetic
+corpus audit. Its whitespace-word counts are explicitly not tokenizer counts;
+static traces remain available without JavaScript and in print.
+`labs/15_data_checks.py` runs with the Python standard library and no GPU or
+network. It checks retention counts, representative-selection order, perplexity
+aggregation and mutations, plus the small optional suffix/Jaccard/mixture
+examples. The CCNet reading pins revision
+`bda555bd1cf1ee2e0b925363e62a61cd46c8b60d`; its two short excerpts are verbatim,
+and the upstream `pp` function was extracted and executed without its optional
+dependencies. The handout distinguishes perplexity bucketing from deletion and
+corrects the suffix-index and near-duplicate-threshold ambiguities in the bonus
+slides without assigning their implementation.
+
+Validation: the lab and upstream `pp` checks pass. Local assets/fragments,
+unique heading IDs, exercise answers, source-excerpt bytes, and `git diff --check`
+pass. Browser checks cover all nine widget settings, KaTeX, image loading, TOC,
+answer toggles, 1280/390/320 px layouts, print expansion/restoration and visible
+optional labels, no-JavaScript reading, and both Session 15 course links.
+Desktop, mobile, figure, widget, and print-style screenshots were visually reviewed.
