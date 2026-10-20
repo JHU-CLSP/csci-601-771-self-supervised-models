@@ -535,9 +535,9 @@ coverage, cleaning-rule audits, evidence from C4, duplicate weighting and
 retention, pipeline order, sharding, and the limits of reference-LM perplexity.
 Blue Bonus slides 55, 67–80, 82, and 84–86 are summarized in three optional
 collapsed notes in §5; their optional labels remain visible in print. Core
-practice does not require the bonus algorithms. There are 16 worked exercises:
-three warm-ups, one cleaning question, three optional implementation questions,
-and nine core synthesis questions, plus an inline figure-reading disclosure.
+practice does not require the bonus algorithms. There are 19 worked exercises:
+three warm-ups, one cleaning question, four optional implementation questions,
+and eleven core synthesis questions, plus an inline figure-reading disclosure.
 
 Two full-resolution slide figures preserve source credits and link to full-size
 images. `widgets/pretraining-data.js` and `.css` provide an offline synthetic
@@ -565,4 +565,11 @@ the loss-minimizing conditional distribution, how changed evaluation weights can
 hide deterioration in every domain, and how identical paragraphs can still have
 different conditioning contexts. Each includes a worked answer and explicit
 assumptions; the evaluation question does not require bonus training-mixture
-methods. Core reading time is now estimated at 40–50 minutes.
+methods. With the further additions below, core reading time is estimated at 45–55 minutes.
+
+Further additions: an optional runnable number-normalization collision exercise
+(§6.1), a token-weighted contamination/loss/perplexity calculation (practice J),
+and a one-pass versus fixed-token compute question (practice K). K is explicitly
+credited as an extension of Spring 2025 Quiz 2 Q4.6, p. 7; its answer states the
+budget assumptions needed for the source quiz's compute-saving claim. The
+standard-library lab checks the new key collision, perplexities, and pass counts.

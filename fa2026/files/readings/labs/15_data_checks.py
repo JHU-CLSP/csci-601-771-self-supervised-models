@@ -111,6 +111,20 @@ def main():
     assert correct == 100 and math.isclose(wrong_base, 7.38905609893065)
     # Deliberately dropping the minus sign in pp gives .01, not 100.
     assert 10 ** (-6 / 3) == .01
+    # Normalization can merge distinct facts even without any hash collision.
+    texts = ['The dose is 5 mg', 'The dose is 50 mg']
+    coarse_key = lambda text: re.sub(r"\d+", "<NUM>", " ".join(text.lower().split()))
+    assert coarse_key(texts[0]) == coarse_key(texts[1]) == 'the dose is <NUM> mg'
+    assert key(texts[0], 'normalized') != key(texts[1], 'normalized')
+    # Contamination averages losses by token count before exponentiating.
+    contaminated_loss = .2 * .5 + .8 * 3.0
+    assert math.isclose(contaminated_loss, 2.5)
+    assert math.isclose(math.exp(contaminated_loss), 12.182493960703473)
+    assert math.isclose(math.exp(3.0), 20.085536923187668)
+    assert not math.isclose(math.exp(contaminated_loss), .2 * math.exp(.5) + .8 * math.exp(3))
+    # Cleaning halves a one-pass token budget, not a fixed-token training budget.
+    assert 50 / 100 == .5
+    assert (200 / 100, 200 / 50) == (2, 4)
     optional_checks()
     print('All core and optional numerical checks passed.')
 
