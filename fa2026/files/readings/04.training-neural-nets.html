@@ -136,6 +136,7 @@ size, not a global convergence guarantee for a network.</p>
 <p>For $J(w)=(w-3)^2+4$, start at $w_0=6$ with learning rate $0.1$. Compute $J\prime(w_0)$, $w_1$, and the loss before and after the update. Why does the constant 4 disappear from the derivative?</p><details class="ans"><summary>Work it out, then reveal the answer</summary>
 <div class="ans-body"><p>$J\prime(w)=2(w-3)$, so $J\prime(6)=6$ and $w_1=6-0.1(6)=5.4$. The loss changes from 13 to $2.4^2+4=9.76$. A constant shifts all objective values equally and has derivative zero; it changes neither the minimizing weight nor the update.</p></div></details></div></div>
 <h3 id="s1-sgd">1.4 &nbsp;Minibatches: estimating the direction</h3>
+<p><strong>Terminology.</strong> A mini-batch (also written “minibatch”) supplies the examples for one optimizer update. Here it is processed in a single forward/backward pass. Later, <a href="07.training-practice.html#batch-terminology">Handout #7</a> splits an update’s batch into smaller <strong>micro-batches</strong> to fit memory, accumulating their gradients before updating. The total contributing to the update is the <strong>effective batch</strong>.</p>
 $$\widehat J_B(\theta)=\frac1B\sum_{i\in\mathcal B}\ell_i(\theta),\qquad
 \widehat g_B=\frac1B\sum_{i\in\mathcal B}\nabla_\theta\ell_i(\theta).$$
 <p>Full-batch gradient descent uses all $N$ examples per update. A minibatch uses $B$ examples;

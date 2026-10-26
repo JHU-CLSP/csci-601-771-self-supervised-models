@@ -84,9 +84,19 @@ $$\theta_t=(1-\eta_t\lambda)\theta_{t-1}-\eta_t\frac{\widehat m_t}{\sqrt{\wideha
 
 <h2 id="s4"><span class="hd-secnum">4</span>Count tokens, updates, and useful work</h2>
 <h3 id="s4-batch">4.1 Micro-batches and the effective batch</h3>
-<p>Let $b$ be sequences per micro-batch <em>per data-parallel worker</em>, $K$ accumulation steps, $P$ data-parallel workers, and $T$ positions per sequence. For equal-length, fully scored sequences:</p>
+<div class="callout" id="batch-terminology"><span class="callout-label">Mini-batch versus micro-batch: our terminology</span>
+<p>In these handouts, the <strong>mini-batch</strong> is the data contributing to one optimizer update. We call its total size the <strong>effective batch size</strong> (or <strong>global batch size</strong> across data-parallel workers). A <strong>micro-batch</strong> is the data processed in one forward/backward pass on one worker. Each micro-batch contributes gradients; parameters stay fixed until the update’s contributions have been accumulated.</p>
+<div class="tbl-scroll" role="region" aria-label="Mini-batch and micro-batch comparison; scroll horizontally on narrow screens" tabindex="0"><table class="tbl" style="min-width:560px"><thead><tr><th>Aspect</th><th>Mini-batch / effective batch</th><th>Micro-batch</th></tr></thead><tbody>
+<tr><th scope="row">Counts data for</th><td>One optimizer update</td><td>One forward/backward pass on one worker</td></tr>
+<tr><th scope="row">Main role</th><td>Sets how much data contributes to the update</td><td>Sets how much data is processed at once and affects peak activation memory</td></tr>
+<tr><th scope="row">One-worker example</th><td>32 sequences per update</td><td>4 sequences per pass, accumulated over 8 passes</td></tr>
+<tr><th scope="row">One worker, no accumulation</th><td colspan="2">The two batches coincide: one pass, then one update.</td></tr>
+</tbody></table></div>
+<p><strong>Terminology varies.</strong> Some papers and libraries call a per-worker input batch a “mini-batch.” Check whether a reported batch size means per pass, per worker, or per update, and whether it counts sequences or scored tokens.</p>
+</div>
+<p>Let $b$ be sequences per micro-batch <em>per data-parallel worker</em>, $K$ accumulation steps, $P$ data-parallel workers, and $T$ positions per sequence. For equal-length, fully scored sequences, $B_{\mathrm{seq}}$ is the mini-batch size across the workers for one update:</p>
 $$B_{\mathrm{seq}}=bKP,\qquad B_{\mathrm{tok}}=bKPT,\qquad U=D/B_{\mathrm{tok}}.$$
-<p>$U$ is the number of optimizer updates, assuming divisibility. Count independent data-parallel replicas in $P$, not all GPUs: tensor-parallel GPUs cooperate on the same examples. If sequences contain padding or masked targets, distinguish allocated input positions, non-padding tokens, and scored target tokens; specify which denominator you report.</p>
+<p>Thus effective batch size = micro-batch size per worker × accumulation steps × data-parallel workers. For example, $4\times8\times2=64$ sequences per update; multiplying by $T$ converts this sequence count to token positions. $U$ is the number of optimizer updates, assuming divisibility. Count independent data-parallel replicas in $P$, not all GPUs: tensor-parallel GPUs cooperate on the same examples. If sequences contain padding or masked targets, distinguish allocated input positions, non-padding tokens, and scored target tokens; specify which denominator you report.</p>
 <div class="callout try"><span class="callout-label">Worked training plan</span>With $b=2$, $K=8$, $P=4$, and $T=2{,}048$, each update combines 64 sequences and 131,072 token positions. A budget of 1,310,720,000 processed positions takes 10,000 updates. Halving $b$ and doubling $K$ preserves that effective batch, but can change throughput and floating-point accumulation order.</div>
 <div class="widget train-planner" id="w-training-plan" aria-labelledby="planner-title">
 <h4 id="planner-title">Explore a token budget</h4><p>Assume equal-length sequences and no padding or masked targets. Change one quantity and predict which outputs will move.</p>

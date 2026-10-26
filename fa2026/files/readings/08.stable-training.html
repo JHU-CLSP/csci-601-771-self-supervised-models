@@ -128,7 +128,7 @@ Take $c=1$ and compare $g=(3,4)$ with $g=(3\times10^{-8},4\times10^{-8})$.</p>
 <ol>
 <li>Compute the clipped vectors and the update norms for plain SGD with learning rate 0.1, no momentum, and no weight decay.</li>
 <li>Does clipping restore information lost through a zero activation derivative?</li>
-<li>For accumulated microbatches, should you clip each contribution separately or clip after forming the intended full gradient?</li>
+<li>For accumulated <a href="07.training-practice.html#batch-terminology">micro-batches</a> (one forward/backward pass each), should you clip each contribution separately or clip after forming the intended full gradient of the mini-batch/effective batch?</li>
 </ol>
 <details class="ans"><summary>Work it out, then reveal the answer</summary><div class="ans-body">
 <p>The first norm is 5, so the clipped vector is $(0.6,0.8)$ and the SGD update norm is 0.1.
@@ -269,8 +269,9 @@ $v/(v+\epsilon)$; learned scale and shift can change the final statistics furthe
 <div class="ans-body"><p>Since $\nabla_w\ell=\delta x$, positive inputs yield two entries with the same sign (or both zero). With centered inputs and $\delta&lt;0$, the signs are $(+,-)$. This is a local geometric observation, not a claim about every batch-averaged gradient. Normalization changes scales and can help optimization; learned weights still determine influence, so it does not force equal feature contributions.</p></div></details></div></div>
 <div class="ex" id="normalization-symmetry"><div class="ex-head"><span>Can normalization replace random initialization?</span></div><div class="ex-body">
 <p>Two hidden units compute $h_j=\tanh(w_j^\top x+b_j)$. Each feature then passes through
-BatchNorm using the same minibatch, with its own learned scale $\gamma_j$ and shift $\beta_j$.
+BatchNorm using the same batch of examples in one forward pass, with its own learned scale $\gamma_j$ and shift $\beta_j$.
 A scalar output is $\hat y=v_1\widetilde h_1+v_2\widetilde h_2+c$.</p>
+<p>BatchNorm computes its training statistics on the batch processed together in that forward pass. With ordinary gradient accumulation, that is the micro-batch; accumulating gradients does not combine those statistics over the effective batch. This exercise uses one pass per update, so the micro-batch and mini-batch coincide.</p>
 <p>Initially $w_1=w_2$, $b_1=b_2$, $v_1=v_2$, $\gamma_1=\gamma_2=1$, and
 $\beta_1=\beta_2=0$; the running statistics also match. Assume ordinary deterministic SGD,
 no dropout, and no unit-specific noise or other asymmetry.</p>

@@ -107,11 +107,21 @@ not a fresh gradient for the second batch.</p></div></details></div></div>
 
 <h3 id="s1-batches">1.2 &nbsp;Batching: give every axis a meaning</h3>
 <p class="hd-srcline">Slides 168–172</p>
+<div class="callout" id="batch-terminology"><span class="callout-label">Mini-batch versus micro-batch: our terminology</span>
+<p>In these handouts, the <strong>mini-batch</strong> is the data contributing to one optimizer update. We call its total size the <strong>effective batch size</strong> (or <strong>global batch size</strong> across data-parallel workers). A <strong>micro-batch</strong> is the data processed in one forward/backward pass on one worker. Each micro-batch contributes gradients; parameters stay fixed until the update’s contributions have been accumulated.</p>
+<div class="tbl-scroll" role="region" aria-label="Mini-batch and micro-batch comparison; scroll horizontally on narrow screens" tabindex="0"><table class="tbl" style="min-width:560px"><thead><tr><th>Aspect</th><th>Mini-batch / effective batch</th><th>Micro-batch</th></tr></thead><tbody>
+<tr><th scope="row">Counts data for</th><td>One optimizer update</td><td>One forward/backward pass on one worker</td></tr>
+<tr><th scope="row">Main role</th><td>Sets how much data contributes to the update</td><td>Sets how much data is processed at once and affects peak activation memory</td></tr>
+<tr><th scope="row">One-worker example</th><td>32 sequences per update</td><td>4 sequences per pass, accumulated over 8 passes</td></tr>
+<tr><th scope="row">One worker, no accumulation</th><td colspan="2">The two batches coincide: one pass, then one update.</td></tr>
+</tbody></table></div>
+<p><strong>Terminology varies.</strong> Some papers and libraries call a per-worker input batch a “mini-batch.” Check whether a reported batch size means per pass, per worker, or per update, and whether it counts sequences or scored tokens.</p>
+</div>
 <p>A batch applies the same parameters to multiple examples. Vectorized tensor operations let the
 hardware process those examples together. For language data we use $X\in\mathbb R^{B\times T\times d}$:
 batch, sequence position, embedding coordinate. Token IDs have shape $(B,T)$; looking up each
 ID's embedding introduces the final feature axis. Other axis orders work if operations follow
-that convention. An axis's size does not tell you its meaning.</p>
+that convention. An axis's size does not tell you its meaning. Here $B$ is the number of examples processed together in one forward pass: the micro-batch size. Accumulating multiple passes changes the effective batch without changing this tensor’s $B$ axis.</p>
 $$Y=XW^\top+b,\qquad W\in\mathbb R^{h\times d},\qquad Y\in\mathbb R^{B\times T\times h}.$$
 <p>The multiplication acts on the last axis, while the bias broadcasts over examples and positions.
 Its leading cost is $BTdh$ multiply-accumulates. Larger batches can improve hardware utilization,
@@ -280,10 +290,11 @@ immediate drop. An out-of-memory error depends on the peak live allocation and a
 not an average over the step. Its location is informative: an error on the first Adam step may be
 optimizer-state allocation, while one late in forward often points to saved activations.</p>
 <h3 id="s1-oom">1.5 &nbsp;Responding to OOM: smaller live batches, same objective</h3>
-<p>Start by reducing batch size or sequence length when activation memory dominates. For evaluation,
+<p>Start by reducing micro-batch size or sequence length when activation memory dominates. For evaluation,
 use <code>no_grad()</code> to avoid saving a backward graph and <code>eval()</code> for evaluation
 behavior. Do not place a training forward pass in <code>no_grad()</code> just to save memory:
 that removes the path needed to compute its gradients.</p>
+<p>On one worker, the effective batch size is the micro-batch size times the number $K$ of accumulation passes, for equal-sized micro-batches. For example, $4\times8=32$ sequences contribute to one update. Data-parallel workers add further contributions; see <a href="16.pre-training-optimization.html#s4-batch">Handout #16 §4.1</a>.</p>
 <p><strong>Gradient accumulation</strong> performs backward after each small microbatch, releasing
 its saved tensors before processing the next. Keep the weights fixed until all microbatches in the
 update are processed. For an additive per-example objective,</p>
