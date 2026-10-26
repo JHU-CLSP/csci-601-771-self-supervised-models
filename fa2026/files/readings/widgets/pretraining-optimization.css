@@ -1,4 +1,12 @@
 .train-figure img { display: block; width: 100%; height: auto; border: 1px solid var(--rule); }
+.train-isoflop img { max-width: 600px; margin: 0 auto; }
+.packing-example table { min-width: 540px; }
+.packing-example caption { text-align: left; color: var(--navy); font-weight: 600; margin-bottom: 10px; }
+.packing-matrix td { text-align: center; }
+.hd-body table.packing-matrix th { text-transform: none; }
+.packing-matrix td.pack-allow { background: #dceee6; color: #15543d; font-weight: 700; }
+.packing-matrix td.pack-block { background: #f3f4f6; color: #677485; }
+.packing-example .pack-ignore { color: #8b3548; background: #fcecef; }
 .train-planner { padding: 20px; box-sizing: border-box; }
 .train-planner h4 { margin-top: 0; font-size: 17px; color: var(--navy); }
 .train-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 18px 0; }

@@ -35,13 +35,16 @@ should notice. Pair borrowed figures with interpretation or a task rather than u
 | 15 | `15.pre-training-data.html` | Pre-training data (Tue Oct 20, printed slides 51–93): collection, cleaning, duplicate removal, pipeline audit, perplexity limits, core exercises, and optional bonus/lab/code reading |
 | 16 | `16.pre-training-optimization.html` | Pre-training optimization (Tue Oct 27, printed slides 94–131; PDF pages 92–129): compute allocation, optimizer memory, AdamW, schedules, token batches, packing, repetition, monitoring, core practice, and optional CPU lab/nanoGPT reading |
 
-Handout #16 includes an offline training-budget calculator (`widgets/pretraining-optimization.js`
+Handout #16 includes an offline token-budget calculator (`widgets/pretraining-optimization.js`
 and `.css`) and `labs/16_optimization_checks.py`. Core reading is §1–§6; §7 is optional
 implementation/code reading and §8 covers bonus slides 106, 115, and 117. The slide mapping
 accounts for skipped printed labels: printed 94–131 correspond to PDF pages 92–129.
-Two full-slide figures retain their axes/legends and carry source-slide links and attribution.
-The lab checks full-batch/accumulated gradient parity, unequal target-count weighting, AdamW
-zero-versus-missing gradients, and the cosine scheduler from pinned nanoGPT `3adf61e`.
+The cropped IsoFLOP plot and schedule slide retain their axes/legends and carry source-slide
+links and attribution. An original packing diagram shows shifted targets, reset position IDs,
+and independent-document causal attention. A synthetic equal-compute selection exercise uses
+supplied budgets; training-compute formulas are deferred to the scaling-laws lecture.
+The lab checks full-batch/accumulated gradient parity, unequal target-count weighting, a masked
+next-token bigram LM, packing-mask isolation, AdamW zero-versus-missing gradients, and the cosine scheduler from pinned nanoGPT `3adf61e`.
 Numerical examples and deliberate mutation/repair were checked with PyTorch 2.12.0 on CPU;
 browser QA covered offline assets, KaTeX, calculator edits and invalid inputs, answers,
 checklist persistence, 1280/390/320 px layouts, and print visibility/answer expansion.
