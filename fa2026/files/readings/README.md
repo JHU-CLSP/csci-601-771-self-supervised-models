@@ -33,6 +33,18 @@ should notice. Pair borrowed figures with interpretation or a task rather than u
 | 13 | `13.modern-llm-architectures.html` | Normalization and residual paths (Tue Oct 13, slides 1–13): topology, norm placement/statistics, precision, FLOPs versus runtime, scale/shift explorer, normalization lab, and code reading |
 | 14 | `14.ffn-layout-and-tying.html` | LLM architecture choices and dimensions (Thu Oct 15, slides 14–50 of the latest 13-14-15 deck): RMSNorm evidence, FFNs, block layout, tying, FFN/head dimensions, depth/width budgets, checked labs and code reading; ends at the pre-training-data divider |
 | 15 | `15.pre-training-data.html` | Pre-training data (Tue Oct 20, printed slides 51–93): collection, cleaning, duplicate removal, pipeline audit, perplexity limits, core exercises, and optional bonus/lab/code reading |
+| 16 | `16.pre-training-optimization.html` | Pre-training optimization (Tue Oct 27, printed slides 94–131; PDF pages 92–129): compute allocation, optimizer memory, AdamW, schedules, token batches, packing, repetition, monitoring, core practice, and optional CPU lab/nanoGPT reading |
+
+Handout #16 includes an offline training-budget calculator (`widgets/pretraining-optimization.js`
+and `.css`) and `labs/16_optimization_checks.py`. Core reading is §1–§6; §7 is optional
+implementation/code reading and §8 covers bonus slides 106, 115, and 117. The slide mapping
+accounts for skipped printed labels: printed 94–131 correspond to PDF pages 92–129.
+Two full-slide figures retain their axes/legends and carry source-slide links and attribution.
+The lab checks full-batch/accumulated gradient parity, unequal target-count weighting, AdamW
+zero-versus-missing gradients, and the cosine scheduler from pinned nanoGPT `3adf61e`.
+Numerical examples and deliberate mutation/repair were checked with PyTorch 2.12.0 on CPU;
+browser QA covered offline assets, KaTeX, calculator edits and invalid inputs, answers,
+checklist persistence, 1280/390/320 px layouts, and print visibility/answer expansion.
 
 Handouts #7 and #8 split the practical-training material at slide 183. Figures and exercises move with their topic; the optional LM-loss application stays in Handout #7 §2.
 
