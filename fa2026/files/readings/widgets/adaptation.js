@@ -45,3 +45,45 @@
     [rank, target, headAct, loraAct].forEach(function (el) { el.addEventListener('input', update); el.addEventListener('change', update); });
     update();
 }());
+
+/* Schematic gradient trace; outcomes match the deterministic CPU lab. */
+(function () {
+    'use strict';
+    var root = document.getElementById('w-adaptation-flow');
+    if (!root) return;
+    var mode = document.getElementById('flow-mode');
+    var button = document.getElementById('flow-trace');
+    var graph = document.getElementById('flow-graph');
+    var result = document.getElementById('flow-result');
+    var traced = false;
+    function update() {
+        var head = mode.value === 'head';
+        var broken = mode.value === 'broken';
+        var names = [head ? 'Early projection' : 'Early projection + adapter', 'Frozen bridge', head ? 'Late projection' : 'Late projection + adapter', 'Output head', 'Loss'];
+        var training = [!head, false, !head, head, false];
+        var reached = [!head && !broken, !head && !broken, !head, true, true];
+        graph.innerHTML = '<p class="flow-direction">Forward: left to right (top to bottom on phones). Backward: reverse direction.</p><ol class="flow-stages">' + names.map(function (name, i) {
+            var cut = traced && broken && i === 1;
+            var state = cut ? 'cut' : traced && reached[i] ? 'reached' : '';
+            var status = i === 4 ? 'Scalar objective' : training[i] ? 'Trainable parameters' : 'Frozen parameters';
+            var back = !traced ? 'Backward not traced' : cut ? 'STOP: detached output' : reached[i] ? (i === 4 ? 'Backward starts here' : 'Backward crosses this stage') : 'No backward through this stage';
+            return '<li class="flow-stage ' + state + '"><strong>' + name + '</strong><span>' + status + '</span><span class="flow-back">' + back + '</span></li>';
+        }).join('') + '</ol>';
+        button.textContent = traced ? 'Reset to forward' : 'Trace backward';
+        if (!traced) {
+            result.textContent = 'Predict: which trainable parameters get a gradient? Does the frozen bridge need an input gradient?';
+            return;
+        }
+        var description = head ? 'The head learns from frozen features. Its backward pass needs those features, but no backbone backward pass.' : broken ? 'The late adapter still learns, so loss can decrease. Detaching the bridge disconnects the early adapter: its gradients are missing, not zero tensors.' : 'Backward crosses the frozen head and bridge to reach both adapters. Frozen weights get no parameter gradients, but their operations transmit input gradients.';
+        function row(name, value) { return '<tr><td>' + name + '</td><td>' + value + '</td></tr>'; }
+        result.innerHTML = '<p><strong>' + description + '</strong></p><div class="tbl-scroll"><table class="tbl"><caption>First-backward parameter gradients in the CPU lab</caption><thead><tr><th>Parameters</th><th>Gradient state</th></tr></thead><tbody>' +
+            row('Early adapter A / B', head ? 'Not present' : broken ? 'None / None (disconnected)' : 'Zero tensor / nonzero tensor') +
+            row('Bridge weight', 'None (frozen)') +
+            row('Late adapter A / B', head ? 'Not present' : 'Zero tensor / nonzero tensor') +
+            row('Head weight', head ? 'Nonzero tensor' : 'None (frozen)') +
+            '</tbody></table></div><p>A starts with a zero task gradient because B starts at zero (§3.2). A zero tensor is different from a missing gradient.</p>';
+    }
+    mode.addEventListener('change', function () { traced = false; update(); });
+    button.addEventListener('click', function () { traced = !traced; update(); });
+    update();
+}());

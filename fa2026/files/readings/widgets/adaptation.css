@@ -23,3 +23,17 @@ body[data-handout="17.adaptation"] .hd-toc ol ol { column-count:1; }
 @media print {
     body[data-handout="17.adaptation"] .hd-body pre { white-space:pre-wrap; overflow-wrap:anywhere; font-size:9pt; }
 }
+.flow-action { display:flex; align-items:end; padding-bottom:1px; }
+.flow-direction { font-size:13px; color:var(--muted); margin-top:20px; }
+.flow-stages { list-style:none; padding:0; display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px; margin:16px 0; }
+.flow-stage { border:2px solid #b5beca; border-radius:5px; padding:10px; background:#f5f6f8; font-size:12px; overflow-wrap:anywhere; }
+.flow-stage strong { display:block; color:var(--navy); font-size:13px; }
+.flow-stage span { display:block; margin-top:8px; }
+.flow-stage .flow-back { border-top:1px solid #b5beca; padding-top:8px; }
+.flow-stage.reached { border-color:#28773b; background:#edf8ef; }
+.flow-stage.cut { border-color:#a33232; background:#fff0f0; }
+@media(max-width:600px) {
+    .flow-stages { grid-template-columns:1fr; }
+    .flow-stage { font-size:14px; }
+    .flow-stage strong { font-size:15px; }
+}

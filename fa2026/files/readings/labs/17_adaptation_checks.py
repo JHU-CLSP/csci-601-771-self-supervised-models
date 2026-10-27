@@ -14,14 +14,23 @@ torch.set_default_dtype(torch.float64)
 
 
 class LoRALinear(nn.Module):
-    """Original teaching implementation; no bias, dropout, or automatic merge."""
-    def __init__(self, din, dout, r=2, alpha=8):
+    """Teaching implementation; optional existing base, no adapter dropout/auto-merge."""
+    def __init__(self, din, dout, r=2, alpha=8, *, base=None):
         super().__init__()
-        self.base = nn.Linear(din, dout, bias=False)
+        if r <= 0:
+            raise ValueError("rank must be positive")
+        self.base = nn.Linear(din, dout, bias=False) if base is None else base
         self.base.requires_grad_(False)
-        self.A = nn.Parameter(torch.randn(r, din) * 0.1)
-        self.B = nn.Parameter(torch.zeros(dout, r))
+        weight = self.base.weight
+        self.A = nn.Parameter(torch.randn(r, din, device=weight.device,
+                                         dtype=weight.dtype) * 0.1)
+        self.B = nn.Parameter(weight.new_zeros(dout, r))
         self.scale = alpha / r
+
+    @classmethod
+    def from_linear(cls, base, r=2, alpha=8):
+        # Reuse the exact layer, including its bias, dtype, device, and weights.
+        return cls(base.in_features, base.out_features, r, alpha, base=base)
 
     def forward(self, x):
         return self.base(x) + self.scale * F.linear(F.linear(x, self.A), self.B)
@@ -46,6 +55,27 @@ def check_response_loss():
     assert logits.grad[0, 4, 6] < 0
     assert torch.count_nonzero(logits.grad[0, [0, 1, 5, 6]]) == 0
     print(f'response loss: 3 scored targets; mean CE = {loss.item():.6f}')
+
+
+def check_existing_layer():
+    base = nn.Linear(4, 3, bias=True)
+    x = torch.randn(2, 4)
+    reference = base(x).detach().clone()
+    before = {name: value.detach().clone() for name, value in base.named_parameters()}
+    adapted = LoRALinear.from_linear(base, r=2)
+    assert adapted.base is base
+    torch.testing.assert_close(adapted(x), reference, rtol=0, atol=0)
+    trainable = [name for name, p in adapted.named_parameters() if p.requires_grad]
+    assert trainable == ['A', 'B']
+    optimizer = torch.optim.SGD([p for p in adapted.parameters() if p.requires_grad], lr=0.1)
+    F.mse_loss(adapted(x), torch.ones_like(reference)).backward()
+    assert adapted.B.grad.norm() > 0
+    optimizer.step()
+    assert not torch.allclose(adapted(x), reference)
+    for name, value in base.named_parameters():
+        assert value.grad is None
+        torch.testing.assert_close(value, before[name], rtol=0, atol=0)
+    print('existing layer: exact initial output; adapter learns; base weight and bias unchanged')
 
 
 def check_initialization_and_merge():
@@ -147,4 +177,5 @@ if __name__ == '__main__':
     check_frozen_bridge()
     check_head_only()
     check_counts()
+    check_existing_layer()
     print('All adaptation checks passed.')

@@ -53,6 +53,8 @@ checklist persistence, 1280/390/320 px layouts, and print visibility/answer expa
 Handout #17 adds `widgets/adaptation.js` and `.css`, plus the offline PyTorch lab
 `labs/17_adaptation_checks.py`. The memory explorer separates parameter-related memory
 from hypothetical activation budgets; it is an accounting model, not a peak-memory predictor.
+The gradient-flow explorer compares head tuning, LoRA, and a detached frozen bridge, including
+zero-versus-missing first-step gradients; it is a schematic matched to the CPU checks.
 Core reading covers slides 1–17; multi-tenant serving from slide 18 is bonus. Exercises adapt
 Spring 2025 Quiz 3 Q3.1.1–1.5 and HW6 §3.2(b), with source-page links and independently
 checked answers. The LoRA implementation reading pins Microsoft LoRA revision
@@ -62,6 +64,10 @@ it does not repeat the slide’s inaccurate unchanged-training-FLOPs claim.
 
 Validation: PyTorch 2.12.0 CPU checks cover response-target shifting/masking, zero-init gradients,
 merge parity, frozen-bridge gradient flow, head-only gradients, and rectangular/model-wide counts.
+The existing-layer factory is checked for exact initial output parity, preserved frozen weights/bias,
+adapter-only updates, and float32 dtype preservation. A feature-collision counterexample and
+generation-error diagnosis replace repeated exercises 6A and 1B. The interactive gradient trace
+checks all three modes, resets, reachable stages, detached boundaries, and gradient-state tables.
 Deliberate merge-sign and no-grad mutations fail as expected; the EOS-mask variation preserves
 uniform-logit mean loss while changing supervision. Upstream initialization mutation and repeated
 merge/unmerge behavior were run against the pinned file. Browser checks cover all 21 rank/placement
