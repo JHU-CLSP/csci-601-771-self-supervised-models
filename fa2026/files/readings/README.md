@@ -34,6 +34,7 @@ should notice. Pair borrowed figures with interpretation or a task rather than u
 | 14 | `14.ffn-layout-and-tying.html` | LLM architecture choices and dimensions (Thu Oct 15, slides 14–50 of the latest 13-14-15 deck): RMSNorm evidence, FFNs, block layout, tying, FFN/head dimensions, depth/width budgets, checked labs and code reading; ends at the pre-training-data divider |
 | 15 | `15.pre-training-data.html` | Pre-training data (Tue Oct 20, printed slides 51–93): collection, cleaning, duplicate removal, pipeline audit, perplexity limits, core exercises, and optional bonus/lab/code reading |
 | 16 | `16.pre-training-optimization.html` | Pre-training optimization (Tue Oct 27, printed slides 94–131; PDF pages 92–129): compute allocation, optimizer memory, AdamW, schedules, token batches, packing, repetition, monitoring, core practice, and optional CPU lab/nanoGPT reading |
+| 17 | `17.adaptation.html` | Adapting LMs (Thu Oct 29, slides 1–17; slide 18 bonus): response-only targets, freezing and gradient flow, rectangular LoRA counts and initialization, memory accounting, fair evaluation, adapted quiz practice, CPU checks, and pinned original-LoRA code reading |
 
 Handout #16 includes an offline token-budget calculator (`widgets/pretraining-optimization.js`
 and `.css`) and `labs/16_optimization_checks.py`. Core reading is §1–§6; §7 is optional
@@ -48,6 +49,26 @@ next-token bigram LM, packing-mask isolation, AdamW zero-versus-missing gradient
 Numerical examples and deliberate mutation/repair were checked with PyTorch 2.12.0 on CPU;
 browser QA covered offline assets, KaTeX, calculator edits and invalid inputs, answers,
 checklist persistence, 1280/390/320 px layouts, and print visibility/answer expansion.
+
+Handout #17 adds `widgets/adaptation.js` and `.css`, plus the offline PyTorch lab
+`labs/17_adaptation_checks.py`. The memory explorer separates parameter-related memory
+from hypothetical activation budgets; it is an accounting model, not a peak-memory predictor.
+Core reading covers slides 1–17; multi-tenant serving from slide 18 is bonus. Exercises adapt
+Spring 2025 Quiz 3 Q3.1.1–1.5 and HW6 §3.2(b), with source-page links and independently
+checked answers. The LoRA implementation reading pins Microsoft LoRA revision
+`c4593f060e6a368d7bb5af5273b8e42810cdef90`, with verbatim excerpts and a retained MIT license.
+The handout explains frozen weight-gradient savings, unmerged training, and inference merging;
+it does not repeat the slide’s inaccurate unchanged-training-FLOPs claim.
+
+Validation: PyTorch 2.12.0 CPU checks cover response-target shifting/masking, zero-init gradients,
+merge parity, frozen-bridge gradient flow, head-only gradients, and rectangular/model-wide counts.
+Deliberate merge-sign and no-grad mutations fail as expected; the EOS-mask variation preserves
+uniform-logit mean loss while changing supervision. Upstream initialization mutation and repeated
+merge/unmerge behavior were run against the pinned file. Browser checks cover all 21 rank/placement
+combinations, memory-ranking reversal, invalid inputs, math rendering, answer toggles, checkbox
+persistence, offline operation without external requests, 1280/390/320 px layouts, and print expansion.
+Static worked examples remain when the widget is hidden for print. The handout uses system fonts
+to avoid the course font stylesheet’s remote font requests.
 
 Handouts #7 and #8 split the practical-training material at slide 183. Figures and exercises move with their topic; the optional LM-loss application stays in Handout #7 §2.
 

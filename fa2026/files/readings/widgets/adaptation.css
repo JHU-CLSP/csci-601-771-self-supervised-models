@@ -1,0 +1,25 @@
+.adapt-controls { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+.adapt-controls label { display:block; font-size:14px; color:var(--ink); }
+.adapt-controls input,.adapt-controls select { width:100%; box-sizing:border-box; padding:8px; border:1px solid #8798ad; border-radius:4px; background:white; color:var(--ink); font:inherit; }
+.adapt-controls input:focus-visible,.adapt-controls select:focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
+.adapt-result { margin-top:20px; font-variant-numeric:tabular-nums; }
+.adapt-result p { overflow-wrap:anywhere; }
+.adapt-result .tbl { font-size:14px; }
+.adapt-result th { text-transform:none !important; }
+.adapt-result .memory-bar { display:flex; height:24px; width:100%; background:#f0f2f5; margin:8px 0 20px; }
+.memory-state { background:#002d72; } .memory-act { background:#357a38; }
+.adapt-legend { font-size:13px; } .adapt-legend span { display:inline-block; width:12px; height:12px; margin-right:5px; }
+.adapt-flow { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:20px 0; }
+.adapt-flow > div { border:1px solid var(--rule); border-radius:5px; padding:14px; background:#f8fafd; }
+.adapt-flow strong { color:var(--navy); }
+@media(max-width:520px) { .adapt-controls,.adapt-flow { grid-template-columns:1fr; } }
+@media print { .adapt-flow { display:block; } .adapt-flow > div { margin-bottom:10px; } }
+/* Keep the nested TOC readable instead of nesting multi-column lists. */
+body[data-handout="17.adaptation"] .hd-toc ol ol { column-count:1; }
+@media(max-width:600px) {
+    body[data-handout="17.adaptation"] .hd-toc > ol { column-count:1; }
+    body[data-handout="17.adaptation"] .hd-toc ol ol { display:none; }
+}
+@media print {
+    body[data-handout="17.adaptation"] .hd-body pre { white-space:pre-wrap; overflow-wrap:anywhere; font-size:9pt; }
+}
