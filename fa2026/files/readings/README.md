@@ -96,7 +96,7 @@ label reversal, offset invariance versus scaling, extreme logits, double sigmoid
 annotation disagreement, last-valid pooling under either padding direction, and a shared scorer.
 Deliberate sign/pooling mutations fail as expected; the eight-versus-two vote variation and the
 upstream sum/centering exercises were checked independently. Browser checks cover 12 score/label
-cases, offset invariance, score steps, reset and invalid/boundary inputs, all six local images, including both online-paper panels,
+cases, offset invariance, score steps, reset and invalid/boundary inputs, all seven local vector images, including both online-paper panels,
 desktop comparison columns, mobile image stacking, full-resolution image links,
 math rendering, answers, checklist persistence, 1280/390/320 px layouts, zero external requests,
 print expansion, and the course-page link. Static examples remain available without the widget.
@@ -666,3 +666,13 @@ and a one-pass versus fixed-token compute question (practice K). K is explicitly
 credited as an extension of Spring 2025 Quiz 2 Q4.6, p. 7; its answer states the
 budget assumptions needed for the source quiz's compute-saving claim. The
 standard-library lab checks the new key collision, perplexities, and pass counts.
+
+### Handout 18 figure quality
+
+The handout now uses SVG assets in `images/post-training/`: the original paper’s
+Figure 5(a,c) scaling plots, vector exports of InstructGPT Figure 2 panels 1–2,
+and the course slide 18 diagram. Text/paths remain vector; original small icons remain embedded.
+The slide 19 cake JPEG has no sharper source in the deck, so both responses are faithfully
+typeset as SVG and explicitly credited as transcriptions of Eric Mitchell’s example.
+`SOURCES.txt` records original URLs, page/panel locations, and transformations.
+The low-resolution PNG derivatives were removed. Scaling plots now stack on phones.

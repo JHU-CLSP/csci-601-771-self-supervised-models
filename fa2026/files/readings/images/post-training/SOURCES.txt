@@ -1,16 +1,25 @@
-Handout 18 figure sources
+Handout 18 figure sources (vector editions)
 
-18-instruction-scaling.png: crop of course slide 7, 14-15.post-training.pdf.
-Slide citations: Mishra et al., arXiv:2104.08773; Wang et al., arXiv:2204.07705.
+18-scaling-tasks.svg and 18-scaling-models.svg:
+Wang et al. (2022), Super-NaturalInstructions, Figure 5(a,c), PDF page 8.
+https://arxiv.org/pdf/2204.07705 (retrieved 2026-11-03).
+Original PDF panels exported to SVG, retaining vector axes, values, and typography.
+These are the plots shown on course slide 7; original panel (b) is omitted.
 
-18-preference-collection.png: crop of course slide 18, same deck.
-18-cake-detailed.png and 18-cake-brief.png: separate response crops of slide 19.
-Original example credit on slide 19: Eric Mitchell.
-
-18-instructgpt-demonstrations.png and 18-instructgpt-comparisons.png:
+18-instructgpt-demonstrations.svg and 18-instructgpt-comparisons.svg:
 Ouyang et al. (2022), Training language models to follow instructions with human feedback.
 OpenAI. Figure 2, PDF page 3; arXiv:2203.02155v1.
-Source: https://arxiv.org/pdf/2203.02155
-Retrieved 2026-11-03. Panels 1 and 2 cropped separately from the rendered paper;
-no changes to their labels, arrows, or contents. Panel 3 is omitted because
-policy optimization is beyond Handout 18's slides 1–23 scope.
+https://arxiv.org/pdf/2203.02155 (retrieved 2026-11-03).
+Panels 1 and 2 exported directly from the PDF as SVG, retaining labels and arrows.
+Small source icons remain embedded rasters; typography and diagrams remain vector.
+Panel 3 is omitted because policy optimization is beyond slides 1–23.
+
+18-preference-collection.svg:
+Vector export of the diagram on course slide 18, 14-15.post-training.pdf.
+Original text and diagram paths are preserved; source emoji remain embedded rasters.
+
+18-cake-detailed.svg and 18-cake-brief.svg:
+Faithful typeset transcriptions of the two candidate responses on course slide 19.
+Original example credit: Eric Mitchell. The source slide contains a low-resolution JPEG;
+these SVGs preserve the text, quantities, and ordering with normalized typography,
+rather than upscaling the blurry screenshot. Captions explicitly identify transcriptions.
