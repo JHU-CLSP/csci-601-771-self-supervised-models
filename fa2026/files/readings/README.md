@@ -123,6 +123,9 @@ preferences versus tied annotations and independent-score versus shared-paramete
 The training loop now rejects multi-output reward heads; code excerpts remain exact.
 Independent arithmetic, CPU checks, browser/animation tests, local-source links, and print
 layout were rechecked after the fixes.
+A final editorial pass removed 830 words (about 14%) of repeated framing, captions, and prose.
+Displayed equations, all code blocks, the complete 20-point practice/challenge, images, and
+source links are unchanged; browser, offline, and print checks passed after tightening.
 
 Handouts #7 and #8 split the practical-training material at slide 183. Figures and exercises move with their topic; the optional LM-loss application stays in Handout #7 §2.
 
