@@ -35,6 +35,7 @@ should notice. Pair borrowed figures with interpretation or a task rather than u
 | 15 | `15.pre-training-data.html` | Pre-training data (Tue Oct 20, printed slides 51–93): collection, cleaning, duplicate removal, pipeline audit, perplexity limits, core exercises, and optional bonus/lab/code reading |
 | 16 | `16.pre-training-optimization.html` | Pre-training optimization (Tue Oct 27, printed slides 94–131; PDF pages 92–129): compute allocation, optimizer memory, AdamW, schedules, token batches, packing, repetition, monitoring, core practice, and optional CPU lab/nanoGPT reading |
 | 17 | `17.adaptation.html` | Adapting LMs (Thu Oct 29, slides 1–17; slide 18 bonus): response-only targets, freezing and gradient flow, rectangular LoRA counts and initialization, memory accounting, fair evaluation, adapted quiz practice, CPU checks, and pinned original-LoRA code reading |
+| 18 | `18.post-training.html` | Instruction tuning and reward models (Tue Nov 3, slides 1–23 of 14-15.post-training.pdf): task holdouts and mixtures, demonstration limits, preference rubrics, expected reward, pairwise loss and gradients, stable implementation/pooling, CPU checks, and pinned TRL reading |
 
 Handout #16 includes an offline token-budget calculator (`widgets/pretraining-optimization.js`
 and `.css`) and `labs/16_optimization_checks.py`. Core reading is §1–§6; §7 is optional
@@ -75,6 +76,53 @@ combinations, memory-ranking reversal, invalid inputs, math rendering, answer to
 persistence, offline operation without external requests, 1280/390/320 px layouts, and print expansion.
 Static worked examples remain when the widget is hidden for print. The handout uses system fonts
 to avoid the course font stylesheet’s remote font requests.
+
+Handout #18 covers PDF/printed slides 1–23 of `14-15.post-training.pdf` and stops before
+policy optimization (slide 24). It builds on #17 rather than repeating its response-mask lab.
+The new companion adds `widgets/post-training.js` and `.css`, the CPU lab
+`labs/18_reward_model_checks.py`, and credited crops of slide 7’s scaling plots, slide 18’s generation/comparison diagram,
+and slide 19’s cake responses (Eric Mitchell). The first two panels of Ouyang et al. (2022), Figure 2, are reproduced from the online
+InstructGPT paper with attribution, a direct source link, and local source notes. The third
+(policy-optimization) panel is outside this handout. Slide 18’s related diagram is expandable.
+The cake candidates are paired with a
+novice-versus-expert rubric exercise, stack on phones, and link to full-resolution crops. Exercises
+adapt Spring 2025 Quiz 3 Q1.3–4 and Q4.4 with source-page links; distribution-shift reasoning
+is restricted to reward-model evaluation. The optional code reading pins TRL v0.11.4 revision
+`1f8ba929fbb6962249386f7dce20155da8a26cda` and retains its Apache 2.0 license. Verbatim
+excerpts separate the basic pairwise loss from optional margin/centering terms.
+
+Validation: PyTorch 2.12.0 CPU checks cover logistic/softplus/BCE parity, gradient directions,
+label reversal, offset invariance versus scaling, extreme logits, double sigmoid, shape checks,
+annotation disagreement, last-valid pooling under either padding direction, and a shared scorer.
+Deliberate sign/pooling mutations fail as expected; the eight-versus-two vote variation and the
+upstream sum/centering exercises were checked independently. Browser checks cover 12 score/label
+cases, offset invariance, score steps, reset and invalid/boundary inputs, all six local images, including both online-paper panels,
+desktop comparison columns, mobile image stacking, full-resolution image links,
+math rendering, answers, checklist persistence, 1280/390/320 px layouts, zero external requests,
+print expansion, and the course-page link. Static examples remain available without the widget.
+The optional six-stage training-step trace follows scores → difference → probability → loss
+→ gradients → one scalar-score update. It never autoplays; play/pause, single-stage advance,
+rewind, input-change cancellation, and reduced-motion styling are supported. The animation
+illustrates reward-model loss mechanics, not policy optimization.
+Section 6 provides a 20-point, 20–25 minute quiz-preparation set with five scored questions,
+worked solutions, explicit marking guides, and an optional preference-cycle challenge. The set
+covers conceptual distinctions, a fresh loss/gradient/update calculation, code repair, expected
+reward, and evaluation design. It replaces the former three-question core-practice section;
+no policy-optimization algorithm is required. The new probability, signed gradients,
+simultaneous score update, expected-reward arithmetic, and corrected/broken code were checked
+independently. Browser QA verified all six revealable solutions, 61 rendered math expressions
+without errors, narrow layouts, and print expansion; the code-repair page was inspected visually.
+The optional PyTorch walkthrough now includes a complete shared-scorer training/validation
+pass, TensorDataset/DataLoader usage, separate model/autograd mode controls, detached logging,
+zeroing gradients, and pair-weighted metrics for unequal final batches. The expanded CPU
+check verifies learning, validation state/gradient preservation, and combined-batch loss parity.
+Final scope/quality audit: required explanations stop at reward-model training (slide 23);
+policy-update algorithms remain deferred. Reading paths distinguish the lecture companion,
+20-point practice set, and optional implementation extensions. Clarifications cover strict
+preferences versus tied annotations and independent-score versus shared-parameter updates.
+The training loop now rejects multi-output reward heads; code excerpts remain exact.
+Independent arithmetic, CPU checks, browser/animation tests, local-source links, and print
+layout were rechecked after the fixes.
 
 Handouts #7 and #8 split the practical-training material at slide 183. Figures and exercises move with their topic; the optional LM-loss application stays in Handout #7 §2.
 

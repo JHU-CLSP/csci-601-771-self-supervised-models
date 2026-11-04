@@ -1,0 +1,16 @@
+Handout 18 figure sources
+
+18-instruction-scaling.png: crop of course slide 7, 14-15.post-training.pdf.
+Slide citations: Mishra et al., arXiv:2104.08773; Wang et al., arXiv:2204.07705.
+
+18-preference-collection.png: crop of course slide 18, same deck.
+18-cake-detailed.png and 18-cake-brief.png: separate response crops of slide 19.
+Original example credit on slide 19: Eric Mitchell.
+
+18-instructgpt-demonstrations.png and 18-instructgpt-comparisons.png:
+Ouyang et al. (2022), Training language models to follow instructions with human feedback.
+OpenAI. Figure 2, PDF page 3; arXiv:2203.02155v1.
+Source: https://arxiv.org/pdf/2203.02155
+Retrieved 2026-11-03. Panels 1 and 2 cropped separately from the rendered paper;
+no changes to their labels, arrows, or contents. Panel 3 is omitted because
+policy optimization is beyond Handout 18's slides 1–23 scope.
