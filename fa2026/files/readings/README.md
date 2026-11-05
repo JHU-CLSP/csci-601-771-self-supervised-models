@@ -807,3 +807,24 @@ source fragments, exercise counts, and git diff whitespace checks pass. The full
 print contact sheet and final KL pages were visually reviewed.
 A final visual check also found inherited uppercase styling on table-header math;
 the local stylesheet now preserves the case of p(y), q(y), and other symbols.
+
+### Handout 19: generation versus supplied-response scoring
+
+New §3.3 distinguishes one next-token prediction, autoregressive response
+production, and scoring an already supplied response. It explains prompt prefill
+plus T-1 cached decode passes versus one causally masked teacher-forced scoring
+pass with P+T-1 input positions. Gathering target IDs is cheap only after logits
+and vocabulary normalization have been computed. The optional cost accounting
+includes Transformer, vocabulary-head, and normalization costs, separates the
+same asymptotic forward arithmetic from different latency, and notes backward
+work for policy training. It links to Handout 12's existing cache/cost discussion.
+Exercise 3B checks token counts, input shifting, and model-call counts; there are
+now 27 exercises. Core reading time is 50–60 minutes.
+
+The CPU lab adds check_parallel_response_scoring: a deterministic tiny causal
+Transformer agrees between one bulk pass and separate prefix conditionals,
+including EOS; changing a future token cannot affect earlier outputs, and bulk
+scoring retains gradients. This is a probability-parity check, not a KV-cache
+implementation or a runtime benchmark. All lab checks pass on PyTorch 2.12 CPU;
+local assets/fragments, math rendering, expanded 1280/390/320 px layouts, and
+print equation widths/optional labels pass.

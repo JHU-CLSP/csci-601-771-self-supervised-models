@@ -113,6 +113,56 @@ def check_sequence_loss():
         raise AssertionError('empty response accepted')
 
 
+def check_parallel_response_scoring():
+    """One causal pass equals separate prefix conditionals; no timing claim."""
+    torch.manual_seed(19)
+    width, vocab = 8, 7
+    embedding = torch.nn.Embedding(vocab, width).double()
+    positions = torch.nn.Embedding(16, width).double()
+    block = torch.nn.TransformerEncoderLayer(
+        d_model=width, nhead=2, dim_feedforward=16,
+        dropout=0., batch_first=True).double().eval()
+    head = torch.nn.Linear(width, vocab).double()
+    calls = []
+
+    def forward(ids):
+        calls.append(ids.shape[1])
+        n = ids.shape[1]
+        h = embedding(ids) + positions(torch.arange(n))
+        causal = torch.ones(n, n, dtype=torch.bool).triu(1)
+        return head(block(h, src_mask=causal))
+
+    prompt = torch.tensor([[1, 2, 3]])
+    response = torch.tensor([[4, 5, 6, 0]])  # Final 0 is EOS.
+    # Last response token is a target, never needed as an input to score itself.
+    inputs = torch.cat((prompt, response[:, :-1]), dim=1)
+    logits = forward(inputs)
+    n_prompt, n_response = prompt.shape[1], response.shape[1]
+    selected_logits = logits[:, n_prompt - 1:]
+    bulk = selected_logits.log_softmax(-1).gather(
+        -1, response.unsqueeze(-1)).squeeze(-1)
+    assert calls == [6] and bulk.shape == (1, 4)
+    calls.clear()
+    separate = []
+    with torch.no_grad():
+        for t in range(n_response):
+            prefix = inputs[:, :n_prompt + t]
+            logp = forward(prefix)[:, -1].log_softmax(-1)
+            separate.append(logp[0, response[0, t]])
+        close(bulk.detach()[0], torch.stack(separate))
+        close(bulk.detach().sum(), torch.stack(separate).sum())
+        assert calls == [3, 4, 5, 6]
+        # A later supplied input must not leak into earlier predictions.
+        changed = inputs.clone()
+        changed[0, -1] = 1
+        close(forward(changed)[:, :-1], logits.detach()[:, :-1])
+    # Teacher-forced scoring also retains the policy gradient when requested.
+    (-bulk.sum()).backward()
+    assert head.weight.grad is not None and torch.isfinite(head.weight.grad).all()
+    # The sequential values above deliberately recompute prefixes, rather than
+    # implementing a KV cache. This verifies causal probability parity, not speed.
+
+
 def check_kl_gradient():
     theta = torch.tensor(math.log(4), dtype=DTYPE, requires_grad=True)
     probs = binary(theta)
@@ -214,7 +264,8 @@ def check_upstream_path():
 
 
 def main():
-    for check in [check_score_function, check_sequence_loss, check_kl_gradient,
+    for check in [check_score_function, check_sequence_loss,
+                  check_parallel_response_scoring, check_kl_gradient,
                   check_practice_and_hacking, check_upstream_path]:
         check()
         print('PASS', check.__name__)
