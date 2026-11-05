@@ -814,7 +814,7 @@ New §3.3 distinguishes one next-token prediction, autoregressive response
 production, and scoring an already supplied response. It explains prompt prefill
 plus T-1 cached decode passes versus one causally masked teacher-forced scoring
 pass with P+T-1 input positions. Gathering target IDs is cheap only after logits
-and vocabulary normalization have been computed. The optional cost accounting
+and vocabulary normalization have been computed. The required cost accounting
 includes Transformer, vocabulary-head, and normalization costs, separates the
 same asymptotic forward arithmetic from different latency, and notes backward
 work for policy training. It links to Handout 12's existing cache/cost discussion.
@@ -827,4 +827,12 @@ including EOS; changing a future token cannot affect earlier outputs, and bulk
 scoring retains gradients. This is a probability-parity check, not a KV-cache
 implementation or a runtime benchmark. All lab checks pass on PyTorch 2.12 CPU;
 local assets/fragments, math rendering, expanded 1280/390/320 px layouts, and
-print equation widths/optional labels pass.
+print equation widths pass.
+
+### Handout 19 cost accounting is required
+
+The full cost accounting in §3.3 is core reading. Its former optional disclosure
+was replaced by an always-visible section. Scope, reading path, learning objectives,
+and the section checklist explicitly include generation/scoring arithmetic and
+sequential latency. Exercise 3B now also asks for the dense forward cost, including
+the response-only vocabulary head and normalization.
