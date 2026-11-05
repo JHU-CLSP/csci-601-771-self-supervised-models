@@ -1,0 +1,59 @@
+/* Local additions; shared handout typography and print controls stay in handout.css. */
+.pg-figure { margin: 24px 0; }
+.pg-figure img { display: block; width: 100%; height: auto; border: 1px solid var(--rule); }
+.pg-figure figcaption { margin-top: 8px; font-size: 13px; color: #505c68; }
+.pg-controls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.pg-controls input, .pg-controls select { display: block; width: 100%; box-sizing: border-box; padding: 8px; margin-top: 5px; font: inherit; font-size: 16px; border: 1px solid #99a9b9; border-radius: 4px; background: white; color: var(--ink); }
+.pg-controls input:focus, .pg-controls select:focus { outline: 2px solid var(--navy); outline-offset: 2px; }
+.pg-controls input[aria-invalid="true"] { border-color: #ac2419; }
+.pg-actions { display: flex; gap: 10px; flex-wrap: wrap; margin: 18px 0; }
+.pg-track { display: flex; height: 24px; margin: 12px 0 20px; border-radius: 4px; overflow: hidden; background: #b9d8f1; }
+.pg-track span { text-align: center; white-space: nowrap; overflow: hidden; font-size: 12px; font-weight: 700; }
+.pg-track span:first-child { color: #fff; background: var(--navy); }
+#pg-status { border-left: 3px solid var(--accent); padding-left: 12px; }
+.pg-optional { border-left: 3px solid var(--accent); }
+@media (max-width: 550px) { .pg-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); } .pg-actions .w-btn { width: 100%; } }
+@media (max-width: 350px) { .pg-controls { grid-template-columns: 1fr; } }
+@media print { .pg-figure { break-inside: avoid; } .pg-figure img { max-height: 105mm; object-fit: contain; } .pg-optional > summary { display: block !important; font-weight: bold; } }
+
+@media (max-width: 900px) { .hd-toc ol ol { column-count: 1; } .hd-toc a { overflow-wrap: anywhere; } }
+@media (max-width: 350px) { .hd-toc > ol { column-count: 1; } }
+/* Keep KaTeX's absolute accessibility spans inside horizontally scrolled tables. */
+.tbl-scroll { position: relative; }
+.pg-portrait img { max-width: 387px; margin: 0 auto; }
+@media print { #empirical-overoptimization .pg-figure img { max-height: 90mm; } }
+/* Compact pagination for the complete reading, answers, and optional bank. */
+@media print {
+    body.handout { margin: 0; font-size: 10.5pt; line-height: 1.45; }
+    .hd-wrap { display: block; max-width: none; padding: 0; }
+    .hd-body { max-width: none; padding: 0; }
+    .hd-mast { padding: 10px 0; }
+    .hd-mast h1 { font-size: 20pt; }
+    .hd-body h2 { margin: 22px 0 6px; font-size: 16pt; }
+    .hd-body h3 { margin: 16px 0 6px; font-size: 12pt; }
+    .hd-body p { margin: 7px 0; }
+    .hd-glance { margin: 14px 0; padding: 12px 14px 2px; }
+    .lead { font-size: 11pt; }
+    .callout { margin: 12px 0; padding: 10px 12px; }
+    .ex { margin: 12px 0; }
+    .ex-head { padding: 7px 10px; font-size: 10pt; gap: 6px; }
+    .ex-src { font-size: 8.5pt; }
+    .ex-body { padding: 8px 10px 2px; }
+    details.ans { margin: 8px 0; padding-top: 6px; }
+    .ans-body { margin-top: 6px; padding: 8px 10px; font-size: inherit; }
+    .hd-body pre { margin: 10px 0; padding: 9px 10px; font-size: 8pt; }
+    .hd-body table.tbl { margin: 12px 0; font-size: 9pt; }
+    .hd-body figure { margin: 16px 0; }
+    .hd-body figcaption { font-size: 8.5pt; }
+    .hd-footer { margin-top: 18px; padding-top: 10px; font-size: 9pt; }
+    [data-toggle-answers] { display: none; }
+}
+@media screen and (max-width: 550px) {
+    #kl-penalty-derivation .katex { font-size: 1em; }
+}
+@media print {
+    #kl-penalty-derivation, #kl-nonnegative-proof { break-inside: avoid; }
+    #warmup > p:first-of-type, #practice > p:first-child { break-after: avoid; }
+}
+/* Uppercase table labels must preserve case-sensitive mathematical symbols. */
+.tbl th .katex { text-transform: none; }

@@ -1,0 +1,37 @@
+Handout 19 figure sources
+
+19-policy-and-scorer.svg
+Source: fa2026/files/slides/14-15.post-training.pdf, PDF page / printed slide 24.
+Vector export using pdftocairo; viewBox crop (7, 210, 706, 188) points.
+Retains the prompt, sampled-response path, dotted feedback arc, and trainable/fixed labels.
+Replaces the full slide 31 export, whose bottom update equation was clipped in the PDF.
+
+19-instructgpt-policy.png
+Ouyang et al. (2022), Training language models to follow instructions with human feedback.
+OpenAI. Figure 2, panel 3, PDF page 3; arXiv:2203.02155v1.
+https://arxiv.org/pdf/2203.02155v1 (retrieved 2026-11-05).
+Original PDF rendered directly at 900 dpi; crop (371, 69, 129, 229) points.
+Output is 1,612 x 2,863 pixels; no low-resolution image was upscaled.
+A direct SVG conversion failed to preserve PDF transparency groups, so the source
+PDF was rasterized at high resolution to retain all labels, icons, and arrows.
+Caption links to Handout 18's first two panels and identifies the source PPO label.
+No claim is made that this panel depicts the complete KL computation.
+
+19-overoptimization-rl.svg
+Gao, Schulman & Hilton (2022), Scaling Laws for Reward Model Overoptimization.
+Figure 1(b), PDF page 3; arXiv:2210.10760v1.
+https://arxiv.org/pdf/2210.10760v1 (retrieved 2026-11-05).
+Original PDF exported to SVG; viewBox crop (128, 391, 339, 254) points.
+Full RL plot retained, including axes, both legends, all sizes, and panel label.
+The optional reading identifies the gold evaluator as a 6B RM, the square-root
+horizontal scale, the source's PPO optimizer, and zero KL-penalty coefficient.
+This is not a direct human-evaluation figure or evidence for a universal scaling law.
+
+19-kl-tradeoff.svg
+Original calculated figure for this handout; no externally sourced artwork or data.
+Reproduce with make_kl_figure.py (NumPy and Matplotlib).
+Model: R(A)=3, R(B)=1, q(A)=0.5, p(A)=sigmoid(theta), natural logarithms.
+F_beta(p)=1+2p-beta*[p*log(2p)+(1-p)*log(2*(1-p))].
+Beta values: 0, 1, 2. Curves sampled at 2,000 interior probabilities.
+For beta>0, the marked optima are sigmoid(2/beta).
+Typography and marks are vector paths for portable offline viewing.

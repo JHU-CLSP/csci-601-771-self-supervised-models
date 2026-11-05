@@ -36,6 +36,7 @@ should notice. Pair borrowed figures with interpretation or a task rather than u
 | 16 | `16.pre-training-optimization.html` | Pre-training optimization (Tue Oct 27, printed slides 94–131; PDF pages 92–129): compute allocation, optimizer memory, AdamW, schedules, token batches, packing, repetition, monitoring, core practice, and optional CPU lab/nanoGPT reading |
 | 17 | `17.adaptation.html` | Adapting LMs (Thu Oct 29, slides 1–17; slide 18 bonus): response-only targets, freezing and gradient flow, rectangular LoRA counts and initialization, memory accounting, fair evaluation, adapted quiz practice, CPU checks, and pinned original-LoRA code reading |
 | 18 | `18.post-training.html` | Instruction tuning and reward models (Tue Nov 3, slides 1–23 of 14-15.post-training.pdf): task holdouts and mixtures, demonstration limits, preference rubrics, expected reward, pairwise loss and gradients, stable implementation/pooling, CPU checks, and pinned TRL reading |
+| 19 | `19.policy-gradient.html` | Policy gradients and RLHF (Thu Nov 5, slides 24–36 of 14-15.post-training.pdf): discrete sampling, REINFORCE estimates, sequence masks/sums, feedback loops, reward hacking, reference KL, worked practice, and optional CPU/upstream code reading |
 
 Handout #16 includes an offline token-budget calculator (`widgets/pretraining-optimization.js`
 and `.css`) and `labs/16_optimization_checks.py`. Core reading is §1–§6; §7 is optional
@@ -676,3 +677,133 @@ The slide 19 cake JPEG has no sharper source in the deck, so both responses are 
 typeset as SVG and explicitly credited as transcriptions of Eric Mitchell’s example.
 `SOURCES.txt` records original URLs, page/panel locations, and transformations.
 The low-resolution PNG derivatives were removed. Scaling plots now stack on phones.
+
+## Class 19 policy-gradient companion
+
+`19.policy-gradient.html` covers printed/PDF slides 24–36 of
+`14-15.post-training.pdf`. Slide 27's derivation and the baseline/gradient
+justifications are explicitly optional. Core reading develops the sampling
+boundary, REINFORCE, response-only sequence sums, the feedback loop, reward
+hacking, and current-policy-to-reference KL. It includes three warm-ups, worked
+examples, a 20-point practice set with marking guides, and an offline two-response
+explorer (`widgets/policy-gradient.js` and `.css`). The explorer compares exact
+and selected-outcome gradients and updates a scalar logit; it is a finite model,
+not an LM trainer. Its static worked examples remain available without JavaScript.
+
+The optional CPU lab `labs/19_policy_gradient_checks.py` checks exact-versus-
+expected sampled gradients, baseline means/variances, reward signs, masks and EOS,
+sequence sums, reward detachment, KL gradients, reward-hacking arithmetic, and
+practice answers. It executes the pinned PyTorch example's `select_action` in
+a stubbed environment and verifies that detaching its saved log-probability
+breaks backward. Code reading pins pytorch/examples
+`acc295dc7b90714f1bf47f06004fc19a7fe235c4`; excerpts are byte-verbatim and retain
+the BSD 3-Clause license. CartPole return normalization and dropout are explicitly
+distinguished from the terminal-reward teaching model. Figure sources and transformations are recorded in
+`images/policy-gradient/SOURCES.txt`; every figure has alt text, a source or model
+caption, and a full-resolution link.
+
+Validation: all lab checks pass on PyTorch 2.12.0 CPU. Deliberate sign and token-mean
+mutations fail. Browser QA covers 12 independent numeric cases; exact/selected-
+sample updates; invalid, boundary, reset, and preset controls; math rendering;
+image loading; TOC; answer toggles; checklist persistence; expanded 1280/390/320 px
+layouts; print expansion/restoration and optional labels; no-JavaScript reading;
+and the Session 19 schedule link. The handout makes no external asset requests.
+Desktop, mobile, widget, source-figure, and print-style screenshots were reviewed.
+The local table positioning rule keeps KaTeX accessibility spans within their
+scroll containers on phones; the shared handout assets are unchanged.
+
+### Handout 19 visual additions
+
+Replaced the full-slide image with a vector crop of slide 24's policy/scorer
+diagram, preserving its trainable/fixed labels. Added InstructGPT Figure 2 panel 3
+to complete Handout 18's two panels; the 900-dpi original-PDF crop is 1,612 pixels
+wide and retains all text and arrows. A direct SVG export lost the PDF's
+transparency groups, so the faithful high-resolution rendering is used instead.
+
+An optional vector crop of Gao et al. (2022), Figure 1(b), adds measured
+overoptimization curves with both legends and axes intact. The caption explains
+the square-root KL axis, synthetic gold-model evaluator, and the source's PPO/zero
+KL-coefficient setting. An original reproducible vector plot compares the same
+two-response objective at beta 0, 1, and 2; marked optima were independently
+verified by dense-grid search. Two new figure-reading exercises bring the total
+to 15, with worked answers; the optional empirical illustration does not assign
+the source paper's scaling laws or optimizer. Core reading is now 40–50 minutes.
+Browser verification and visual inspection cover the four figures, phone layouts,
+print visibility, and full-resolution links.
+
+### Handout 19 extra quiz preparation
+
+Section 6 now separates the existing 20-point timed set (§6.1) from a collapsed,
+optional question bank (§6.2). The new bank contains eight core questions (32
+points) and two optional challenges (8 points), all with worked solutions and
+marking guides. Topics include selection bias, three-way softmax updates, unequal
+response counts per prompt, signed masked sequence losses, token-level reference
+log-ratios, reference resets, checkpoint tradeoffs, and SFT as a practical rather
+than mathematical prerequisite. The challenges cover a response-dependent
+one-sample baseline and reward offset/scaling effects. A topic guide supports
+choosing a few questions without extending the core reading time.
+
+Questions 6K and 6M adapt Spring 2025 Quiz 3 Q1.5 (PDF p. 2) and Q4.1 (p. 7),
+with source links and explicit revised assumptions. The solutions distinguish a
+KL penalty from a truthfulness guarantee and avoid treating SFT as necessary for
+the score-function identity. There are now 25 structured exercises in the handout.
+
+Validation: fresh arithmetic was checked independently, including autograd for
+binary and three-response gradients. IDs, local links, source-page locations,
+point totals, and all answer disclosures pass. Browser checks cover independent
+bank/timed-set answer toggles, KaTeX, expanded 1280/390/320 px layouts, print
+expansion/restoration and visible optional labels, and no-JavaScript access.
+Desktop, phone, and print-style screenshots of the additions were reviewed.
+
+### Handout 19: KL definition and penalty derivation
+
+Section 5.2 now defines Kullback–Leibler divergence as a distribution-weighted sum
+and expectation. It explains the log-ratio, nonnegativity/equality, asymmetry,
+support conditions, nats, and the entropy/cross-entropy identity. An optional proof
+uses -log(u) >= 1-u; a two-response table checks both forward and reverse KL.
+
+New §5.3 expands the expected adjusted reward line by line to identify the
+subtracted beta * KL term, then restores the outer prompt expectation. It
+emphasizes that the equality is exact and depends on current-policy sampling.
+A direct adjusted-reward average agrees with reward-minus-KL numerically; the
+sequence/token factorization connects the penalty to response masks and EOS.
+The policy-gradient discussion is now §5.4. New exercise 5C shows that reference
+sampling produces the negative reverse KL for the same log-ratio. There are now
+26 structured exercises; the optional question bank and its point totals are
+unchanged. Core reading time is 45–55 minutes.
+
+Validation: independently checked entropy/cross-entropy, forward/reverse KL,
+weighted adjusted rewards, and the reverse-sampling sign. All local links, IDs,
+and answer disclosures pass. Browser checks cover math rendering, expanded
+1280/390/320 px layouts, the new exercise disclosure, and print equations and
+optional-proof labels. Desktop, phone, and print-style screenshots were reviewed.
+Long display derivations use the existing horizontal equation scrolling on phones.
+
+### Handout 19 correctness and tightening review
+
+Reviewed the entire handout against slides 24–36, figure provenance, code excerpts,
+and worked answers. The main policy-gradient/KL formulas and numerical solutions
+check out. Clarified that Challenge 1 differentiates the Bernoulli logit, and that
+exercise 5C changes sampling for the entire adjusted reward. Replaced exercise 5A's
+repeated arithmetic with a question about sample bonuses versus expected penalties.
+Shortened repeated explanations and the InstructGPT caption; made token-gradient
+summing explicit. The central KL derivation now uses declared fixed-prompt shorthand
+and shorter lines that fit phone screens. All 26 exercises and optional material remain.
+
+The explorer now validates every input on each edit, preventing stale aria-invalid
+states when several fields are invalid. All numeric behavior is unchanged. Local
+print rules reduce padding/spacing, hide answer-toggle buttons, remove trailing
+body space, and keep the KL proof/derivation intact. The complete Letter-size
+print audit with all answers and optional sections expanded fell from 38 to 27
+pages; no equation, table, or code scroll overflow was detected at print width.
+
+Validation: the CPU lab passes on PyTorch 2.12.0; 60 independent finite-distribution
+cases agree between exact autograd and expected detached-coefficient gradients.
+Verbatim upstream excerpts and the displayed loss/lab function match. Browser QA
+passes numeric cases, selected/exact updates, all invalid-field states, independent
+answer controls, KaTeX, figures, TOC, checklist persistence, offline/no-JS access,
+expanded 1280/390/320 layouts, and print expansion/restoration. Local links, IDs,
+source fragments, exercise counts, and git diff whitespace checks pass. The full
+print contact sheet and final KL pages were visually reviewed.
+A final visual check also found inherited uppercase styling on table-header math;
+the local stylesheet now preserves the case of p(y), q(y), and other symbols.
