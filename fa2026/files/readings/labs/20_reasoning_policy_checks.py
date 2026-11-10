@@ -164,6 +164,50 @@ def check_clipping():
         raise AssertionError('overflowing ratio silently accepted')
 
 
+def check_frozen_batch_update():
+    """An actual plain-SGD step, then re-scoring with a frozen denominator."""
+    theta = torch.nn.Parameter(torch.tensor(0., dtype=DTYPE))
+    optimizer = torch.optim.SGD([theta], lr=1., momentum=0.)
+    actions = torch.tensor([0, 0, 1, 1])
+    rewards = torch.tensor([2., 2., 0., 0.], dtype=DTYPE)
+    advantages = rewards - 1.  # Known, action-independent baseline fixed beforehand.
+
+    def selected_logp():
+        probs = torch.stack((theta.sigmoid(), 1-theta.sigmoid()))
+        return probs.log()[actions]
+
+    old_logp = selected_logp().detach().clone()
+    saved_old = old_logp.clone()
+    initial = clipped_policy_loss(selected_logp(), old_logp, advantages)
+    close(initial, 0.)
+    initial.backward()
+    close(theta.grad, -.5)
+    optimizer.step()
+    close(theta, .5)
+    close(theta.sigmoid(), .6224593312018546)
+    optimizer.zero_grad(set_to_none=True)
+    new_logp = selected_logp()
+    ratios = (new_logp-old_logp).exp()
+    close(ratios, [1.2449186624037092]*2 + [.7550813375962908]*2)
+    contributions = torch.minimum(ratios*advantages,
+                                  ratios.clamp(.8,1.2)*advantages)
+    close(contributions, [1.2,1.2,-.8,-.8])
+    reused = clipped_policy_loss(new_logp, old_logp, advantages)
+    close(reused, -.2)
+    reused.backward()
+    close(theta.grad, 0.)
+    optimizer.step()
+    close(theta, .5)
+    assert torch.equal(old_logp, saved_old)
+    # Deliberately rewriting old probabilities resets ratios without new sampling.
+    optimizer.zero_grad(set_to_none=True)
+    new_logp = selected_logp()
+    wrong = clipped_policy_loss(new_logp, new_logp.detach(), advantages)
+    close(wrong, 0.)
+    wrong.backward()
+    close(theta.grad, -.5)  # Spurious renewed incentive on the same stale samples.
+
+
 def check_practice():
     close(torch.tensor([1.,4.,7.],dtype=DTYPE).mean(),4.)
     old=torch.tensor([.4,.6],dtype=DTYPE)
@@ -211,7 +255,7 @@ def check_upstream_fragment():
 
 def main():
     for check in [check_verifier_coverage,check_advantages,check_importance,
-                  check_clipping,check_practice,check_upstream_fragment]:
+                  check_clipping,check_frozen_batch_update,check_practice,check_upstream_fragment]:
         check(); print('PASS',check.__name__)
     print('All lecture 20 checks passed on PyTorch',torch.__version__,'(CPU).')
 

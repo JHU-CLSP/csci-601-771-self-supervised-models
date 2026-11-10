@@ -849,7 +849,7 @@ required rollout-versus-scoring cost accounting, old-policy importance ratios,
 and the sign-dependent PPO clipped surrogate. It explicitly separates the fixed
 KL reference from the policy that generated a rollout batch.
 
-The handout has 19 structured exercises: three warm-ups, six in-section checks,
+The handout has 20 structured exercises: three warm-ups, seven in-section checks,
 a five-question 20-point practice set with marking guides, four optional extra
 questions, and an implementation-reading exercise. The offline widget
 `widgets/reasoning-policy.js`/`.css` shows both surrogate branches, their minimum,
@@ -887,3 +887,22 @@ asset requests or browser errors. Desktop/mobile/figure/widget screenshots and
 the complete paginated print rendering were visually reviewed; equations and
 tables fit the print width. Local assets/fragments, heading IDs, exercise answers,
 source excerpt bytes, displayed/lab function parity, and whitespace checks pass.
+
+### Handout 20: one complete frozen-batch update
+
+Section 5.4 adds a compact reward/advantage/importance-ratio/reference-penalty
+comparison and an end-to-end whole-response bandit example. A four-sample batch,
+known fixed baseline, and plain-SGD step connect zero initial loss to a nonzero
+logit gradient, then to recomputed ratios and clipping plateaus. A new question
+checks why overwriting old probabilities is not equivalent to collecting fresh
+rollouts. There are now 20 structured exercises; the timed set remains 20 points.
+Core reading time is 50–65 minutes.
+
+The CPU lab executes the exact SGD step, preserves and checks the stored
+denominator, verifies the second-step zero gradient, and contrasts it with the
+incorrect ratio-reset update. No KL or auxiliary loss is included in this toy
+update; the comparison table explicitly keeps those terms conceptually separate.
+Validation: the full CPU lab passes with the frozen-batch SGD check. New math,
+TOC entry, all 20 answer disclosures, unique IDs, local links, 1280/390/320 px
+layouts, and print widths pass. The new tables and paginated capstone were
+visually reviewed; the complete expanded print rendering is 16 pages.
