@@ -939,3 +939,19 @@ screenshots were reviewed, with no page overflow or JavaScript errors. Print
 retains the static worked identity and hides the interactive explorer under the
 existing handout rules. A no-JavaScript explanation supplies rare-response values.
 Controls expose probability/count values to assistive technology.
+
+### Handout 20: predict-first questions for the explorers
+
+Three new in-section questions bring the total to 23. Questions 4A–4B contrast
+finite-batch variability with a genuine support failure; the sequence-ratio
+question is now 4C. Question 5B varies clipping width and advantage sign while
+holding probabilities fixed. Each solution is independently revealable and
+includes the reasoning as well as numeric answers. The timed set remains
+20 points; core reading time is now 55–70 minutes.
+
+Validation: exact rational arithmetic checks the rare-response estimates and
+one-observation increment. PyTorch autograd confirms all three local clipping
+loss derivatives. Browser checks pass for 23 questions, disclosure behavior,
+math, and 1280/390/320 px widths. New question screenshots and their expanded
+print pages were visually reviewed; print has no horizontal overflow and is
+now 18 pages with all solutions expanded.
