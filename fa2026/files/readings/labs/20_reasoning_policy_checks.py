@@ -85,6 +85,12 @@ def check_importance():
     close(current @ f, 2.)
     close(old @ (ratio*f), current @ f)
     close(old @ ratio, 1.)
+    # Reference log-ratios estimate current-policy KL under current sampling.
+    reference = torch.full_like(current, .5)
+    reference_logratio = (current/reference).log()
+    current_kl = current @ reference_logratio
+    assert current_kl > 0 and old @ reference_logratio < 0
+    close(old @ (ratio*reference_logratio), current_kl)
     theta = torch.tensor(math.log(.6/.4), dtype=DTYPE, requires_grad=True)
     p = torch.stack((theta.sigmoid(), 1-theta.sigmoid()))
     direct = torch.autograd.grad(p @ f, theta, retain_graph=True)[0]

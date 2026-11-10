@@ -955,3 +955,28 @@ loss derivatives. Browser checks pass for 23 questions, disclosure behavior,
 math, and 1280/390/320 px widths. New question screenshots and their expanded
 print pages were visually reviewed; print has no horizontal overflow and is
 now 18 pages with all solutions expanded.
+
+### Handout 20: final correctness and coherence review
+
+Tightened the reading path, transitions, repeated scope statements, and code
+explanation. Clarified that task rewards in the baseline derivation have no
+direct parameter dependence, that prompt plus completion must fit the context
+window for bulk scoring, and that rollout sampling and stored probabilities
+must describe the same distribution (including any sampling transforms).
+The importance identity now explicitly sums over positive old-policy support.
+
+The capstone table now calls the reference comparison a log-ratio rather than
+a sampled KL penalty. Its accompanying explanation distinguishes current-policy
+KL from an unweighted old-rollout average and distinguishes a freshly evaluated
+reference term from a frozen rollout-time reward charge. The CPU lab verifies
+that an unweighted old-policy log-ratio expectation can be negative even when
+current-policy KL is positive, while importance correction recovers that KL.
+
+Validation: all seven CPU checks pass. The complete browser review passes for
+PPO values, kinks, invalid inputs, both explorers, independent answer toggles,
+checklist persistence, images, math, TOC, offline/no-JS use, and course-page
+linkage. The importance explorer passes 24 independently enumerated batches.
+All 23 exercises retain solutions; local assets/fragments, unique IDs, and
+HTML/lab function parity pass. Expanded 1280/390/320 px layouts and print widths
+pass. The final 18-page print overview and changed capstone page were visually
+reviewed. Required cost accounting and the 20-point practice set are retained.
