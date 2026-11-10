@@ -906,3 +906,16 @@ Validation: the full CPU lab passes with the frozen-batch SGD check. New math,
 TOC entry, all 20 answer disclosures, unique IDs, local links, 1280/390/320 px
 layouts, and print widths pass. The new tables and paginated capstone were
 visually reviewed; the complete expanded print rendering is 16 pages.
+
+### Handout 20: vector completion diagrams
+
+Section 1.2 now pairs vector crops of printed slides 45–46 to compare an
+answer-only completion with reasoning tokens followed by an answer. Captions
+link to the source PDF pages and distinguish output formatting from evidence
+of correct reasoning. Local SVGs retain sharp text and arrows at any zoom;
+selecting either opens its full-size file. Extraction/cropping details are in
+`images/reasoning-policy/SOURCES.txt`.
+
+Validation: both SVGs load locally. Desktop and 390/320 px layouts, math, and
+print widths pass. The new figure and its final printed page were visually
+reviewed; the expanded print rendering is now 17 pages.

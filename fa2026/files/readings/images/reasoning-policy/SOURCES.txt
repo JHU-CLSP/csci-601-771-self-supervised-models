@@ -23,3 +23,13 @@ https://github.com/vwxyzjn/cleanrl/blob/fe8d8a03c41a7ef5b523e2e354bd01c363e786bb
 Excerpts at lines 250-252 and 264-267 are byte-verbatim. Upstream LICENSE is
 retained in labs/CLEANRL-LICENSE.txt; trailing whitespace only is removed.
 The CPU lab runs the extracted policy-loss fragment in a minimal namespace.
+
+20-slide45-answer-only.svg and 20-slide46-reasoning-answer.svg
+Source: fa2026/files/slides/14-15.post-training.pdf, PDF pages 44-45,
+printed slides 45-46. Original slide artwork exported with pdftocairo -svg;
+viewBox crop (180, 148, 410, 78) points retains the prompt, arrows, policy LM,
+and completion. The answer-only panel additionally clips x > 540 points
+to exclude the adjacent parenthetical while retaining aligned panel widths.
+Surrounding slide text is excluded. Text and shapes remain
+vector, with no rasterization or upscaling. No external credit appears on
+these diagrams. Handout labels distinguish the two completion formats.
