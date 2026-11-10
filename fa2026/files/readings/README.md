@@ -919,3 +919,23 @@ selecting either opens its full-size file. Extraction/cropping details are in
 Validation: both SVGs load locally. Desktop and 390/320 px layouts, math, and
 print widths pass. The new figure and its final printed page were visually
 reviewed; the expanded print rendering is now 17 pages.
+
+### Handout 20: importance-weighting explorer
+
+Section 4.1 adds an offline two-response explorer alongside the existing PPO
+clipping explorer. Three sliders set old/current probabilities and the observed
+A count in a hypothetical batch of 20; B probabilities/counts are complements.
+Labeled bars compare the two policies and empirical frequencies. Exact target
+and old-distribution weighted expectations are contrasted with unweighted and
+importance-weighted finite-batch means and the batch mean ratio. Rare-response
+presets illustrate a missing observation and a single high-weight observation.
+This is ordinary importance sampling, with no self-normalization or random
+sampling. Fixed values (4, -1) match the preceding worked example.
+
+Validation: 24 independently enumerated batches cover matching/divergent policies,
+probability limits, and counts including 0 and 20. All five reported quantities,
+six bars, presets, math, and the existing PPO explorer pass. Desktop/390/320 px
+screenshots were reviewed, with no page overflow or JavaScript errors. Print
+retains the static worked identity and hides the interactive explorer under the
+existing handout rules. A no-JavaScript explanation supplies rare-response values.
+Controls expose probability/count values to assistive technology.

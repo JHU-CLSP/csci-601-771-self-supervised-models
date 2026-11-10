@@ -45,3 +45,15 @@
 }
 
 @media print { .hd-body pre code { white-space: pre-wrap; overflow-wrap: anywhere; overflow: visible; padding: 0; } }
+
+.iw-controls input[type="range"] { padding: 0; accent-color: var(--navy); }
+.iw-controls output { display: block; font-variant-numeric: tabular-nums; }
+.iw-panels { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px; margin: 18px 0; }
+.iw-bar-row { display: grid; grid-template-columns: 100px minmax(30px,1fr) 42px; gap: 8px; align-items: center; margin: 9px 0; font-size: 13px; font-variant-numeric: tabular-nums; }
+.iw-track { height: 12px; background: #edf0f4; }
+.iw-bar { height: 100%; }
+.iw-old { background: #68788a; }
+.iw-current { background: var(--navy); }
+.iw-sample { background: #b94f00; }
+#iw-result td:last-child { font-variant-numeric: tabular-nums; white-space: nowrap; }
+@media (max-width: 650px) { .iw-panels { grid-template-columns: 1fr; gap: 12px; } }
