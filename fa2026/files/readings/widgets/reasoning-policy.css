@@ -1,0 +1,47 @@
+.rp-figure { margin: 24px 0; }
+.rp-figure img { display: block; width: 100%; height: auto; border: 1px solid var(--rule); }
+.rp-figure figcaption { margin-top: 8px; color: #505c68; font-size: 13px; }
+.rp-controls { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 14px; }
+.rp-controls input { display: block; width: 100%; box-sizing: border-box; margin-top: 5px; padding: 8px; font: inherit; font-size: 16px; color: var(--ink); background: white; border: 1px solid #99a9b9; border-radius: 4px; }
+.rp-controls input:focus { outline: 2px solid var(--navy); outline-offset: 2px; }
+.rp-controls input[aria-invalid="true"] { border-color: #ac2419; }
+.rp-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0; }
+#rp-plot svg { display: block; width: 100%; height: auto; font: 14px Arial,sans-serif; }
+.rp-plot-hint { display: none; font-size: 13px; color: #505c68; }
+.rp-legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; }
+.rp-optional { border-left: 3px solid var(--accent); }
+.tbl-scroll { position: relative; }
+.tbl th .katex { text-transform: none; }
+@media (max-width: 900px) { .hd-toc ol ol { column-count: 1; } .hd-toc a { overflow-wrap: anywhere; } }
+@media (max-width: 550px) { .rp-plot-hint { display: block; } #rp-plot { overflow-x: auto; position: relative; } #rp-plot svg { min-width: 560px; } .rp-controls { grid-template-columns: 1fr; } .rp-actions .w-btn { width: 100%; } }
+@media (max-width: 350px) { .hd-toc > ol { column-count: 1; } }
+@media print {
+    body.handout { margin: 0; font-size: 10.5pt; line-height: 1.45; }
+    .hd-wrap { display: block; max-width: none; padding: 0; }
+    .hd-body { max-width: none; padding: 0; }
+    .hd-mast { padding: 10px 0; }
+    .hd-mast h1 { font-size: 20pt; }
+    .hd-body h2 { margin: 22px 0 6px; font-size: 16pt; }
+    .hd-body h3 { margin: 16px 0 6px; font-size: 12pt; }
+    .hd-body p { margin: 7px 0; }
+    .hd-glance { margin: 14px 0; padding: 12px 14px 2px; }
+    .lead { font-size: 11pt; }
+    .callout { margin: 12px 0; padding: 10px 12px; }
+    .ex { margin: 12px 0; }
+    .ex-head { padding: 7px 10px; font-size: 10pt; gap: 6px; }
+    .ex-src { font-size: 8.5pt; }
+    .ex-body { padding: 8px 10px 2px; }
+    details.ans { margin: 8px 0; padding-top: 6px; }
+    .ans-body { margin-top: 6px; padding: 8px 10px; font-size: inherit; }
+    .rp-optional > summary { display: block !important; font-weight: bold; }
+    .hd-body pre { margin: 10px 0; padding: 9px 10px; font-size: 8pt; break-inside: avoid; }
+    .hd-body table.tbl { margin: 12px 0; font-size: 9pt; }
+    .hd-body figure { margin: 16px 0; break-inside: avoid; }
+    .rp-figure img { max-height: 105mm; object-fit: contain; }
+    .hd-body figcaption { font-size: 8.5pt; }
+    .hd-footer { display: none; }
+    [data-toggle-answers] { display: none; }
+    #warmup20 > p:first-of-type, #practice20 > p:first-child { break-after: avoid; }
+}
+
+@media print { .hd-body pre code { white-space: pre-wrap; overflow-wrap: anywhere; overflow: visible; padding: 0; } }

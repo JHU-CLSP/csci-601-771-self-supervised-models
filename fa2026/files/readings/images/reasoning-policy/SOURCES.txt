@@ -1,0 +1,25 @@
+Handout 20 sources
+
+20-slide38-token-kl.jpg
+Source: fa2026/files/slides/14-15.post-training.pdf, PDF page/printed slide 38.
+Native 1672 x 941 JPEG extracted directly using pdfimages -f 38 -l 38 -j.
+No upscaling or artwork changes. The source contains the same image twice;
+only one copy is retained. No external artist credit appears on the slide.
+Caption explicitly distinguishes mean token-level KL from total sequence KL.
+
+20-ppo-clipping.svg
+Schulman et al. (2017), Proximal Policy Optimization Algorithms, Figure 1, PDF p. 3.
+https://arxiv.org/pdf/1707.06347v2 (retrieved 2026-11-10).
+Original PDF exported with pdftocairo and cropped via viewBox
+(130, 448, 335, 153) points, preserving both advantage signs, ratio axes,
+clipping thresholds, plateau directions, and initial-policy markers.
+Text and lines remain vector; no image upscaling.
+The graph is the original paper counterpart of the figure on printed slide 62
+(PDF page 61). Caption identifies its schematic axes and initial r=1 markers.
+
+Code reading
+CleanRL cleanrl/ppo.py, revision fe8d8a03c41a7ef5b523e2e354bd01c363e786bb.
+https://github.com/vwxyzjn/cleanrl/blob/fe8d8a03c41a7ef5b523e2e354bd01c363e786bb/cleanrl/ppo.py
+Excerpts at lines 250-252 and 264-267 are byte-verbatim. Upstream LICENSE is
+retained in labs/CLEANRL-LICENSE.txt; trailing whitespace only is removed.
+The CPU lab runs the extracted policy-loss fragment in a minimal namespace.

@@ -37,6 +37,7 @@ should notice. Pair borrowed figures with interpretation or a task rather than u
 | 17 | `17.adaptation.html` | Adapting LMs (Thu Oct 29, slides 1–17; slide 18 bonus): response-only targets, freezing and gradient flow, rectangular LoRA counts and initialization, memory accounting, fair evaluation, adapted quiz practice, CPU checks, and pinned original-LoRA code reading |
 | 18 | `18.post-training.html` | Instruction tuning and reward models (Tue Nov 3, slides 1–23 of 14-15.post-training.pdf): task holdouts and mixtures, demonstration limits, preference rubrics, expected reward, pairwise loss and gradients, stable implementation/pooling, CPU checks, and pinned TRL reading |
 | 19 | `19.policy-gradient.html` | Policy gradients and RLHF (Thu Nov 5, slides 24–36 of 14-15.post-training.pdf): discrete sampling, REINFORCE estimates, sequence masks/sums, feedback loops, reward hacking, reference KL, worked practice, and optional CPU/upstream code reading |
+| 20 | `20.reasoning-policy.html` | Post-training reasoning models (Tue Nov 10, printed slides 36–63 / PDF pages 36–62): verifiable outcomes, advantages, required rollout cost accounting, importance weighting, token/sequence ratios, PPO clipping, quiz practice, and optional CPU/CleanRL reading |
 
 Handout #16 includes an offline token-budget calculator (`widgets/pretraining-optimization.js`
 and `.css`) and `labs/16_optimization_checks.py`. Core reading is §1–§6; §7 is optional
@@ -836,3 +837,53 @@ was replaced by an always-visible section. Scope, reading path, learning objecti
 and the section checklist explicitly include generation/scoring arithmetic and
 sequential latency. Exercise 3B now also asks for the dense forward cost, including
 the response-only vocabulary head and normalization.
+
+## Class 20 reasoning-model post-training companion
+
+`20.reasoning-policy.html` covers printed slides 36–63 of the current
+`14-15.post-training.pdf`, corresponding to PDF pages 36–62 because printed 39 is
+absent. It stops at the first clipping pulse check; group-relative advantages
+and the full GRPO objective begin later. Core reading connects the KL recap to
+reasoning completions, outcome/process/format rewards, detached prompt baselines,
+required rollout-versus-scoring cost accounting, old-policy importance ratios,
+and the sign-dependent PPO clipped surrogate. It explicitly separates the fixed
+KL reference from the policy that generated a rollout batch.
+
+The handout has 19 structured exercises: three warm-ups, six in-section checks,
+a five-question 20-point practice set with marking guides, four optional extra
+questions, and an implementation-reading exercise. The offline widget
+`widgets/reasoning-policy.js`/`.css` shows both surrogate branches, their minimum,
+the minimization sign, local slopes and kinks, and a scalar-ratio plot. It does
+not update a policy or treat clipping thresholds as hard probability bounds.
+Static worked cases and the original-paper diagram remain without JavaScript
+and in print. Phone plots scroll horizontally to retain readable axes.
+
+The native-resolution JPEG from slide 38 retains the full-vocabulary token-KL
+diagram. Its caption distinguishes the pictured token mean from a sequence sum.
+The PPO Figure 1 crop comes from arXiv:1707.06347v2 and remains vector. Source
+credits, PDF-page links, alt text, and transformations are recorded in
+`images/reasoning-policy/SOURCES.txt`. The rule-based reward example uses the
+January 2025 R1 report, with R1-Zero distinguished from multi-stage R1.
+
+The optional CPU lab `labs/20_reasoning_policy_checks.py` checks verifier coverage,
+advantage signs and baseline cancellation, the moving-zero-baseline pitfall,
+importance identities and gradients, support failures, sequence/token ratios,
+clipping cases and finite differences, boundary finiteness, data detachment,
+overflow rejection, deliberate mutations, and practice calculations. The pinned
+CleanRL reading uses `cleanrl/ppo.py` at
+`fe8d8a03c41a7ef5b523e2e354bd01c363e786bb` (312 lines). Excerpts are byte-verbatim,
+the complete upstream license text is retained (trailing whitespace normalized), and the extracted policy-loss fragment
+is executed in a minimal namespace. Minibatch normalization, GAE/critic details,
+entropy terms, and optional stopping are identified as separate implementation
+choices outside the assigned derivations.
+
+Validation: all CPU checks pass on PyTorch 2.12.0. The browser widget agrees with
+16 independently computed CPU fixtures (including zero advantage) and four
+active-kink cases. Invalid/boundary inputs, presets/reset, numeric slopes, math rendering,
+figure loading, TOC, independent answer toggles, checklist persistence, offline
+and no-JS operation, and the Class 20 course link pass. Expanded 1280/390/320 px
+layouts and print expansion/restoration/optional labels pass with no remote
+asset requests or browser errors. Desktop/mobile/figure/widget screenshots and
+the complete paginated print rendering were visually reviewed; equations and
+tables fit the print width. Local assets/fragments, heading IDs, exercise answers,
+source excerpt bytes, displayed/lab function parity, and whitespace checks pass.
