@@ -1,0 +1,24 @@
+Handout 21 visual sources
+
+21-group.png: top-left group panel cropped to (0,0,2325,915) from the
+native 3525x1861 image, without resampling, extracted from
+PDF page/printed slide 69 of ../slides/14-15.post-training.pdf. Slide credits
+https://huggingface.co/docs/trl/main/en/grpo_trainer
+The image is retained locally for offline reading; attribution appears in caption.
+
+21-scheduling.svg: original course teaching diagram; fixed dedicated pools,
+generation=6s and learner=2s. Not a measured benchmark.
+
+Interactive curves: original deterministic SVG rendering in widgets/grpo.js;
+closed-form surrogate and binary group coefficients stated in the text.
+
+21-ppo-versus-grpo.png: cropped to (0,0,2718,1130), without resampling,
+from native 2718x1308 image object 488 on PDF page/printed slide 70.
+Original: Shao et al., DeepSeekMath, Figure 4 (2024),
+https://arxiv.org/html/2402.03300v3#S4.SS1
+Original paper caption excluded; source and notation explanation in HTML caption.
+
+21-distributed-grpo.jpg: native 1983x793 JPEG image object 562 from
+PDF page/printed slide 83, extracted byte-for-byte via pdfimages -j.
+Source: course deck. No external attribution is shown on this slide.
+Both figures are locally available offline and link to the full-resolution asset.

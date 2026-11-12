@@ -980,3 +980,73 @@ All 23 exercises retain solutions; local assets/fragments, unique IDs, and
 HTML/lab function parity pass. Expanded 1280/390/320 px layouts and print widths
 pass. The final 18-page print overview and changed capstone page were visually
 reviewed. Required cost accounting and the 20-point practice set are retained.
+
+### Handout 21: GRPO in practice (slides 67–91)
+
+`21.grpo.html` preserves #20 and covers the next assigned range, ending before
+alignment failures on slide 92. It derives group advantages with an explicit
+population-standard-deviation convention, explains the self-inclusive baseline,
+and assembles a frozen-batch GRPO calculation. Reference KL distinguishes full
+conditional KL, sampled estimator values, sampling distributions, and gradient
+conventions. Zero advantages do not imply a zero auxiliary/KL gradient.
+
+Normalization compares response means, token means, and a fixed length scale.
+Dynamic sampling is distinguished from reasoning-trace deduplication. Asymmetric
+clipping distinguishes incentive plateaus from hard constraints and empirical
+exploration benefits from guarantees. Required systems material covers generation
+versus scoring, memory, fixed-pool scheduling, throughput versus learning
+efficiency, engine mismatch, support, and stale behavior-policy correction.
+The conditional token identity is explicitly separated from trajectory weighting.
+
+Nineteen questions have independently revealable solutions, including a 20-point,
+20–25 minute practice set and marking guide. `widgets/grpo.js` provides two local,
+deterministic explorers (binary group statistics and asymmetric clipping), with
+static/no-JS explanations. A native-resolution slide-69 crop and original SVG
+scheduling diagram have attribution in `images/grpo/SOURCES.txt`. The course
+schedule links the handout under session #21. Core reading is 45–60 minutes;
+the standard-library CPU lab is optional.
+
+Validation: `python3 labs/21_grpo_checks.py` passes group statistics (all nine
+interactive states), invalid inputs, independently checked clipping values and
+finite-difference slopes, the frozen batch, all quiz arithmetic, length
+reductions, retention rate, stale-policy correction, throughput, KL estimator
+expectations, ESS, and a branch-only mutation. HTML/lab function parity, unique
+IDs, local links/fragments, and the schedule link pass. Chromium checks pass for
+math rendering, figures, nineteen solutions, scoped bulk toggles, checklist
+persistence, group controls, independent clipping thresholds, desktop/390/320 px,
+print widths, and no-JS answer access, with no JavaScript errors. Desktop/mobile
+curves, the native figure crop, scheduling diagram, and expanded print pages were
+visually reviewed. The expanded print rendering is 17 pages after the figure additions. Existing #20 and
+the user-modified source PDF are preserved.
+
+
+### Handout 21: missing-content review
+
+Confirmed coverage of slides 67–91 and added brief explanations of the group-size
+versus prompt-coverage tradeoff, EOS versus budget truncation (including reward,
+mask, and denominator conventions), and policy changes within one generated
+response. Expanded the GRPO acronym, distinguished zero gradient from optimizer
+motion, added the standalone excerpt's math import, and ordered section 3's
+exercise labels. The nineteen-question practice structure is unchanged.
+
+Validation after these additions: CPU checks, HTML/lab function parity, local
+links/fragments, unique IDs, and all browser checks pass again. The changed
+truncation and mixed-policy print pages were visually reviewed; no horizontal
+overflow occurs at desktop/mobile/print widths.
+
+
+### Handout 21: native-resolution pipeline figures
+
+Added the PPO-versus-GRPO training-flow figure from slide 70 (2718x1130
+caption-free crop; original DeepSeekMath Figure 4), with a notation warning
+that its r labels are rewards. Added slide 83's distributed sampler/verifier/
+learner diagram as its native 1983x793 JPEG, with a caption distinguishing
+communication paths from scheduling. Both link to local full-resolution assets;
+source attribution and exact extraction details are in images/grpo/SOURCES.txt.
+Moved Alignment: failures/open questions from course session #21 to #22 while
+preserving #22's existing long-context topics.
+
+Figure validation: native images load, browser math/controls and all 19 solutions
+pass at desktop/390/320 px, and print widths pass. Both new figure pages were
+visually reviewed. Schedule assertions confirm alignment appears only in #22
+and its existing positional-encoding topic is retained.
