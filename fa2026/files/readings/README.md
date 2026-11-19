@@ -1128,3 +1128,69 @@ The evidence exercise, coding setup, complete code excerpt, result table, and
 final source page were visually reviewed in the final 17-page print proof.
 The standard-library lab and imported helpers are separate, so the original
 lightweight exercise retains its dependency-free path.
+
+### Handout 23: mid-training and context extension
+
+`23.midtraining.html` accompanies session #23 (Thu Nov 19) and the full
+`20-21.midtraining.pdf` deck. Its core reading covers next-token mid-training,
+absolute/relative positional mechanisms, RoPE's relative-offset derivation,
+pairwise implementation and cached positions, linear position interpolation,
+context-extension recipes, required compute/memory accounting, replay mixtures,
+and basic length/position retrieval evaluation. A constructed 4K-to-16K recipe
+connects positions, batch costs, cache memory, token allocation, and evaluation.
+
+Bonus labels in the working deck are mapped explicitly: printed 9, 20–22, 38,
+49–51, and 58–60. All their extensions are collected in section 9, with
+"Optional bonus" in every subsection heading and disclosure summary. Four
+bonus questions are labeled optional and kept separate from the five-question,
+20-point core practice set. The core goals, derivations, and quiz do not require
+bonus content. Section 8's standard-library lab is optional to run, while its
+implementation ideas remain core. Its default command runs core checks only;
+`--bonus` explicitly enables additional optional checks.
+
+The text qualifies causal-mask versus unmasked permutation symmetry; vector
+norm preservation versus dot-product invariance; exact finite-d frequencies;
+base changes versus uniform PI; per-sequence versus fixed-token-batch costs;
+score-matrix storage versus dense arithmetic; token versus document mixtures;
+and accepted versus trained versus usable context lengths. GLM-4.5's report
+is linked separately from Gemma 3, correcting the deck's GLM citation mismatch.
+Reported recipes are historical examples, not universal defaults.
+
+Two native slide assets are retained with extraction details and attribution
+in `images/midtraining/SOURCES.txt`. The main retrieval figure isolates the PI
+panel with shared tick labels to make the core axes and boundary readable;
+it links the unchanged full comparison, whose other method derivations are
+optional. An offline explorer shows two unit-vector rotation pairs and exact
+raw/scaled dots under joint shifts and PI, without implying trained-model
+performance. The course #23 row links the handout.
+
+Validation: `python3 labs/23_midtraining_checks.py` passes dense-matrix/pairwise
+parity, norm preservation, relative offsets, joint shifts, PI, cached/full
+scores, a double-rotation bug, costs, mixtures/perplexity, evaluation arithmetic,
+invalid inputs, and a mutated non-orthogonal map. Running with `--bonus` also
+passes optional wavelength and stage-denominator checks. The displayed function
+matches the lab by AST. Local assets/fragments, unique IDs, course linkage, and
+core/bonus exercise separation pass. Chromium passes 36 independent explorer
+fixtures (scores, arrows, unit radii), answer toggles, checklist persistence,
+math and images, desktop/390/320 px, print widths and no-JS access, with no JS
+errors or remote asset requests. All 21 exercises have solutions: 16 in the
+core reading/practice, one optional lab question, and four optional bonus
+questions. Desktop/mobile screenshots, the focused figure, capstone, and bonus
+labels in the expanded 17-page print proof were visually reviewed. The user's
+modified source deck remains outside these edits.
+
+
+Adapted two ideas from the instructor-supplied *Mid-Training and Long Context*
+self-study summary: a core same-sequence loss-mask comparison and an explicitly
+optional frequency-spectrum explorer in §9.2. Both use local HTML/CSS/JS and
+require no network assets. The masking example distinguishes direct target-loss
+terms from gradients through prompt representations; its static table remains
+available in print and without JavaScript. The spectrum compares exact uniform
+PI and base-change formulas without phase-coverage or model-performance claims.
+Provenance and source-file SHA-256 are recorded in `images/midtraining/SOURCES.txt`.
+
+Additional validation: six masking fixtures, 108 spectrum configurations checked
+against independent formulas, finite-difference prompt-gradient check, and bonus
+wavelength-ratio checks. Mobile/desktop screenshots and the updated print proof
+were reviewed; all previous browser/lab checks still pass. Bonus material remains
+outside the core timed practice set.

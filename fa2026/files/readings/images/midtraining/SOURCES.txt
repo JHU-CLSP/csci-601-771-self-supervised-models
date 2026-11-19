@@ -1,0 +1,35 @@
+Handout 23 visual sources
+
+23-rope-pairs.jpg: native 1672x941 JPEG, PDF/printed slide 15, image
+object 142 of 20-21.midtraining.pdf; extracted without re-encoding via pdfimages -j.
+The slide links https://pub.sakana.ai/DroPE/ as further visualization; no
+separate image-author credit appears on the slide.
+
+23-needle-heatmaps.png: native 1404x830 image object 358, extracted from
+PDF page 53 (unnumbered continuation after printed 56) via pdfimages -png.
+The original image includes nine panels, while the slide displays a crop.
+Original source: Lu et al., A Controlled Study on Long Context Extension and
+Generalization in LLMs, Figure 1, https://arxiv.org/html/2409.12181v2
+Core caption only requires reading axes/boundaries; named-method derivations
+remain optional bonus. The full native image is linked for inspection.
+
+Interactive pair rotations: original deterministic SVG/math rendering, fixed
+content q=k=(1,0,1,0), d=4, B=100; no pretrained model or empirical claims.
+
+23-needle-pi.png: core-readable PI panel composed without resampling from
+23-needle-heatmaps.png. Left shared ticks: crop (0,0,62,280); PI panel:
+crop (960,0,1404,280), pasted at x=62. Output 506x280. Caption defines
+both axes and links the unchanged full native image. The crop foregrounds
+the core PI example without requiring optional method-family derivations.
+The unused x=0..26 strip of the shared-label crop is cleared to remove a
+partial vertical title; the HTML caption supplies the complete axis label.
+
+Adapted interactive ideas and explanations:
+Instructor-supplied mid-training-and-long-context.html, titled Mid-Training
+and Long Context, November 2026. SHA256: ea46c0111d7ab17778ee4cc17ccc93f5515ea31deff0cf33d6e6f01fb5d48cbd
+The loss-mask and frequency-spectrum concepts are reimplemented in the course
+HTML/JS, using local styling and no external fonts, math runtime, or assets.
+The masking toy is simplified and distinguishes direct target-loss exclusion
+from gradients through context. Spectrum controls compare only exact PI/base
+formulas and do not label unseen phase ranges as empirical model failure.
+Model leaderboards/recipe tables from the summary were not imported.
