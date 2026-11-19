@@ -1,0 +1,18 @@
+Handout 22 visual sources
+
+22-coastrunners.jpg: native 1600x1200 JPEG extracted with pdfimages -j
+from PDF page/printed slide 94 (image object 649) of 14-15.post-training.pdf.
+Slide credits OpenAI, Faulty reward functions in the wild (2016):
+https://openai.com/index/faulty-reward-functions/
+Caption explains that the still alone does not demonstrate repeated behavior.
+
+22-reward-overoptimization.jpg: native 1110x792 JPEG, image object 664,
+PDF page/printed slide 96. Verified original: Stiennon et al. (2020),
+Learning to summarize from human feedback, section 4.3, Figure 5.
+https://arxiv.org/html/2009.01325v3#S4.SS3
+Slide footer instead cites Gao et al. (2022); that paper's distinct study
+uses a synthetic gold model, not direct human labels. HTML keeps these separate.
+
+Interactive selection display: original deterministic two-response toy, not
+empirical data. Assumptions, closed forms, static values, and CPU checks are
+in the HTML and labs/22_alignment_checks.py. All visuals work offline.

@@ -1050,3 +1050,81 @@ Figure validation: native images load, browser math/controls and all 19 solution
 pass at desktop/390/320 px, and print widths pass. Both new figure pages were
 visually reviewed. Schedule assertions confirm alignment appears only in #22
 and its existing positional-encoding topic is retained.
+
+
+### Handout 22: alignment failures and open questions (Tue Nov 17)
+
+`22.alignment-failures.html` covers the remainder of the post-training deck:
+printed slides 92–98 and 101–113, PDF pages 92–111. The existing GRPO handout
+#21 is preserved. The schedule's class #22 placeholder now links this handout.
+Core material takes 45–60 minutes; a 20-point, 20–25 minute practice set has
+explicit marking guides, including criteria for grading open discussion.
+
+The reading separates intended outcomes, proxy rewards, ordinary capability
+errors, reward hacking, evaluator tampering, and causal evidence. A complete
+two-response counterexample compares a fixed generator, best-of-N selection,
+and the exact optimum of a proxy-minus-KL objective. It derives selection
+probabilities and the regularized optimum, with required generation/scoring,
+latency, memory, and audit-cost accounting. A local interactive explorer shows
+returned-output probabilities, proxy reward, correctness, and KL. Static tables
+and derivations remain available in print and without JavaScript.
+
+The wider alignment discussion connects HHH criteria, fictional Asimov rules,
+classroom/social incentives, moral uncertainty, and institutional decision
+processes. The text distinguishes arithmetic under a criterion from choosing
+that criterion. Twenty predict-first questions include independently
+revealable solutions; no moral stance is required by the discussion rubrics.
+The optional standard-library lab verifies arithmetic and demonstrates a gap
+in positive-only program tests.
+
+Two native slide JPEGs are retained locally, with attribution recorded in
+`images/alignment-failures/SOURCES.txt`. The orange human-preference graph on
+slide 96 is verified as Stiennon et al. (2020), Figure 5, rather than the distinct
+Gao et al. (2022) synthetic gold-model study cited in the slide footer. The HHH
+paper is cited with its original December 2021 date. The 2026 incident example
+is attributed to the August 26 report, separating observed behavior, inferred
+incentives, and generalization claims; no post-lecture developments are needed.
+
+Validation: `python3 labs/22_alignment_checks.py` passes 32 independently
+enumerated candidate-pool cases, best-of-N fixtures and limits, input validation,
+KL stationary-point/grid checks, quiz/cost/weighting arithmetic, and a verifier
+counterexample. Chromium passes 48 independent explorer configurations, all
+scores/KL values, labeled bar proportions, twenty solutions, scoped toggles,
+checklist persistence, math rendering, and local figures. Desktop/390/320 px,
+print widths, and no-JS disclosure access pass, with no JavaScript errors or
+remote asset requests. Local assets/fragments, unique IDs, HTML/lab function
+parity, and the course #22 link pass. Desktop/mobile screenshots and expanded
+print pages were visually reviewed; the print proof is 17 pages. The user's
+modified mid-training slide PDF is outside this change.
+
+
+### Handout 22: final correctness and tightening pass
+
+Shortened repeated qualifications about Goodhart, evidence types, style bias,
+reported incidents, and institutional analogies. Added one evidence exercise
+showing an aggregate gain with a rare-category regression, and the probability
+of zero observations under an assumed nonzero failure rate. The calculation
+is explicitly distinguished from a confidence bound; its independence
+assumption is stated. The 20-point timed set is unchanged.
+
+The optional `labs/22_reward_audit_torch.py` imports #20's existing clipped
+policy loss and #21's group-advantage helper. Two deterministic SGD steps on a
+frozen balanced batch compare correctness rewards, a reversed proxy, and the
+proxy plus exact reference KL. Current-policy metrics are separated from
+stored-batch averages. The text distinguishes the balanced reference and
+group-normalized surrogate from the earlier exact distribution-level example.
+The standard-library lab remains runnable without PyTorch.
+
+Both CPU labs pass. The PyTorch experiment checks the analytic first-step
+probability, stored-data detachment, saturated task gradients, zero initial
+KL gradient, and the second-step exact KL derivative. All four output rows
+match the handout table. The evidence exercise's arithmetic is checked in
+the standard-library lab. Browser QA passes 48 explorer configurations, all
+20 solutions, scoped toggles, persistence, math/figures, desktop/390/320 px,
+print and no-JS access with no JS errors or remote asset requests. Local
+assets/fragments and the standard-library excerpt's AST parity pass.
+
+The evidence exercise, coding setup, complete code excerpt, result table, and
+final source page were visually reviewed in the final 17-page print proof.
+The standard-library lab and imported helpers are separate, so the original
+lightweight exercise retains its dependency-free path.
